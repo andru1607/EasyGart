@@ -23,6 +23,11 @@ Questa demo salva dati **soltanto nel browser locale** con localStorage. **Non h
 
 L'obiettivo è creare **un database Supabase separato**, configurare Auth e regole RLS per azienda, archiviazione privata per foto/firme, timbrature lato server, fatture e documenti. Le migrazioni pregresse v0.3.1 non sono state applicate a un database verificato: prima della pubblicazione con dati reali vanno testate con account di aziende differenti e controllate per sicurezza.
 
-## File di preparazione precedenti
+## Pubblicazione alternativa su Vercel
 
-Il file `api/db-health.js` e `.env.example` provengono da una sperimentazione Neon non attiva; il frontend dimostrativo non li utilizza. **Non inserire mai credenziali nel repository**. Nessun database esterno è collegato alla demo.
+1. Aprire `https://vercel.com/new` con account `alex's projects`.
+2. Selezionare **Import Git Repository** e il repository `andru1607/EasyGart`.
+3. Lasciare framework **Other**, directory radice `./`, build command vuoto, output directory predefinita.
+4. Selezionare **Deploy**. Non sono richieste variabili d'ambiente per la demo.
+
+L'app è un singolo `index.html` statico: non servono pacchetti, API Neon o comandi di build. La prossima integrazione cloud sarà **Supabase**, con credenziali server-side o chiavi publishable e regole RLS rigorose per la versione multiutente. Non inserire chiavi segrete nei file pubblici.
