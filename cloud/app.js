@@ -243,7 +243,7 @@ async function submitForm(form){
     }
     case 'invite':{
       if(!memberIsOwner())throw Error('Permesso negato');
-      requireSuccess(await client.from('eg_invites').insert({company_id:selectedCompanyId,invited_by:user.id,email:String(vals.email||'').trim().toLowerCase()}).select('id').single());
+      requireSuccess(await client.rpc('eg_invite_worker',{p_company_id:selectedCompanyId,p_email:String(vals.email||'').trim().toLowerCase()}));
       await refresh();notice='Invito registrato. Condividi il link del portale con il dipendente.';errorNotice=false;render();break;
     }
     case 'task':{
