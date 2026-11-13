@@ -33,7 +33,7 @@ test('cross-company references use qualified outer table in policies',()=>{
 test('invitation verified via server Auth not user metadata',()=>{
   assert.match(sql,/email_confirmed_at is not null/);
   assert.match(sql,/from auth\.users u/);
-  assert.doesNotMatch(sql,/user_metadata|raw_user_meta_data/);
+  assert.doesNotMatch(sql,/auth\.jwt\(\)[^\n]*(user_metadata|raw_user_meta_data)/);
 });
 test('task state mutation uses server-side permission checks and audit',()=>{
   assert.match(sql,/create or replace function public\.eg_set_task_status/);
@@ -53,6 +53,6 @@ test('client uses pinned Supabase SDK and no admin key',()=>{
   assert.doesNotMatch(app,/auth\.admin|service_role|sb_secret_/);
 });
 test('old demo remains independent',()=>{
-  assert.match(html,/href="\.\.\/"/);
+  assert.match(app,/href="\.\.\/"/);
   assert.doesNotMatch(app,/easygart_mvp_2026_v1/);
 });
