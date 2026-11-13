@@ -151,7 +151,7 @@ create policy eg_members_read on public.eg_members for select to authenticated
 create policy eg_clients_read on public.eg_clients for select to authenticated
   using(private.eg_is_owner(company_id) or (
     private.eg_is_member(company_id) and exists(
-      select 1 from public.eg_tasks t where t.client_id=id and t.company_id=company_id and t.assignee_id=(select auth.uid())
+      select 1 from public.eg_tasks t where t.client_id=eg_clients.id and t.company_id=eg_clients.company_id and t.assignee_id=(select auth.uid())
     )));
 create policy eg_clients_write on public.eg_clients for insert to authenticated
   with check(private.eg_is_owner(company_id));
@@ -160,7 +160,7 @@ create policy eg_clients_edit on public.eg_clients for update to authenticated
 create policy eg_sites_read on public.eg_sites for select to authenticated
   using(private.eg_is_owner(company_id) or (
     private.eg_is_member(company_id) and exists(
-      select 1 from public.eg_tasks t where t.site_id=id and t.company_id=company_id and t.assignee_id=(select auth.uid())
+      select 1 from public.eg_tasks t where t.site_id=eg_sites.id and t.company_id=eg_sites.company_id and t.assignee_id=(select auth.uid())
     )));
 create policy eg_sites_write on public.eg_sites for insert to authenticated
   with check(private.eg_is_owner(company_id));
@@ -188,7 +188,7 @@ create policy eg_invites_create on public.eg_invites for insert to authenticated
 create policy eg_task_events_read on public.eg_task_events for select to authenticated
   using(private.eg_is_owner(company_id) or (
     private.eg_is_member(company_id) and exists(
-      select 1 from public.eg_tasks t where t.id=task_id and t.company_id=company_id
+      select 1 from public.eg_tasks t where t.id=eg_task_events.task_id and t.company_id=eg_task_events.company_id
       and t.assignee_id=(select auth.uid())
     )));
 
