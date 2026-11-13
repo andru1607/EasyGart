@@ -181,6 +181,29 @@
     setTaskState(id, task.done ? 'assigned' : 'done');
   };
 
+  const previousReports = reports;
+  reports = function () {
+    if (isOwner()) return previousReports();
+    let own = data.reports.filter(r => r.staffId === currentStaffId);
+    if (search) {
+      const q = search.toLocaleLowerCase();
+      own = own.filter(r => [r.description, name('clients',r.clientId)].join(' ').toLocaleLowerCase().includes(q));
+    }
+    own.sort((a,b) => b.date.localeCompare(a.date));
+    return pageHeader('I miei rapporti', 'Visualizzi soltanto i rapporti che hai registrato.',
+      btn(icon('plus') + ' Nuovo rapporto', 'open:report', 'primary')) +
+      '<div class="filters"><input class="input" id="search" placeholder="Cerca rapporto o cliente..." value="' + esc(search) + '"></div>' +
+      '<div class="three-col">' + (own.length ? own.map(r =>
+        '<div class="card job-card"><div class="job-top"><div><div class="eyebrow">' + fmtDate(r.date) +
+        '</div><h2>' + esc(name('clients',r.clientId)) + '</h2></div>' +
+        badge(r.status === 'approved' ? '' : 'amber', r.status === 'approved' ? 'Verificato' : 'Bozza') +
+        '</div><p style="min-height:50px">' + esc(r.description || '') + '</p>' +
+        '<div class="job-meta"><span>' + icon('leaf') + esc(name('sites',r.siteId)) +
+        '</span></div><div class="row-actions">' +
+        btn(icon('eye')+' Dettagli', 'view-report', 'secondary', 'data-id="'+esc(r.id)+'"') +
+        '</div></div>').join('') : empty('book','Nessun rapporto personale','Aggiungi il rapporto del lavoro svolto.')) + '</div>';
+  };
+
   const previousDashboard = dashboard;
   dashboard = function () {
     if (isOwner()) return previousDashboard();
@@ -257,7 +280,8 @@
     'Cerca attività o cliente...':'Aufgabe oder Kunde suchen...',
     'I miei compiti':'Meine Aufgaben','Il mio lavoro':'Meine Arbeit',
     'Prossimi interventi':'Nächste Einsätze','Apri tutti i compiti':'Alle Aufgaben öffnen',
-    'Compiti della squadra':'Teamaufgaben','Nessun incarico':'Keine Aufgaben'
+    'Compiti della squadra':'Teamaufgaben','Nessun incarico':'Keine Aufgaben','I miei rapporti':'Meine Berichte',
+    'Visualizzi soltanto i rapporti che hai registrato.':'Du siehst nur deine eigenen Berichte.'
   });
   window.EasyGartTaskDemo = {stateOf,overdue,setTaskState};
   render();
