@@ -1,6 +1,8 @@
 -- EasyGart Cloud MVP v1.0 - schema isolato, eseguire SOLO sul progetto Supabase EasyGart.
 -- Script rieseguibile nel progetto con ref xdwsqkteykjjpzogwocx: tabelle IF NOT EXISTS, policies ricreate.
 -- Non eseguire su SINDRU, Nexo o altri progetti. Non ancora collaudato su DB remoto.
+-- Migrazione in un'unica transazione: se fallisce, tutte le modifiche di questa esecuzione vengono annullate.
+begin;
 create extension if not exists pgcrypto;
 create schema if not exists private;
 revoke all on schema private from public, anon;
@@ -319,3 +321,4 @@ grant execute on function public.eg_set_worker_active(uuid,uuid,boolean) to auth
 -- Check extra: nessun progetto legacy toccato; niente service_role nell'app client.
 -- Prima dell'uso reale verificare RLS con due aziende e account differenti, lock,
 -- invite scaduti, revoche dipendenti e modifiche concorrenti.
+commit;
