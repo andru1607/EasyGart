@@ -1,0 +1,24 @@
+name: EasyGart Cloud static checks
+on:
+  push:
+    paths:
+      - 'cloud/**'
+      - 'supabase/**'
+      - 'tests/cloud-static.test.mjs'
+      - '.github/workflows/cloud-checks.yml'
+  pull_request:
+    paths:
+      - 'cloud/**'
+      - 'supabase/**'
+      - 'tests/cloud-static.test.mjs'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check Cloud JS and SQL/RLS invariants
+        run: node --test tests/cloud-static.test.mjs
