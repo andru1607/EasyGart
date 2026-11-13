@@ -180,7 +180,7 @@ function teamMarkup(){
     '<button type="submit" class="primary">'+t('Invia invito')+'</button></form>'+
     '<p class="muted" style="font-size:12px">Link di accesso: '+esc(location.origin+location.pathname)+'</p></div>'+
     '<div class="card stacked"><h2>'+t('La tua squadra')+'</h2>'+
-    (members.length?members.map(m=>'<div class="taskrow"><div><strong>'+esc(m.full_name||'—')+'</strong><p class="muted">'+esc(m.role)+'</p></div><span class="pill">'+(m.active?'Attivo':'Disattivato')+'</span></div>').join(''):'<p>'+t('Nessun dipendente')+'</p>')+
+    (members.length?members.map(m=>'<div class="taskrow"><div><strong>'+esc(m.full_name||'—')+'</strong><p class="muted">'+esc(m.role)+'</p></div><div class="actions"><span class="pill">'+(m.active?'Attivo':'Disattivato')+'</span>'+(m.role==='worker'?'<button class="ghost small" data-action="member-active" data-user="'+esc(m.user_id)+'" data-active="'+(!m.active)+'">'+(m.active?'Disattiva':'Riattiva')+'</button>':'')+'</div></div>').join(''):'<p>'+t('Nessun dipendente')+'</p>')+
     '<h3>'+t('Inviti in attesa')+'</h3>'+
     (invites.filter(i=>!i.claimed_at).length?invites.filter(i=>!i.claimed_at).map(i=>'<p>'+esc(i.email)+' · <small>'+esc(i.expires_at?.slice(0,10))+'</small></p>').join(''):'<p class="muted">Nessun invito</p>')+'</div></div>';
 }
@@ -309,6 +309,14 @@ document.addEventListener('click',e=>{
   if(a==='new-task'){editingTaskId='new';render();return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
   if(a==='cancel-edit'){editingTaskId=null;render();return}
+  if(a==='member-active'){
+    if(!memberIsOwner())return;
+    const member=members.find(m=>m.user_id===b.dataset.user && m.role==='worker');
+    if(!member)return;
+    const enable=b.dataset.active==='true';
+    if(!enable && !confirm('Disattivare il dipendente? Non potrà più accedere ai dati aziendali.'))return;
+    withBusy(async()=>{requireSuccess(await client.rpc('eg_set_worker_active',{p_company_id:selectedCompanyId,p_user_id:member.user_id,p_active:enable}));await refresh()});return;
+  }
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
 });
 document.addEventListener('change',e=>{
