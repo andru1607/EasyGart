@@ -56,3 +56,20 @@ test('old demo remains independent',()=>{
   assert.match(app,/href="\.\.\/"/);
   assert.doesNotMatch(app,/easygart_mvp_2026_v1/);
 });
+
+test('SQL migration has valid paired function delimiters and safe rerun',()=>{
+  assert.match(sql,/\nbegin;\s*\n/);
+  assert.match(sql,/\ncommit;\s*$/);
+  assert.doesNotMatch(sql,/\bas \$(?!\$|[a-zA-Z_])/);
+  const dollars=sql.match(/\$\$/g)||[];
+  assert.equal(dollars.length%2,0,'double-dollar function delimiters must be paired');
+  for(const name of ['eg_invite','eg_worker']){
+    assert.equal(sql.split('$'+name+'$').length-1,2,name+' function tag must be paired');
+  }
+  const policies=[...sql.matchAll(/^create policy (\w+) on (public\.\w+) /gm)];
+  assert.equal(policies.length,16);
+  for(const p of policies){
+    assert.ok(sql.includes('drop policy if exists '+p[1]+' on '+p[2]+';'),
+      p[1]+' must be repeatable');
+  }
+});
