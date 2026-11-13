@@ -1,5 +1,5 @@
 -- EasyGart Cloud MVP v1.0 - schema isolato, eseguire SOLO sul progetto Supabase EasyGart.
--- Eseguire una sola volta nel SQL Editor del progetto con ref xdwsqkteykjjpzogwocx.
+-- Script rieseguibile nel progetto con ref xdwsqkteykjjpzogwocx: tabelle IF NOT EXISTS, policies ricreate.
 -- Non eseguire su SINDRU, Nexo o altri progetti. Non ancora collaudato su DB remoto.
 create extension if not exists pgcrypto;
 create schema if not exists private;
@@ -140,35 +140,47 @@ alter table public.eg_tasks enable row level security;
 alter table public.eg_invites enable row level security;
 alter table public.eg_task_events enable row level security;
 
+drop policy if exists eg_companies_read on public.eg_companies;
 create policy eg_companies_read on public.eg_companies for select to authenticated
   using(private.eg_is_member(id));
+drop policy if exists eg_companies_create on public.eg_companies;
 create policy eg_companies_create on public.eg_companies for insert to authenticated
   with check ((select auth.uid()) = created_by);
+drop policy if exists eg_companies_edit on public.eg_companies;
 create policy eg_companies_edit on public.eg_companies for update to authenticated
   using(private.eg_is_owner(id)) with check(private.eg_is_owner(id) and created_by = (select auth.uid()));
+drop policy if exists eg_members_read on public.eg_members;
 create policy eg_members_read on public.eg_members for select to authenticated
   using ((select auth.uid()) = user_id or private.eg_is_owner(company_id));
+drop policy if exists eg_clients_read on public.eg_clients;
 create policy eg_clients_read on public.eg_clients for select to authenticated
   using(private.eg_is_owner(company_id) or (
     private.eg_is_member(company_id) and exists(
       select 1 from public.eg_tasks t where t.client_id=eg_clients.id and t.company_id=eg_clients.company_id and t.assignee_id=(select auth.uid())
     )));
+drop policy if exists eg_clients_write on public.eg_clients;
 create policy eg_clients_write on public.eg_clients for insert to authenticated
   with check(private.eg_is_owner(company_id));
+drop policy if exists eg_clients_edit on public.eg_clients;
 create policy eg_clients_edit on public.eg_clients for update to authenticated
   using(private.eg_is_owner(company_id)) with check(private.eg_is_owner(company_id));
+drop policy if exists eg_sites_read on public.eg_sites;
 create policy eg_sites_read on public.eg_sites for select to authenticated
   using(private.eg_is_owner(company_id) or (
     private.eg_is_member(company_id) and exists(
       select 1 from public.eg_tasks t where t.site_id=eg_sites.id and t.company_id=eg_sites.company_id and t.assignee_id=(select auth.uid())
     )));
+drop policy if exists eg_sites_write on public.eg_sites;
 create policy eg_sites_write on public.eg_sites for insert to authenticated
   with check(private.eg_is_owner(company_id));
+drop policy if exists eg_sites_edit on public.eg_sites;
 create policy eg_sites_edit on public.eg_sites for update to authenticated
   using(private.eg_is_owner(company_id)) with check(private.eg_is_owner(company_id));
+drop policy if exists eg_tasks_read on public.eg_tasks;
 create policy eg_tasks_read on public.eg_tasks for select to authenticated
   using(private.eg_is_owner(company_id) or
     (private.eg_is_member(company_id) and assignee_id = (select auth.uid())));
+drop policy if exists eg_tasks_write on public.eg_tasks;
 create policy eg_tasks_write on public.eg_tasks for insert to authenticated
   with check(private.eg_is_owner(company_id)
     and assigned_by = (select auth.uid())
@@ -176,15 +188,19 @@ create policy eg_tasks_write on public.eg_tasks for insert to authenticated
     and started_at is null and done_at is null and completed_by is null
     and exists(select 1 from public.eg_members m where m.company_id=eg_tasks.company_id
       and m.user_id=eg_tasks.assignee_id and m.active and m.role='worker'));
+drop policy if exists eg_tasks_edit on public.eg_tasks;
 create policy eg_tasks_edit on public.eg_tasks for update to authenticated
   using(private.eg_is_owner(company_id)) with check(private.eg_is_owner(company_id)
     and exists(select 1 from public.eg_members m where m.company_id=eg_tasks.company_id
       and m.user_id=eg_tasks.assignee_id and m.active and m.role='worker'));
+drop policy if exists eg_invites_read on public.eg_invites;
 create policy eg_invites_read on public.eg_invites for select to authenticated
   using(private.eg_is_owner(company_id));
+drop policy if exists eg_invites_create on public.eg_invites;
 create policy eg_invites_create on public.eg_invites for insert to authenticated
   with check(private.eg_is_owner(company_id) and invited_by=(select auth.uid())
     and claimed_at is null and claimed_by is null and expires_at>now() and expires_at<=now()+interval '7 days');
+drop policy if exists eg_task_events_read on public.eg_task_events;
 create policy eg_task_events_read on public.eg_task_events for select to authenticated
   using(private.eg_is_owner(company_id) or (
     private.eg_is_member(company_id) and exists(
@@ -263,7 +279,7 @@ grant execute on function public.eg_set_task_status(uuid,text) to authenticated;
 -- Reinvio sicuro: il titolare può rinnovare un invito scaduto senza creare duplicati.
 grant usage on schema public to authenticated;
 create or replace function public.eg_invite_worker(p_company_id uuid,p_email text) returns uuid
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $eg_invite$
 declare
   v_uid uuid := auth.uid();
   v_email text := lower(trim(p_email));
@@ -280,14 +296,14 @@ begin
       claimed_at=null,claimed_by=null,created_at=now()
   returning id into v_id;
   return v_id;
-end; $;
+end; $eg_invite$;
 revoke all on function public.eg_invite_worker(uuid,text) from public,anon;
 grant execute on function public.eg_invite_worker(uuid,text) to authenticated;
 
 -- Il titolare può sospendere e riattivare un dipendente senza esporre UPDATE diretto sui ruoli.
 create or replace function public.eg_set_worker_active(
   p_company_id uuid,p_user_id uuid,p_active boolean) returns void
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $eg_worker$
 begin
   if auth.uid() is null or not private.eg_is_owner(p_company_id) then
     raise exception 'Solo il titolare può cambiare lo stato del dipendente';
@@ -296,7 +312,7 @@ begin
     set active=p_active
     where company_id=p_company_id and user_id=p_user_id and role='worker';
   if not found then raise exception 'Dipendente non trovato'; end if;
-end; $;
+end; $eg_worker$;
 revoke all on function public.eg_set_worker_active(uuid,uuid,boolean) from public,anon;
 grant execute on function public.eg_set_worker_active(uuid,uuid,boolean) to authenticated;
 
