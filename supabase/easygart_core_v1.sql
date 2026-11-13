@@ -259,6 +259,31 @@ end; $$;
 revoke all on function public.eg_set_task_status(uuid,text) from public,anon;
 grant execute on function public.eg_set_task_status(uuid,text) to authenticated;
 
+
+-- Reinvio sicuro: il titolare può rinnovare un invito scaduto senza creare duplicati.
+grant usage on schema public to authenticated;
+create or replace function public.eg_invite_worker(p_company_id uuid,p_email text) returns uuid
+language plpgsql security definer set search_path = '' as $
+declare
+  v_uid uuid := auth.uid();
+  v_email text := lower(trim(p_email));
+  v_id uuid;
+begin
+  if v_uid is null or not private.eg_is_owner(p_company_id) then raise exception 'Non autorizzato'; end if;
+  if length(v_email) < 5 or length(v_email) > 200 or position('@' in v_email) < 2 then
+    raise exception 'Email non valida';
+  end if;
+  insert into public.eg_invites(company_id,email,invited_by,expires_at,claimed_at,claimed_by)
+  values(p_company_id,v_email,v_uid,now()+interval '7 days',null,null)
+  on conflict (company_id,email) do update
+  set invited_by=excluded.invited_by,expires_at=excluded.expires_at,
+      claimed_at=null,claimed_by=null,created_at=now()
+  returning id into v_id;
+  return v_id;
+end; $;
+revoke all on function public.eg_invite_worker(uuid,text) from public,anon;
+grant execute on function public.eg_invite_worker(uuid,text) to authenticated;
+
 -- Check extra: nessun progetto legacy toccato; niente service_role nell'app client.
 -- Prima dell'uso reale verificare RLS con due aziende e account differenti, lock,
 -- invite scaduti, revoche dipendenti e modifiche concorrenti.
