@@ -284,6 +284,22 @@ end; $;
 revoke all on function public.eg_invite_worker(uuid,text) from public,anon;
 grant execute on function public.eg_invite_worker(uuid,text) to authenticated;
 
+-- Il titolare può sospendere e riattivare un dipendente senza esporre UPDATE diretto sui ruoli.
+create or replace function public.eg_set_worker_active(
+  p_company_id uuid,p_user_id uuid,p_active boolean) returns void
+language plpgsql security definer set search_path = '' as $
+begin
+  if auth.uid() is null or not private.eg_is_owner(p_company_id) then
+    raise exception 'Solo il titolare può cambiare lo stato del dipendente';
+  end if;
+  update public.eg_members
+    set active=p_active
+    where company_id=p_company_id and user_id=p_user_id and role='worker';
+  if not found then raise exception 'Dipendente non trovato'; end if;
+end; $;
+revoke all on function public.eg_set_worker_active(uuid,uuid,boolean) from public,anon;
+grant execute on function public.eg_set_worker_active(uuid,uuid,boolean) to authenticated;
+
 -- Check extra: nessun progetto legacy toccato; niente service_role nell'app client.
 -- Prima dell'uso reale verificare RLS con due aziende e account differenti, lock,
 -- invite scaduti, revoche dipendenti e modifiche concorrenti.
