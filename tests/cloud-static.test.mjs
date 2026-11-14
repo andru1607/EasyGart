@@ -79,10 +79,35 @@ test('company creation does not request a row before membership trigger',()=>{
   const end=app.indexOf("case 'client':{",start);
   assert.ok(start>0 && end>start,'company handler must exist');
   const handler=app.slice(start,end);
-  assert.match(handler,/\.from\('eg_companies'\)\.insert\(\{name,created_by:user\.id\}\)/);
+  assert.match(handler,/\.from\('eg_companies'\)\.insert\(\{name,created_by:currentUser\.id\}\)/);
   assert.doesNotMatch(handler,/\.insert\(\{name,created_by:user\.id\}\)\s*\.select\(/);
   assert.match(handler,/await refresh\(\)/);
   const policy=sql.match(/create policy eg_companies_create[\s\S]*?;/)?.[0]||'';
   assert.match(policy,/with check \(\(select auth\.uid\(\)\) = created_by\)/);
   assert.match(sql,/create trigger eg_company_add_owner after insert on public\.eg_companies/);
+});
+
+test('company creation checks current authenticated session and preserves draft on RLS failure',()=>{
+  assert.match(app,/client\.auth\.getUser\(\)/);
+  const handler=app.slice(app.indexOf("case 'company':{"),app.indexOf("case 'client':{"));
+  assert.match(handler,/pendingCompanyName=name/);
+  assert.match(handler,/created_by:currentUser\.id/);
+  assert.match(handler,/pendingCompanyName='';companyPolicyError=false/);
+  assert.match(app,/easygart_company_creation_fix\.sql/);
+  assert.match(app,/row\.level security\|42501/i);
+});
+
+test('RLS company repair migration preserves tenant isolation and restores owner bootstrap',()=>{
+  const fix=readFileSync(new URL('../supabase/easygart_company_creation_fix.sql',import.meta.url),'utf8');
+  assert.match(fix,/^begin;/m);
+  assert.match(fix,/^commit;/m);
+  assert.match(fix,/created_by = \(select auth\.uid\(\)\)/);
+  assert.match(fix,/using \(private\.eg_is_member\(id\)\)/);
+  assert.match(fix,/using \(private\.eg_is_owner\(id\)\)/);
+  assert.match(fix,/revoke all on public\.eg_companies from anon;/);
+  assert.match(fix,/create trigger eg_company_add_owner[\s\S]*?after insert on public\.eg_companies/);
+  assert.match(fix,/on conflict \(company_id,user_id\) do nothing/);
+  assert.doesNotMatch(fix,/disable row level security|using\s*\(\s*true\s*\)/i);
+  assert.equal(fix.split('$eg_preflight$').length-1,2);
+  assert.equal(fix.split('$eg_owner_trigger$').length-1,2);
 });
