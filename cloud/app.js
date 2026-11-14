@@ -363,6 +363,46 @@ async function submitForm(form,formAction='draft'){
       requireSuccess(await client.rpc('eg_invite_worker',{p_company_id:selectedCompanyId,p_email:String(vals.email||'').trim().toLowerCase()}));
       await refresh();notice='Invito registrato. Condividi il link del portale con il dipendente.';errorNotice=false;render();break;
     }
+    case 'daily-report':{
+      if(memberIsOwner())throw Error('Il rapporto giornaliero viene compilato dal dipendente');
+      if(!reportsReady)throw Error('La migrazione dei rapporti non è stata attivata');
+      const task=tasks.find(x=>x.id===vals.task_id&&x.assignee_id===user.id);
+      if(!task)throw Error('Scegli un compito assegnato a te');
+      const old=reportEditingId==='new'?null:dailyReports.find(r=>r.id===reportEditingId);
+      if(reportEditingId!=='new'&&(!old||old.created_by!==user.id||
+         !['draft','changes_requested'].includes(old.status)))throw Error('Rapporto non modificabile');
+      const send=formAction==='send';
+      if(send && (String(vals.work_summary||'').trim().length<10 || Number(vals.minutes_worked)<1)){
+        throw Error('Prima di inviare indica durata effettiva e almeno 10 caratteri di descrizione');
+      }
+      requireSuccess(await client.rpc('eg_save_daily_report',{
+        p_report_id:old?.id||null,
+        p_task_id:task.id,
+        p_work_date:vals.work_date,
+        p_minutes_worked:Number(vals.minutes_worked),
+        p_work_summary:String(vals.work_summary||''),
+        p_materials_used:String(vals.materials_used||''),
+        p_issues:String(vals.issues||''),
+        p_send:send
+      }));
+      reportEditingId=null;
+      await refresh();
+      notice=send?'Rapporto inviato al titolare.':'Bozza salvata.';
+      errorNotice=false;render();break;
+    }
+    case 'daily-review':{
+      if(!memberIsOwner())throw Error('Solo il titolare può verificare i rapporti');
+      const report=dailyReports.find(r=>r.id===vals.report_id&&r.status==='submitted');
+      if(!report)throw Error('Rapporto non più in attesa di verifica');
+      if(!['approved','changes_requested'].includes(formAction))throw Error('Decisione non valida');
+      const feedback=String(vals.feedback||'').trim();
+      if(formAction==='changes_requested'&&feedback.length<5)throw Error('Indica almeno 5 caratteri sulle modifiche richieste');
+      requireSuccess(await client.rpc('eg_review_daily_report',{
+        p_report_id:report.id,p_action:formAction,p_feedback:feedback
+      }));
+      await refresh();notice=formAction==='approved'?'Rapporto approvato.':'Richiesta di correzione inviata al dipendente.';
+      errorNotice=false;render();break;
+    }
     case 'task':{
       if(!memberIsOwner())throw Error('Permesso negato');
       const target=members.find(m=>m.user_id===vals.assignee_id&&m.active&&m.role==='worker');
@@ -423,6 +463,18 @@ document.addEventListener('click',e=>{
   if(a==='refresh'){withBusy(refresh);return}
   if(a==='signout'){withBusy(async()=>{requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
+  if(a==='report-new'){
+    if(memberIsOwner()||!reportsReady)return;
+    reportEditingId='new';render();return;
+  }
+  if(a==='report-edit'){
+    if(memberIsOwner()||!reportsReady)return;
+    const report=dailyReports.find(r=>r.id===b.dataset.id&&r.created_by===user.id&&
+      ['draft','changes_requested'].includes(r.status));
+    if(!report)return;
+    reportEditingId=report.id;render();return;
+  }
+  if(a==='report-cancel'){reportEditingId=null;render();return}
   if(a==='new-task'){editingTaskId='new';render();return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
   if(a==='cancel-edit'){editingTaskId=null;render();return}
@@ -439,6 +491,8 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',e=>{
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';localStorage.setItem(localeKey,locale);render();return}
   if(e.target.id==='company-select'){selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+  if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;render();return}
+  if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;render();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;render();return}
   if(e.target.id==='task-client'){
     const s=$('task-site');if(!s)return;
