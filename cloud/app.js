@@ -345,7 +345,9 @@ async function submitForm(form,formAction='draft'){
     case 'company':{
       const name=String(vals.name||'').trim();
       if(name.length<2)throw Error('Il nome deve contenere almeno 2 caratteri.');
-      requireSuccess(await client.from('eg_companies').insert({name,created_by:user.id}).select('id').single());
+      // Nessun RETURNING: durante INSERT il trigger AFTER INSERT non ha ancora creato
+      // eg_members; il SELECT RLS richiede già l'appartenenza e blocca RETURNING.
+      requireSuccess(await client.from('eg_companies').insert({name,created_by:user.id}));
       await refresh();break;
     }
     case 'client':{
