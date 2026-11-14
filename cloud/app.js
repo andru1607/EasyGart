@@ -178,6 +178,99 @@ function taskFormMarkup(){
     '<label class="field span2">'+t('Istruzioni')+'<textarea name="instructions" maxlength="4000">'+esc(task.instructions||'')+'</textarea></label>'+
     '<div class="span2 actions"><button class="primary" type="submit">'+t(editingTaskId==='new'?'Salva compito':'Salva modifiche')+'</button></div></form></div>';
 }
+function reportStatusLabel(report){
+  return {draft:'Bozza',submitted:'Inviato',approved:'Approvato',changes_requested:'Correzioni richieste'}[report.status]||report.status;
+}
+function formatReportMinutes(value){
+  const n=Number(value)||0;
+  return Math.floor(n/60)+' h '+String(n%60).padStart(2,'0')+' min';
+}
+function reportsMarkup(){
+  const owner=memberIsOwner();
+  if(!reportsReady){
+    return '<div class="view-head"><div><h2>'+t('Rapporti giornalieri')+'</h2></div></div>'+
+      '<div class="alert warn">La funzione rapporti non è ancora attiva nel database. Esegui la migrazione aggiuntiva '+
+      '<a target="_blank" rel="noopener noreferrer" href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_daily_reports_v1.sql">easygart_daily_reports_v1.sql</a> '+
+      'nel progetto Supabase EasyGart. <span class="muted">'+esc(reportsSetupError)+'</span></div>';
+  }
+  let visible=dailyReports.filter(r=>owner||r.created_by===user.id);
+  if(owner && selectedReportWorkerId!=='all')visible=visible.filter(r=>r.created_by===selectedReportWorkerId);
+  if(reportStatusFilter!=='all')visible=visible.filter(r=>r.status===reportStatusFilter);
+  visible.sort((a,b)=>b.work_date.localeCompare(a.work_date)||b.created_at.localeCompare(a.created_at));
+  const pending=visible.filter(r=>r.status==='submitted').length;
+  const corrections=visible.filter(r=>r.status==='changes_requested').length;
+  const done=visible.filter(r=>r.status==='approved').length;
+  const header= '<div class="view-head"><div><h2>'+t(owner?'Rapporti ricevuti':'I miei rapporti')+'</h2>'+
+    '<p class="muted">'+(owner?'Controlla quanto svolto sul campo e approva i rapporti ricevuti.':'Racconta al titolare il lavoro svolto ogni giorno.')+'</p></div>'+
+    (!owner?'<button class="primary" data-action="report-new">+ '+t('Nuovo rapporto')+'</button>':'')+'</div>';
+  const counts='<div class="grid" style="margin-bottom:18px">'+
+    '<div class="card metric"><span>'+t('Da verificare')+'</span><strong>'+pending+'</strong></div>'+
+    '<div class="card metric"><span>'+t('Correzioni richieste')+'</span><strong>'+corrections+'</strong></div>'+
+    '<div class="card metric"><span>'+t('Approvati')+'</span><strong>'+done+'</strong></div></div>';
+  const statusChoices=[['all','Tutti gli stati'],['draft','Bozza'],['submitted','Inviato'],['changes_requested','Correzioni richieste'],['approved','Approvato']];
+  const filters='<div class="card" style="margin-bottom:16px"><div class="toolbar">'+
+    '<label class="field" style="flex:1;min-width:145px"><span>Stato</span><select id="report-status-filter">'+
+    statusChoices.map(([value,label])=>option(value,tr(label),reportStatusFilter===value)).join('')+'</select></label>'+
+    (owner?'<label class="field" style="flex:1;min-width:145px"><span>'+t('Dipendente')+'</span><select id="report-worker-filter">'+
+      option('all',tr('Tutti gli operatori'),selectedReportWorkerId==='all')+
+      members.filter(m=>m.role==='worker').map(m=>option(m.user_id,m.full_name||'Operatore',selectedReportWorkerId===m.user_id)).join('')+'</select></label>':'')+
+    '</div></div>';
+  return header+counts+filters+
+    (!owner&&reportEditingId!==null?reportFormMarkup():'')+
+    '<section class="card"><div class="cardhead"><h2>'+t('Rapporti giornalieri')+'</h2><span class="pill">'+visible.length+'</span></div>'+
+    (visible.length?visible.map(r=>reportCardMarkup(r,owner)).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section>';
+}
+function reportFormMarkup(){
+  const report=dailyReports.find(r=>r.id===reportEditingId)||null;
+  if(reportEditingId!=='new'&&(!report||report.created_by!==user.id||
+     !['draft','changes_requested'].includes(report.status)))return '';
+  const ownTasks=tasks.filter(task=>task.assignee_id===user.id);
+  if(!ownTasks.length)return '<div class="alert warn" style="margin-bottom:16px">Per compilare il rapporto serve un compito assegnato dal titolare.</div>';
+  const taskId=report?.task_id||ownTasks[0]?.id;
+  const task=ownTasks.find(x=>x.id===taskId);
+  const taskInput=report
+    ? '<div class="field"><span>'+t('Compiti')+'</span><strong>'+esc(task?.title||'Attività non più assegnata')+'</strong><input type="hidden" name="task_id" value="'+esc(taskId)+'"></div>'
+    : select('Compiti','task_id',ownTasks.map(x=>option(x.id,x.title+(x.due_date?' · '+x.due_date:''),x.id===taskId)).join(''),'required');
+  return '<div class="card stacked" style="margin-bottom:18px"><div class="cardhead"><div><div class="eyebrow">EasyGart Cloud</div><h2>'+t(report?'Modifica':'Nuovo rapporto')+'</h2>'+
+    '<p class="muted">Completa il rapporto e invialo al titolare. Dopo l’invio non è più modificabile finché non vengono richieste correzioni.</p></div>'+
+    '<button class="ghost small" data-action="report-cancel">'+t('Annulla')+'</button></div>'+
+    (report?.manager_feedback?'<div class="alert warn"><strong>'+t('Feedback del titolare')+': </strong>'+esc(report.manager_feedback)+'</div>':'')+
+    '<form data-form="daily-report" class="formgrid">'+
+    taskInput+
+    field('Data','work_date','date',report?.work_date||dateToday(),'required')+
+    field('Ore effettive (minuti)','minutes_worked','number',report?.minutes_worked??'','min="0" max="1440" required')+
+    '<label class="field span2"><span>'+t('Lavoro svolto')+' *</span><textarea name="work_summary" maxlength="6000" rows="5" placeholder="Descrivi in modo preciso gli interventi effettuati…">'+esc(report?.work_summary||'')+'</textarea></label>'+
+    '<label class="field span2"><span>'+t('Materiali utilizzati')+'</span><textarea name="materials_used" maxlength="4000" rows="2" placeholder="Tipi e quantità di materiale, se presenti">'+esc(report?.materials_used||'')+'</textarea></label>'+
+    '<label class="field span2"><span>'+t('Problemi e imprevisti')+'</span><textarea name="issues" maxlength="4000" rows="2" placeholder="Anomalie, interventi rimandati, comunicazioni importanti">'+esc(report?.issues||'')+'</textarea></label>'+
+    '<div class="span2 actions"><button class="ghost" type="submit" value="draft">'+t('Salva bozza')+'</button>'+
+    '<button class="primary" type="submit" value="send">'+t('Invia al titolare')+'</button></div></form>'+
+    '<p class="muted" style="font-size:12px">Le indicazioni sui materiali sono un riepilogo operativo e non generano addebiti o fatture automatiche.</p></div>';
+}
+function reportCardMarkup(report,owner){
+  const task=tasks.find(x=>x.id===report.task_id);
+  const isPending=report.status==='submitted';
+  const tone=isPending?'amber':report.status==='changes_requested'?'red':'';
+  const title=task?.title||'Intervento';
+  return '<article class="taskrow"><div style="flex:1;min-width:180px">'+
+    '<div class="task-title">'+esc(title)+'</div>'+
+    '<div class="task-meta"><span>'+esc(report.work_date)+'</span>'+
+    (owner?'<span>'+esc(getWorkerName(report.created_by))+'</span>':'')+
+    '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
+    '<span>'+esc(getName(clients,task?.client_id))+'</span>'+
+    '<span>'+esc(getName(sites,task?.site_id))+'</span></div>'+
+    '<p class="task-note">'+esc(report.work_summary||'Descrizione non ancora compilata')+'</p>'+
+    (report.materials_used?'<p class="task-note"><strong>'+t('Materiali utilizzati')+': </strong>'+esc(report.materials_used)+'</p>':'')+
+    (report.issues?'<p class="task-note"><strong>'+t('Problemi e imprevisti')+': </strong>'+esc(report.issues)+'</p>':'')+
+    (report.manager_feedback?'<div class="alert warn" style="margin-top:12px"><strong>'+t('Feedback del titolare')+': </strong>'+esc(report.manager_feedback)+'</div>':'')+
+    (owner&&isPending?'<form data-form="daily-review" class="stacked" style="margin-top:16px">'+
+      '<input type="hidden" name="report_id" value="'+esc(report.id)+'">'+
+      '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="Motivo di eventuali correzioni o indicazioni operative"></textarea></label>'+
+      '<div class="actions"><button class="primary small" type="submit" value="approved">'+t('Approva')+'</button>'+
+      '<button class="ghost small" type="submit" value="changes_requested">'+t('Richiedi correzioni')+'</button></div></form>':'')+
+    (!owner&&['draft','changes_requested'].includes(report.status)?'<div style="margin-top:13px"><button class="secondary small" data-action="report-edit" data-id="'+esc(report.id)+'">'+t('Modifica')+'</button></div>':'')+
+    '</div><div class="task-right"><span class="pill '+tone+'">'+t(reportStatusLabel(report))+'</span></div></article>';
+}
+
 function clientsMarkup(){
   return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
     '<div class="card stacked"><h2>'+t('Nuovo cliente')+'</h2><form data-form="client" class="stacked">'+field('Nome azienda','name','text','','required maxlength="150"')+
