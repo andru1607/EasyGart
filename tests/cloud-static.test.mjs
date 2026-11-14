@@ -73,3 +73,16 @@ test('SQL migration has valid paired function delimiters and safe rerun',()=>{
       p[1]+' must be repeatable');
   }
 });
+
+test('company creation does not request a row before membership trigger',()=>{
+  const start=app.indexOf("case 'company':{");
+  const end=app.indexOf("case 'client':{",start);
+  assert.ok(start>0 && end>start,'company handler must exist');
+  const handler=app.slice(start,end);
+  assert.match(handler,/\.from\('eg_companies'\)\.insert\(\{name,created_by:user\.id\}\)/);
+  assert.doesNotMatch(handler,/\.insert\(\{name,created_by:user\.id\}\)\s*\.select\(/);
+  assert.match(handler,/await refresh\(\)/);
+  const policy=sql.match(/create policy eg_companies_create[\s\S]*?;/)?.[0]||'';
+  assert.match(policy,/with check \(\(select auth\.uid\(\)\) = created_by\)/);
+  assert.match(sql,/create trigger eg_company_add_owner after insert on public\.eg_companies/);
+});
