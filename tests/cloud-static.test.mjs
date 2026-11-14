@@ -13,7 +13,7 @@ test('page boots independent cloud config and app',()=>{
   assert.match(html,/id="app"/);
 });
 test('credentials are not committed',()=>{
-  assert.match(config,/publishableKey:\s*""/);
+  assert.match(config,/publishableKey:\s*"sb_publishable_[A-Za-z0-9_-]+"/);
   assert.doesNotMatch(config,/sb_secret_[A-Za-z0-9]+|eyJ[A-Za-z0-9_-]{40,}/);
   assert.match(config,/xdwsqkteykjjpzogwocx/);
 });
