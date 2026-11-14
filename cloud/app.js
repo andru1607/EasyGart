@@ -348,6 +348,7 @@ async function submitForm(form,formAction='draft'){
       // Nessun RETURNING: durante INSERT il trigger AFTER INSERT non ha ancora creato
       // eg_members; il SELECT RLS richiede già l'appartenenza e blocca RETURNING.
       requireSuccess(await client.from('eg_companies').insert({name,created_by:user.id}));
+      notice='';errorNotice=false;
       await refresh();break;
     }
     case 'client':{
