@@ -445,7 +445,12 @@ async function boot(){
         if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
-    setInterval(()=>{if(user && document.visibilityState==='visible' && !busy)refresh().catch(fail)},30000);
+    setInterval(()=>{
+      const formFocused=!!document.activeElement?.closest?.('form');
+      // Non cancellare i campi di un rapporto, di un compito o di un modulo mentre si scrive.
+      if(user && document.visibilityState==='visible' && !busy && !formFocused &&
+         reportEditingId===null && editingTaskId===null)refresh().catch(fail);
+    },30000);
   }catch(e){fail(e)}
 }
 document.addEventListener('submit',e=>{
