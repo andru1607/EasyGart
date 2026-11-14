@@ -15,10 +15,25 @@ let selectedWorkerId = 'all';
 let editingTaskId = null;
 let user = null;
 let memberships = [], companies = [], members = [], clients = [], sites = [], tasks = [], invites = [];
+let dailyReports = [], reportsReady = false, reportsSetupError = '', reportEditingId = null;
+let selectedReportWorkerId = 'all', reportStatusFilter = 'all';
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
 const localeKey = 'easygarte_cloud_language';
 let locale = localStorage.getItem(localeKey) === 'de' ? 'de' : 'it';
 const german = {
+  'Rapporti giornalieri':'Tagesberichte','Nuovo rapporto':'Neuer Tagesbericht',
+  'Rapporti ricevuti':'Eingegangene Berichte','I miei rapporti':'Meine Berichte',
+  'Rapporto giornaliero':'Tagesbericht','Rapporto da verificare':'Bericht zur Prüfung',
+  'Salva bozza':'Entwurf speichern','Invia al titolare':'An Vorgesetzten senden',
+  'Da verificare':'Zur Prüfung','Approvati':'Freigegeben','Correzioni richieste':'Korrekturen erforderlich',
+  'Bozza':'Entwurf','Inviato':'Eingereicht','Approvato':'Freigegeben',
+  'Ore effettive (minuti)':'Tatsächliche Arbeitszeit (Minuten)',
+  'Lavoro svolto':'Durchgeführte Arbeiten','Materiali utilizzati':'Verwendetes Material',
+  'Problemi e imprevisti':'Probleme und Vorkommnisse',
+  'Feedback del titolare':'Rückmeldung der Leitung','Approva':'Freigeben',
+  'Richiedi correzioni':'Korrekturen anfordern','Torna ai rapporti':'Zurück zu den Berichten',
+  'Tutti gli stati':'Alle Status','Tutti gli operatori':'Alle Mitarbeiter',
+  'Nessun rapporto':'Keine Berichte',
   'Accesso dipendenti':'Mitarbeiter-Login','Accedi':'Anmelden','Registrati':'Registrieren',
   'Password':'Passwort','Conferma email':'E-Mail bestätigen','Email':'E-Mail',
   'Crea un account':'Konto erstellen','Esci':'Abmelden','Aggiorna':'Aktualisieren',
@@ -87,10 +102,11 @@ function render() {
     '<div class="toolbar">'+(companies.length>1?'<select id="company-select" aria-label="Azienda" style="max-width:190px">'+companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select>':'')+
     '<button class="ghost" data-action="refresh">'+t('Ricarica')+'</button></div></div>'+
     '<nav class="nav" aria-label="Sezioni">'+
-      '<button data-action="view" data-view="tasks" class="'+(currentView==='tasks'?'active':'')+'">'+t('Compiti')+'</button>'+
+      '<button data-action="view" data-view="tasks" class="'+(currentView==='tasks'?'active':'')+'">'+t('Compiti')+'</button>'+ 
+      '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+(memberIsOwner() && dailyReports.some(r=>r.status==='submitted')?' · '+dailyReports.filter(r=>r.status==='submitted').length:'')+'</button>'+ 
       (memberIsOwner()?'<button data-action="view" data-view="clients" class="'+(currentView==='clients'?'active':'')+'">'+t('Clienti e cantieri')+'</button>'+
       '<button data-action="view" data-view="team" class="'+(currentView==='team'?'active':'')+'">'+t('La tua squadra')+'</button>':'')+'</nav>'+
-    (currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():tasksMarkup());
+    (currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():tasksMarkup());
 }
 function authMarkup(){
   const signup=authMode==='signup';
@@ -188,7 +204,7 @@ async function refresh() {
   if(!client||!user)return;
   const list=requireSuccess(await client.from('eg_members').select('company_id,user_id,full_name,role,active').eq('user_id',user.id).eq('active',true));
   memberships=list||[];
-  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];render();return}
+  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;render();return}
   const cids=memberships.map(x=>x.company_id);
   companies=requireSuccess(await client.from('eg_companies').select('id,name').in('id',cids))||[];
   if(!cids.includes(selectedCompanyId))selectedCompanyId=cids[0];
@@ -205,7 +221,15 @@ async function refresh() {
   for (const x of results)if(x.error)throw x.error;
   [tasks,clients,sites,members] = results.slice(0,4).map(x=>x.data||[]);
   invites=owner?(results[4]?.data||[]):[];
-  if(!owner&&!['tasks'].includes(currentView))currentView='tasks';
+  // La migrazione dei rapporti può non essere ancora installata: non bloccare gli altri moduli.
+  const reportResponse = await client.from('eg_daily_reports').select('*')
+    .eq('company_id',org).order('work_date',{ascending:false}).limit(250);
+  if(reportResponse.error) {
+    reportsReady=false;dailyReports=[];reportsSetupError=reportResponse.error.message||'Tabelle rapporti non disponibili';
+  } else {
+    reportsReady=true;reportsSetupError='';dailyReports=reportResponse.data||[];
+  }
+  if(!owner&&!['tasks','reports'].includes(currentView))currentView='tasks';
   render();
 }
 async function onAuth(form){
@@ -221,7 +245,7 @@ async function onAuth(form){
   user=requireSuccess(await client.auth.getUser())?.user||null;
   notice='';await refresh();
 }
-async function submitForm(form){
+async function submitForm(form,formAction='draft'){
   const vals=Object.fromEntries(new FormData(form));
   switch(form.dataset.form){
     case 'auth':await onAuth(form);break;
@@ -285,7 +309,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];render()}else await refresh();
+        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{if(user && document.visibilityState==='visible' && !busy)refresh().catch(fail)},30000);
@@ -295,16 +319,16 @@ document.addEventListener('submit',e=>{
   const form=e.target.closest('form[data-form]');
   if(!form)return;
   e.preventDefault();
-  withBusy(()=>submitForm(form));
+  withBusy(()=>submitForm(form,e.submitter?.value||'draft'));
 });
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-action]');
   if(!b)return;
   const a=b.dataset.action;
   if(a==='auth-mode'){authMode=b.dataset.mode;notice='';render();return}
-  if(a==='view'){currentView=b.dataset.view;editingTaskId=null;render();return}
+  if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{requireSuccess(await client.auth.signOut());user=null;memberships=[];render()});return}
+  if(a==='signout'){withBusy(async()=>{requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='new-task'){editingTaskId='new';render();return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
@@ -321,7 +345,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';localStorage.setItem(localeKey,locale);render();return}
-  if(e.target.id==='company-select'){selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';withBusy(refresh);return}
+  if(e.target.id==='company-select'){selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;render();return}
   if(e.target.id==='task-client'){
     const s=$('task-site');if(!s)return;
