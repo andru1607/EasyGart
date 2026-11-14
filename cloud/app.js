@@ -8,6 +8,8 @@ let client = null;
 let authMode = 'signin';
 let notice = '';
 let errorNotice = false;
+let companyPolicyError = false;
+let pendingCompanyName = '';
 let busy = false;
 let selectedCompanyId = '';
 let currentView = 'tasks';
@@ -34,6 +36,9 @@ const german = {
   'Richiedi correzioni':'Korrekturen anfordern','Torna ai rapporti':'Zurück zu den Berichten',
   'Tutti gli stati':'Alle Status','Tutti gli operatori':'Alle Mitarbeiter',
   'Nessun rapporto':'Keine Berichte',
+  'Il database ha bloccato la creazione dell’azienda. Applica la correzione RLS di EasyGart nel SQL Editor e riprova.':'Die Datenbank hat die Firmenerstellung blockiert. Führe die EasyGart-RLS-Korrektur im SQL-Editor aus und versuche es erneut.',
+  'Correzione necessaria':'Korrektur erforderlich','Apri SQL di riparazione':'SQL-Korrektur öffnen',
+  'Eseguilo nel progetto Supabase EasyGart, poi riprova.':'Führe die Korrektur im Supabase-Projekt EasyGart aus und versuche es erneut.',
   'Accesso dipendenti':'Mitarbeiter-Login','Accedi':'Anmelden','Registrati':'Registrieren',
   'Password':'Passwort','Conferma email':'E-Mail bestätigen','Email':'E-Mail',
   'Crea un account':'Konto erstellen','Esci':'Abmelden','Aggiorna':'Aktualisieren',
@@ -72,7 +77,15 @@ const memberIsOwner = () => memberships.some(m => m.company_id === selectedCompa
 const company = () => companies.find(c => c.id === selectedCompanyId);
 const getName = (items,id) => items.find(x=>x.id===id)?.name || '—';
 const getWorkerName = id => members.find(x=>x.user_id===id)?.full_name || '—';
-const fail = e => {notice = e?.message || String(e || 'Errore sconosciuto');errorNotice = true;render()};
+const fail = e => {
+  const message = e?.message || String(e || 'Errore sconosciuto');
+  companyPolicyError = /eg_companies/.test(message) && /row.level security|42501/i.test(message+' '+(e?.code||''));
+  notice = companyPolicyError
+    ? tr('Il database ha bloccato la creazione dell’azienda. Applica la correzione RLS di EasyGart nel SQL Editor e riprova.')
+    : message;
+  errorNotice = true;
+  render();
+};
 const success = m => {notice=m;errorNotice=false;render()};
 const withBusy = async cb => {
   if (busy) return;
@@ -85,7 +98,11 @@ function render() {
   topRight.innerHTML = '<select id="locale" aria-label="Lingua" style="width:auto;background:#245343;border-color:#5b806a;color:#fff;padding:8px 10px">'+
     option('it','IT',locale==='it')+option('de','DE',locale==='de')+'</select>'+
     (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span><button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
-  const alert = notice ? '<div id="notice" role="status" class="alert'+(errorNotice?' error':'')+'">'+esc(notice)+'</div>' : '';
+  const alert = (notice ? '<div id="notice" role="status" class="alert'+(errorNotice?' error':'')+'">'+esc(notice)+'</div>' : '')+
+    (companyPolicyError?'<div class="alert warn" style="margin-bottom:18px">'+
+    '<strong>'+t('Correzione necessaria')+'</strong> · '+
+    '<a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_company_creation_fix.sql" target="_blank" rel="noopener noreferrer">'+t('Apri SQL di riparazione')+'</a>'+
+    ' · '+t('Eseguilo nel progetto Supabase EasyGart, poi riprova.')+'</div>':'');
   if (!ready) {
     app.innerHTML = alert + '<div class="auth-wrap"><div class="eyebrow">EasyGart • cloud</div><h1>'+t('Configurazione richiesta')+'</h1>'+
       '<div class="card stacked"><p>'+t('L’interfaccia cloud è pronta, ma serve attivare Supabase prima di usarla.')+'</p>'+
@@ -123,7 +140,7 @@ function onboardMarkup(){
   return '<div class="view-head"><div><div class="eyebrow">EasyGart Cloud</div><h1>'+t('Nessuna azienda collegata')+'</h1>'+
   '<p>Se sei il titolare, crea l’azienda. Se sei dipendente, conferma la tua email e accetta l’invito.</p></div></div>'+
   '<div class="two"><div class="card stacked"><h2>'+t('Crea azienda')+'</h2><p class="muted">Usa questa opzione solo per creare un nuovo spazio aziendale indipendente.</p>'+
-  '<form class="stacked" data-form="company">'+field('Nome azienda','name','text','','required maxlength="150" minlength="2"')+
+  '<form class="stacked" data-form="company">'+field('Nome azienda','name','text',pendingCompanyName,'required maxlength="150" minlength="2"')+
   '<button type="submit" class="primary">'+t('Crea azienda')+'</button></form></div>'+
   '<div class="card stacked"><h2>'+t('Accetta inviti')+'</h2><p class="muted">Un invito associato alla tua email verificata sarà collegato automaticamente al tuo account.</p>'+
   '<button data-action="claim" class="secondary">'+t('Accetta inviti')+'</button></div></div>';
@@ -345,10 +362,13 @@ async function submitForm(form,formAction='draft'){
     case 'company':{
       const name=String(vals.name||'').trim();
       if(name.length<2)throw Error('Il nome deve contenere almeno 2 caratteri.');
-      // Nessun RETURNING: durante INSERT il trigger AFTER INSERT non ha ancora creato
-      // eg_members; il SELECT RLS richiede già l'appartenenza e blocca RETURNING.
-      requireSuccess(await client.from('eg_companies').insert({name,created_by:user.id}));
-      notice='';errorNotice=false;
+      pendingCompanyName=name;
+      const currentUser=requireSuccess(await client.auth.getUser())?.user;
+      if(!currentUser?.id)throw Error('Sessione scaduta. Esci e accedi di nuovo prima di creare l’azienda.');
+      // L'ID del titolare deve coincidere con quello della sessione Supabase corrente.
+      // Nessun RETURNING: la SELECT RLS richiede la membership creata dal trigger.
+      requireSuccess(await client.from('eg_companies').insert({name,created_by:currentUser.id}));
+      pendingCompanyName='';companyPolicyError=false;notice='';errorNotice=false;
       await refresh();break;
     }
     case 'client':{
