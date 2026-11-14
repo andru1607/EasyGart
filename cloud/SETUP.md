@@ -30,6 +30,16 @@ Stato: codice Cloud e migrazione pronti, NON ancora collegati a un database veri
 - Verifica di RLS su PostgreSQL, differenze tra aziende, eventi in concorrenza, redirect Auth, iPhone e Android.
 - Configurazione di SMTP, backup e GDPR prima dell'uso lavorativo.
 
+## Risoluzione errore creazione azienda (RLS)
+Se dopo il login compare `new row violates row-level security policy for table "eg_companies"`, non disattivare RLS e non creare un altro account.
+1. Apri **esclusivamente** il progetto Supabase EasyGart `xdwsqkteykjjpzogwocx`.
+2. Nel SQL Editor, crea una nuova query e incolla tutto il contenuto di [easygart_company_creation_fix.sql](../supabase/easygart_company_creation_fix.sql).
+3. Esegui lo script. L'ultima SELECT mostra le policy applicate. Il file è transazionale e non cancella dati aziendali.
+4. Torna a https://easygarte.vercel.app/cloud/ e riprova **Crea azienda** con l'account già esistente.
+5. Verifica che la dashboard mostri l'azienda appena creata e che il titolare sia presente nella sezione squadra.
+
+Questa correzione ripristina le regole di INSERT per il titolare e il trigger che crea automaticamente la sua membership. Non concede permessi ad anon e non consente a un utente di scegliere arbitrariamente il proprietario. I test automatici verificano il codice, ma la prova con due account sul database reale rimane necessaria.
+
 ## Rapporti giornalieri dipendente → titolare
 Dopo l'applicazione della migrazione aggiuntiva:
 1. Il titolare assegna un compito a un dipendente.
@@ -50,6 +60,7 @@ La nuova app Cloud comprende account, aziende, clienti, cantieri, inviti, assegn
 - cloud/config.js: URL e segnaposto per chiave pubblicabile
 - supabase/easygart_core_v1.sql: schema, grants, RLS e RPC
 - supabase/easygart_daily_reports_v1.sql: rapporti giornalieri, verifica titolare, audit eventi e RLS
+- supabase/easygart_company_creation_fix.sql: correzione mirata RLS per creazione azienda
 - tests/cloud-static.test.mjs: test statici GitHub Actions
 - tests/cloud-daily-reports.test.mjs: test su permessi SQL e viste dipendente/titolare
 
