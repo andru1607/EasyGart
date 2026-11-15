@@ -23,6 +23,7 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = localStorage.getItem(localeKey) === 'de' ? 'de' : 'it';
 const german = {
+  "Nel progetto EasyGart servono la migrazione SQL e una chiave pubblicabile:": "Im Supabase-Projekt EasyGart müssen die SQL-Migration ausgeführt und ein öffentlicher API-Schlüssel hinterlegt werden:",
   "Lingua": "Sprache",
   "Azienda": "Betrieb",
   "Sezioni": "Bereiche",
@@ -178,12 +179,26 @@ const memberIsOwner = () => memberships.some(m => m.company_id === selectedCompa
 const company = () => companies.find(c => c.id === selectedCompanyId);
 const getName = (items,id) => items.find(x=>x.id===id)?.name || '—';
 const getWorkerName = id => members.find(x=>x.user_id===id)?.full_name || '—';
+const errorMessage = e => {
+  const raw = e?.message || String(e || 'Errore sconosciuto');
+  const code = String(e?.code || '');
+  if (/eg_reports_one_daily_per_task/.test(raw)) return 'Il rapporto è già stato creato per questa giornata.';
+  if (/invalid login credentials/i.test(raw)) return 'Email o password non validi.';
+  if (/email not confirmed/i.test(raw)) return 'Verifica il tuo indirizzo email prima di accedere.';
+  if (/jwt expired|refresh token not found|invalid refresh token/i.test(raw)) return 'La sessione è scaduta. Accedi nuovamente.';
+  if (/^42501$/.test(code) || /permission denied|row.level security/i.test(raw))
+    return 'Non è stato possibile salvare: verifica i permessi del tuo account.';
+  if (Object.hasOwn(german,raw)) return raw;
+  // Messaggi sconosciuti dal server non devono restare in italiano quando si seleziona DE.
+  if (locale === 'de') return 'Impossibile completare l’operazione. Riprova o ricarica la pagina.';
+  return raw;
+};
 const fail = e => {
   const message = e?.message || String(e || 'Errore sconosciuto');
   companyPolicyError = /eg_companies/.test(message) && /row.level security|42501/i.test(message+' '+(e?.code||''));
   notice = companyPolicyError
-    ? tr('Il database ha bloccato la creazione dell’azienda. Applica la correzione RLS di EasyGart nel SQL Editor e riprova.')
-    : message;
+    ? 'Il database ha bloccato la creazione dell’azienda. Applica la correzione RLS di EasyGart nel SQL Editor e riprova.'
+    : errorMessage(e);
   errorNotice = true;
   render();
 };
@@ -196,6 +211,12 @@ const withBusy = async cb => {
 const disableButtons = disabled => document.querySelectorAll('button[type=submit]').forEach(b=>b.disabled=disabled);
 const requireSuccess = r => {if(r.error)throw r.error;return r.data};
 function render() {
+  // Aggiorna anche i testi fuori dal contenitore dell'app (intestazione, footer, lingua HTML).
+  if (document.documentElement) document.documentElement.lang = locale;
+  const masthead = document.querySelector?.('.top-sub');
+  if (masthead) masthead.textContent = tr('Team Cloud • account e incarichi');
+  const footer = document.querySelector?.('footer.footer');
+  if (footer) footer.textContent = tr('EasyGart Cloud MVP · La demo storica resta disponibile sulla pagina principale · Non inserire dati reali prima della verifica dei permessi.');
   topRight.innerHTML = '<select id="locale" aria-label="'+t('Lingua')+'" style="width:auto;background:#245343;border-color:#5b806a;color:#fff;padding:8px 10px">'+
     option('it','IT',locale==='it')+option('de','DE',locale==='de')+'</select>'+
     (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span><button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
