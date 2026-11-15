@@ -102,7 +102,7 @@ test('editable placeholders and status labels are localized',()=>{
   assert.match(x,/Beschreibe die durchgeführten Arbeiten/);
   assert.match(x,/Art und Menge des verwendeten Materials/);
   assert.match(x,/Besonderheiten, verschobene Arbeiten/);
-  assert.match(x,/An Vorgesetzten senden/);
+  assert.match(x,/An die Betriebsleitung senden/);
   assert.doesNotMatch(x,/placeholder="(?:Descrivi|Tipi e quantità|Anomalie)/);
 });
 
@@ -117,6 +117,25 @@ test('language switch updates header/footer, HTML lang and preserves user data',
   h.exec("locale='it';render()");
   assert.equal(h.document.documentElement.lang,'it');
   assert.match(h.header.textContent,/account e incarichi/);
+});
+
+test('date labels adapt to German conventions without modifying date input values',()=>{
+  const h=makeHarness();
+  assert.equal(h.exec("displayDate('2026-11-15')"),'15.11.2026');
+  h.exec("currentView='tasks';render()");
+  assert.match(h.elements.app.innerHTML,/15\.11\.2026/);
+  h.exec("locale='it'");
+  assert.equal(h.exec("displayDate('2026-11-15')"),'15/11/2026');
+  assert.equal(h.exec("dateToday().length"),10);
+});
+
+test('German missing-migration error avoids untranslated database details',()=>{
+  const h=makeHarness();
+  h.exec("currentView='reports';reportsReady=false;reportsSetupError='Could not find eg_daily_reports in the schema cache';render()");
+  const output=h.elements.app.innerHTML;
+  assert.match(output,/Die Tagesberichte sind in der Datenbank noch nicht aktiviert/);
+  assert.match(output,/Tabellen für Tagesberichte nicht verfügbar/);
+  assert.doesNotMatch(output,/La funzione rapporti|Could not find/);
 });
 
 test('errors and success messages are mapped to German',()=>{
