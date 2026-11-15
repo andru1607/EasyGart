@@ -347,6 +347,7 @@ function clearAccountDrafts(){
 function render() {
   // Aggiorna anche i testi fuori dal contenitore dell'app (intestazione, footer, lingua HTML).
   if (document.documentElement) document.documentElement.lang = locale;
+  window.EASYGART_INSTALL?.updateNetworkText?.();
   const masthead = document.querySelector?.('.top-sub');
   if (masthead) masthead.textContent = tr('Team Cloud • account e incarichi');
   const footer = document.querySelector?.('footer.footer');
