@@ -334,15 +334,14 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   }
   function captureSignature(){
     const canvas=document.querySelector?.('canvas[data-ops-signature]');
-    return signatureDrawn && canvas?.toDataURL ? canvas.toDataURL('image/png') : null;
+    if(!signatureDrawn||!canvas)return null;
+    try{return canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height)}
+    catch{return null}
   }
-  function restoreSignature(pngDataUrl){
-    if(!pngDataUrl || !signingReportId)return;
+  function restoreSignature(imageData){
+    if(!imageData||!signingReportId)return;
     const canvas=document.querySelector?.('canvas[data-ops-signature]');
-    if(!canvas || typeof Image==='undefined')return;
-    const image=new Image();
-    image.onload=()=>canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
-    image.src=pngDataUrl;
+    canvas?.getContext('2d')?.putImageData(imageData,0,0);
   }
   function handleChange(el){
     if(el.dataset.opsFilter==='worker'){selectedWorker=el.value;rerender();return true}
