@@ -35,7 +35,8 @@
      await current.prompt();await current.userChoice;
      return true;
    },
-   isStandalone
+   isStandalone,
+   updateNetworkText:showNetwork
  };
  document.addEventListener('DOMContentLoaded',()=>{
    showNetwork();
