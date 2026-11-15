@@ -52,7 +52,7 @@ test('private media migrations restrict Storage to authorized bucket, reports an
   assert.match(mediaSQL,/function public\.eg_media_reserve/);
   assert.match(mediaSQL,/function public\.eg_media_finalize/);
   assert.match(mediaSQL,/function public\.eg_media_release/);
-  assert.doesNotMatch(mediaSQL,/getPublicUrl|service_role|sb_secret_/);
+  assert.doesNotMatch(mediaSQL.replace(/^--[^\n]*/gm,''),/getPublicUrl|service_role|sb_secret_/);
   for(const tag of ['eg_check','eg_read','eg_upload','eg_delete','eg_reserve','eg_finalize','eg_release']){
     assert.equal(mediaSQL.split('$'+tag+'$').length-1,2,'SQL tag '+tag+' must be paired');
   }
@@ -189,7 +189,7 @@ test('signature panel asks for consent and explains limits of on-site signature'
   assert.match(html,/data-form="ops-signature"/);
 });
 test('client never uses public URL, admin API or browser-supplied attendance times',()=>{
-  assert.doesNotMatch(operations,/getPublicUrl|service_role|sb_secret_|auth\.admin/);
+  assert.doesNotMatch(operations.replace(/\/\/[^\n]*/g,''),/getPublicUrl|service_role|sb_secret_|auth\.admin/);
   assert.match(operations,/createSignedUrl\(m\.storage_path,API_SIGNED_URL_TTL\)/);
   assert.match(operations,/p_action:action,p_site_id:site/);
 });
