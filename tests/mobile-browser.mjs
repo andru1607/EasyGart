@@ -167,7 +167,7 @@ async function workerSmoke(engineName,browserType,device){
  await page.locator('button[data-view="reports"]').click();
  await page.locator('[data-action="biz-open-usage"]').click();
  assert.ok(await page.locator('form[data-form="biz-usage"]').isVisible());
- assert.ok((await page.locator('form[data-form="biz-usage"]').innerText()).includes('Terriccio'));
+ assert.ok((await page.locator('form[data-form="biz-usage"] select[name="material_id"] option').allTextContents()).some(x=>x.includes('Terriccio')));
  const image=await readFile(resolve(root,'cloud/icon-192.png'));
  await page.locator('input[data-ops-input="before"]').setInputFiles({
   name:'photo.png',mimeType:'image/png',buffer:image
