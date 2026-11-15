@@ -206,7 +206,7 @@ const fail = e => {
     ? 'Il database ha bloccato la creazione dell’azienda. Applica la correzione RLS di EasyGart nel SQL Editor e riprova.'
     : errorMessage(e);
   errorNotice = true;
-  render();
+  renderPreservingForms(); // Non perdere rapporto o compito se il server rifiuta il salvataggio.
 };
 const success = m => {notice=m;errorNotice=false;render()};
 const withBusy = async cb => {
@@ -226,7 +226,10 @@ function render() {
   topRight.innerHTML = '<select id="locale" aria-label="'+t('Lingua')+'" style="width:auto;background:#245343;border-color:#5b806a;color:#fff;padding:8px 10px">'+
     option('it','IT',locale==='it')+option('de','DE',locale==='de')+'</select>'+
     (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span><button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
-  const alert = (notice ? '<div id="notice" role="status" class="alert'+(errorNotice?' error':'')+'">'+t(notice)+'</div>' : '')+
+  const displayNotice = errorNotice && locale==='de' && !Object.hasOwn(german,notice)
+    ? 'Impossibile completare l’operazione. Riprova o ricarica la pagina.'
+    : notice;
+  const alert = (notice ? '<div id="notice" role="status" class="alert'+(errorNotice?' error':'')+'">'+t(displayNotice)+'</div>' : '')+
     (companyPolicyError?'<div class="alert warn" style="margin-bottom:18px">'+
     '<strong>'+t('Correzione necessaria')+'</strong> · '+
     '<a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_company_creation_fix.sql" target="_blank" rel="noopener noreferrer">'+t('Apri SQL di riparazione')+'</a>'+
