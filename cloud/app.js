@@ -21,7 +21,7 @@ let dailyReports = [], reportsReady = false, reportsSetupError = '', reportEditi
 let selectedReportWorkerId = 'all', reportStatusFilter = 'all';
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
 const localeKey = 'easygarte_cloud_language';
-let locale = localStorage.getItem(localeKey) === 'de' ? 'de' : 'it';
+let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
   "Nel progetto EasyGart servono la migrazione SQL e una chiave pubblicabile:": "Im Supabase-Projekt EasyGart müssen die SQL-Migration ausgeführt und ein öffentlicher API-Schlüssel hinterlegt werden:",
   "Lingua": "Sprache",
@@ -598,6 +598,42 @@ async function boot(){
     },30000);
   }catch(e){fail(e)}
 }
+// Conserva i campi già compilati durante il cambio lingua o dei filtri.
+function captureEditableForms(){
+  if (!document.querySelectorAll) return [];
+  return [...document.querySelectorAll('form[data-form]')]
+    .filter(form => form.dataset.form !== 'auth')
+    .map(form => ({
+      type:form.dataset.form,
+      fields:[...form.querySelectorAll('[name]')]
+        .map(input=>({name:input.name,value:input.value,checked:input.checked,type:input.type}))
+    }));
+}
+function restoreEditableForms(drafts){
+  if(!document.querySelectorAll) return;
+  for(const draft of drafts){
+    const form=[...document.querySelectorAll('form[data-form]')]
+      .find(candidate=>candidate.dataset.form===draft.type);
+    if(!form)continue;
+    const previousClient=draft.fields.find(field=>field.name==='client_id')?.value;
+    if(draft.type==='task'&&previousClient){
+      const site=form.querySelector('select[name="site_id"]');
+      if(site)site.innerHTML=option('','—')+
+        sites.filter(x=>x.client_id===previousClient).map(x=>option(x.id,x.name)).join('');
+    }
+    for(const field of draft.fields){
+      const element=[...form.querySelectorAll('[name]')].find(el=>el.name===field.name);
+      if(!element)continue;
+      if(field.type==='checkbox'||field.type==='radio')element.checked=field.checked;
+      else element.value=field.value;
+    }
+  }
+}
+function renderPreservingForms(){
+  const drafts=captureEditableForms();
+  render();
+  restoreEditableForms(drafts);
+}
 document.addEventListener('submit',e=>{
   const form=e.target.closest('form[data-form]');
   if(!form)return;
@@ -639,11 +675,11 @@ document.addEventListener('click',e=>{
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
 });
 document.addEventListener('change',e=>{
-  if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';localStorage.setItem(localeKey,locale);render();return}
+  if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
   if(e.target.id==='company-select'){selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
-  if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;render();return}
-  if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;render();return}
-  if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;render();return}
+  if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
+  if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
+  if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='task-client'){
     const s=$('task-site');if(!s)return;
     s.innerHTML=option('','—')+sites.filter(x=>x.client_id===e.target.value).map(x=>option(x.id,x.name)).join('');
