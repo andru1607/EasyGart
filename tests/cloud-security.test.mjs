@@ -38,3 +38,10 @@ test('frontend RPC names and default args stay compatible',()=>{
   assert.match(migration,/eg_media_reserve\([\s\S]*?p_signer_name text DEFAULT NULL::text, p_consent boolean DEFAULT false\)/);
   assert.match(migration,/eg_shift_action\(p_company_id uuid, p_action text, p_site_id uuid DEFAULT NULL::uuid\)/);
 });
+
+test('frontend new registrations require 12 characters without breaking existing logins',()=>{ 
+  const app=readFileSync(new URL('../cloud/app.js',import.meta.url),'utf8');
+  assert.match(app,/minlength="'\+\(signup\?'12':'8'\)\+'"/);
+  assert.match(app,/if\(password.length<12\)throw Error\('Per registrarti usa almeno 12 caratteri per la password\.'\)/);
+  assert.match(app,/Verwende ein einmaliges Passwort mit mindestens 12 Zeichen/);
+});
