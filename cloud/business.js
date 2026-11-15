@@ -226,7 +226,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
     const siteChoices=ctx().sites.filter(x=>x.client_id===client);
     return '<div class="card eg-business-form" style="margin-bottom:17px"><h3>'+
       b(plan?'Modifica manutenzione':'Nuova manutenzione ricorrente')+'</h3>'+
-      '<form data-form="biz-maintenance" class="formgrid">'+
+      '<form data-form="biz-maintenance" data-biz-plan-id="'+safe(plan?.id||'new')+'" class="formgrid">'+
       '<label class="field"><span>'+b('Descrizione intervento')+'</span><input name="title" minlength="2" maxlength="200" value="'+safe(plan?.title||'')+'" required></label>'+
       '<label class="field"><span>'+b('Frequenza')+'</span><select name="cadence">'+
         ['weekly','biweekly','monthly','quarterly'].map(x=>opt(x,translateCadence(x),plan?.cadence===x)).join('')+'</select></label>'+
@@ -256,7 +256,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       '<button class="ghost small" data-action="biz-toggle-plan" data-id="'+safe(plan.id)+'">'+
         b(plan.active?'Disattiva':'Riattiva')+'</button></div></div>').join('');
     return '<div class="view-head"><div><h2>'+b('Manutenzioni ricorrenti')+'</h2>'+
-      '<p class="muted">'+b('Le attività si generano senza duplicati quando il titolare apre o aggiorna l’app. Per la generazione anche a portale chiuso serve attivare il processo programmato sul server.')+'</p></div>'+
+      '<p class="muted">'+b('Le attività vengono generate automaticamente dal server anche a portale chiuso.')+'</p></div>'+
       '<div class="actions"><button class="secondary" data-action="biz-generate">'+b('Genera prossimi interventi')+'</button>'+
       '<button class="primary" data-action="biz-new-plan">'+b('Nuovo piano')+'</button></div></div>'+
       (showNewPlan||editingPlanId?planFormMarkup():'')+
@@ -459,6 +459,6 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
     return false;
   }
   return {refresh,reset,markup,reportMaterialsMarkup,handleSubmit,handleAction,handleChange,
-    hasOpenForm:()=>showNewMaterial||showNewPlan||!!editingPlanId,
+    hasOpenForm:()=>showNewMaterial||showNewPlan||!!editingPlanId||!!selectedInvoiceId,
     visible:()=>ready,summary};
 };
