@@ -1,6 +1,6 @@
 # EasyGart Cloud e Supabase: attivazione
 
-Stato: codice Cloud e migrazione pronti, NON ancora collegati a un database verificato. La demo principale continua a funzionare in locale.
+Stato: Cloud collegato al progetto EasyGart su Supabase e migrazioni applicate. Vedere [OPERATIONS.md](./OPERATIONS.md) per l'uso iOS/Android, le funzioni gestionali e i limiti di produzione.
 
 ## Risorse corrette
 - Demo: https://easygarte.vercel.app/
@@ -97,3 +97,6 @@ Non inserire dati reali prima dei test di sicurezza su database.
 - supabase/easygart_private_media_v1.sql: storage privato, foto, firme, prenotazioni e RLS
 - cloud/operations.js: moduli operativi Cloud
 - tests/cloud-operations.test.mjs: test automatici delle nuove funzioni
+
+## Moduli e installazione 2026-11-16
+Per catalogo, consumi, manutenzioni automatiche, proforma, esportazione JSON e installazione iOS/Android vedere [OPERATIONS.md](./OPERATIONS.md).
