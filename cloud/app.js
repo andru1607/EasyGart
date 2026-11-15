@@ -287,6 +287,60 @@ const withBusy = async cb => {
 };
 const disableButtons = disabled => document.querySelectorAll('button[type=submit]').forEach(b=>b.disabled=disabled);
 const requireSuccess = r => {if(r.error)throw r.error;return r.data};
+// Mobile resilience: short-lived local drafts for text fields only (never passwords/photos/signatures).
+const DRAFT_PREFIX='easygart-cloud-draft-v1:';
+const DRAFT_TTL=24*60*60*1000;
+const DRAFT_FORMS=new Set(['daily-report','task','client','site','biz-material','biz-maintenance','biz-invoice-line']);
+function draftKeyForForm(form){
+  if(!form||!DRAFT_FORMS.has(form.dataset?.form)||!user?.id||!selectedCompanyId)return null;
+  const type=form.dataset.form;
+  const hidden=form.querySelector?.('[name="report_id"],[name="invoice_id"]')?.value||'';
+  const scope=hidden||(type==='daily-report'?(reportEditingId||'new'):
+    type==='task'?(editingTaskId||'new'):
+    type==='biz-maintenance'?(form.dataset.bizPlanId||'new'):'new');
+  return DRAFT_PREFIX+[user.id,selectedCompanyId,type,scope].join(':');
+}
+function saveSessionDraft(form){
+  const key=draftKeyForForm(form);
+  if(!key||typeof sessionStorage==='undefined')return;
+  try{
+    const fields=[...(form.querySelectorAll?.('[name]')||[])].filter(el=>
+      el.name&&!['hidden','password','email','file','radio'].includes(el.type));
+    const values=fields.map(el=>({name:el.name,value:el.value,checked:el.checked,type:el.type}));
+    sessionStorage.setItem(key,JSON.stringify({timestamp:Date.now(),values}));
+  }catch{}
+}
+function restoreSessionDrafts(){
+  if(typeof sessionStorage==='undefined')return;
+  for(const form of (document.querySelectorAll?.('form[data-form]')||[])){
+    const key=draftKeyForForm(form);
+    if(!key)continue;
+    try{
+      const raw=sessionStorage.getItem(key);
+      if(!raw)continue;
+      const parsed=JSON.parse(raw);
+      if(Date.now()-parsed.timestamp>DRAFT_TTL){sessionStorage.removeItem(key);continue}
+      for(const field of parsed.values||[]){
+        const input=[...(form.querySelectorAll?.('[name]')||[])].find(el=>el.name===field.name);
+        if(!input||['hidden','password','email','file'].includes(input.type))continue;
+        if(input.type==='checkbox')input.checked=field.checked;
+        else input.value=field.value;
+      }
+    }catch{}
+  }
+}
+function clearDraftKey(key){if(key&&typeof sessionStorage!=='undefined'){try{sessionStorage.removeItem(key)}catch{}}}
+function clearAccountDrafts(){
+  if(typeof sessionStorage==='undefined'||!user?.id)return;
+  try{
+    const prefix=DRAFT_PREFIX+user.id+':';
+    for(let i=sessionStorage.length-1;i>=0;i--){
+      const key=sessionStorage.key(i);
+      if(key?.startsWith(prefix))sessionStorage.removeItem(key);
+    }
+  }catch{}
+}
+
 function render() {
   // Aggiorna anche i testi fuori dal contenitore dell'app (intestazione, footer, lingua HTML).
   if (document.documentElement) document.documentElement.lang = locale;
@@ -330,6 +384,7 @@ function render() {
       '<button data-action="view" data-view="maintenance" class="'+(currentView==='maintenance'?'active':'')+'">'+t('Manutenzioni ricorrenti')+'</button>'+
       '<button data-action="view" data-view="invoices" class="'+(currentView==='invoices'?'active':'')+'">'+t('Bozze proforma')+'</button>':'')+'</nav>'+
     (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
+  restoreSessionDrafts();
 }
 function authMarkup(){
   const signup=authMode==='signup';
@@ -749,7 +804,8 @@ document.addEventListener('submit',e=>{
   const form=e.target.closest('form[data-form]');
   if(!form)return;
   e.preventDefault();
-  withBusy(()=>submitForm(form,e.submitter?.value||'draft'));
+  const key=draftKeyForForm(form);
+  withBusy(async()=>{await submitForm(form,e.submitter?.value||'draft');clearDraftKey(key)});
 });
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-action]');
@@ -760,7 +816,7 @@ document.addEventListener('click',e=>{
   if(a==='auth-mode'){authMode=b.dataset.mode;notice='';render();return}
   if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='report-new'){
     if(memberIsOwner()||!reportsReady)return;
@@ -786,6 +842,10 @@ document.addEventListener('click',e=>{
     withBusy(async()=>{requireSuccess(await client.rpc('eg_set_worker_active',{p_company_id:selectedCompanyId,p_user_id:member.user_id,p_active:enable}));await refresh()});return;
   }
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
+});
+document.addEventListener('input',e=>{
+  const form=e.target?.closest?.('form[data-form]');
+  if(form)saveSessionDraft(form);
 });
 document.addEventListener('change',e=>{
   if(e.target.dataset.bizClient){business?.handleChange(e.target);return}
