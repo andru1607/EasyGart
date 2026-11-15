@@ -24,6 +24,7 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Per aggiungere foto prima/dopo e firma del cliente, salva prima il rapporto come bozza.": "Um Vorher-/Nachher-Fotos und die Kundenunterschrift hinzuzufügen, speichere den Bericht zuerst als Entwurf.",
   "Apri lo script SQL": "SQL-Skript öffnen",
   "Timbrature": "Zeiterfassung",
   "Timbrature della squadra": "Zeiterfassung des Teams",
@@ -456,6 +457,7 @@ function reportFormMarkup(){
     '<label class="field span2"><span>'+t('Problemi e imprevisti')+'</span><textarea name="issues" maxlength="4000" rows="2" placeholder="'+t("Anomalie, interventi rimandati, comunicazioni importanti")+'">'+esc(report?.issues||'')+'</textarea></label>'+
     '<div class="span2 actions"><button class="ghost" type="submit" value="draft">'+t('Salva bozza')+'</button>'+
     '<button class="primary" type="submit" value="send">'+t('Invia al titolare')+'</button></div></form>'+
+    '<p class="muted" style="font-size:12px">'+t('Per aggiungere foto prima/dopo e firma del cliente, salva prima il rapporto come bozza.')+'</p>'+ 
     '<p class="muted" style="font-size:12px">'+t("Le indicazioni sui materiali sono un riepilogo operativo e non generano addebiti o fatture automatiche.")+'</p></div>';
 }
 function reportCardMarkup(report,owner){
