@@ -359,20 +359,22 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   function archiveMarkup(){
     if(!owner())return '';
     return '<div class="view-head"><div><h2>'+b('Dati ed esportazione')+'</h2>'+
-      '<p class="muted">'+b('Esporta una copia JSON dei dati di gestione. Il file rimane sul tuo dispositivo.')+'</p></div></div>'+
+      '<p class="muted">'+b('Esporta i dati gestionali in JSON oppure prepara un archivio ZIP con le foto e le firme originali.')+'</p></div></div>'+
       '<div class="card stacked"><h3>'+b('Esportazione aziendale')+'</h3>'+
       '<p>'+b('Include clienti, cantieri, attività, rapporti, timbrature, catalogo, consumi, piani e bozze.')+'</p>'+
-      '<p class="alert warn">'+b('Il file contiene dati personali. Conservalo in un luogo protetto. Le fotografie e le firme originali non sono incluse; questa esportazione non sostituisce un backup completo del database.')+'</p>'+
-      '<div class="actions"><button class="primary" data-action="biz-export-data">'+b('Prepara esportazione')+'</button>'+
-      (pendingExportUrl?'<a class="primary" href="'+safe(pendingExportUrl)+'" download="'+safe(pendingExportFilename)+'">'+b('Scarica file JSON')+'</a>':'')+
+      '<p class="alert warn">'+b('Il file contiene dati personali, fotografie e firme se scegli ZIP. Conserva il download in un luogo protetto e rimuovi le copie superflue. Questa esportazione non sostituisce un backup amministrativo ripristinabile.')+'</p>'+
+      '<div class="actions"><button class="secondary" data-action="biz-export-data">'+b('Prepara JSON')+'</button>'+
+      '<button class="primary" data-action="biz-export-full">'+b('Prepara ZIP con foto e firme')+'</button>'+
+      (pendingExportUrl?'<a class="primary" href="'+safe(pendingExportUrl)+'" download="'+safe(pendingExportFilename)+'">'+b(pendingExportFilename.endsWith('.zip')?'Scarica archivio ZIP':'Scarica file JSON')+'</a>':'')+
       '</div></div>'+
       '<div class="card stacked" style="margin-top:17px"><h3>'+b('Protezione dei dati')+'</h3>'+
       '<p>'+b('L’accesso ai dati aziendali è regolato dai permessi sul server. Definisci informativa privacy, tempi di conservazione e procedure di cancellazione prima dell’uso reale.')+'</p>'+
       '<p>'+b('Per un ripristino completo, compresi allegati e firme, configura backup PostgreSQL e Supabase Storage tramite procedure amministrative.')+'</p></div>';
   }
-  async function exportCompany(){
+  async function exportCompany(includeMedia=false){
     if(!owner())throw Error(tr('Solo il titolare può esportare i dati.'));
-    const c=ctx(),collected={},limit=500,pageCap=40;
+    clearPendingExport();
+    const c=ctx(),selectedCompany=c.companyId,collected={},limit=500,pageCap=40;
     const sources=[
       ['eg_companies','id'],['eg_members','user_id'],['eg_clients','id'],['eg_sites','id'],
       ['eg_tasks','id'],['eg_task_events','id'],
@@ -401,12 +403,49 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       caveat:'This is an application-data export, NOT a complete database backup. Original photos/signatures and Auth identities are not included.',
       tables:collected
     };
-    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
-    const filename='easygart-export-'+new Date().toISOString().slice(0,10)+'.json';
-    clearPendingExport();
+    let blob;
+    let suffix='json';
+    if(includeMedia){
+      if(!window.EASYGART_ARCHIVE?.createZip)throw Error(tr('Archivio ZIP non disponibile. Ricarica la pagina.'));
+      const items=collected.eg_report_media.filter(m=>m.status==='uploaded');
+      if(items.length>window.EASYGART_ARCHIVE.MAX_ENTRIES-2)
+        throw Error(tr('Troppi allegati per un archivio mobile: utilizza un backup amministrativo.'));
+      const entries=[
+        {name:'easygart-export.json',data:JSON.stringify(backup,null,2)},
+        {name:'LEGGIMI.txt',data:'EasyGart Cloud: archivio aziendale esportato. Contiene dati personali, foto e firme originali. NON equivale a un backup PostgreSQL/Storage e non consente il ripristino automatico. Proteggere il file e applicare una politica di conservazione adeguata.'}
+      ];
+      let total=entries.reduce((n,x)=>n+new TextEncoder().encode(x.data).byteLength,0);
+      for(const m of items){
+        if(!owner()||ctx().companyId!==selectedCompany)
+          throw Error(tr('Azienda o account cambiato durante l’esportazione.'));
+        const relative=String(m.storage_path||'');
+        if(!relative.startsWith(selectedCompany+'/')||
+            !/^[a-f0-9-]+\/[a-f0-9-]+\/(before|after|signature)\/[a-f0-9-]+\.(jpg|png|webp)$/.test(relative))
+          throw Error(tr('Percorso allegato non valido nell’archivio.'));
+        if(total+Number(m.bytes||0)>window.EASYGART_ARCHIVE.MAX_BYTES)
+          throw Error(tr('Archivio troppo grande per il telefono. Esegui un backup amministrativo.'));
+        const response=await client.storage.from('eg-report-media').download(relative);
+        const original=db(response);
+        if(!original||typeof original.arrayBuffer!=='function')
+          throw Error(tr('Impossibile recuperare un allegato privato.'));
+        total+=original.size;
+        if(total>window.EASYGART_ARCHIVE.MAX_BYTES)
+          throw Error(tr('Archivio troppo grande per il telefono. Esegui un backup amministrativo.'));
+        entries.push({name:'allegati/'+relative,data:original});
+      }
+      if(!owner()||ctx().companyId!==selectedCompany)
+        throw Error(tr('Azienda o account cambiato durante l’esportazione.'));
+      blob=await window.EASYGART_ARCHIVE.createZip(entries);
+      suffix='zip';
+    }else{
+      blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    }
+    if(!owner()||ctx().companyId!==selectedCompany)
+      throw Error(tr('Azienda o account cambiato durante l’esportazione.'));
+    const filename='easygart-export-'+new Date().toISOString().slice(0,10)+'.'+suffix;
     pendingExportUrl=URL.createObjectURL(blob);
     pendingExportFilename=filename;
-    onSuccess(tr('Esportazione pronta. Tocca Scarica file JSON per salvarla sul dispositivo.'));
+    onSuccess(tr('Esportazione pronta. Tocca il pulsante di download per salvare il file.'));
   }
 
   function markup(view){
@@ -511,6 +550,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       await c.reload();return;
     }
     if(a==='biz-export-data')return exportCompany();
+    if(a==='biz-export-full')return exportCompany(true);
     if(a==='biz-generate'){
       const count=Number(db(await client.rpc('eg_generate_maintenance',{
         p_company_id:c.companyId,p_horizon_days:30
