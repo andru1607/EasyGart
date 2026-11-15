@@ -57,6 +57,11 @@ test('network status and installation workflow support iPhone and Android',()=>{
   assert.match(app,/Aggiungi alla schermata Home/);
   assert.match(app,/App installieren/);
 });
+test('offline warning follows language changes while already offline',()=>{
+ assert.match(mobile,/updateNetworkText:showNetwork/);
+ assert.match(app,/window\.EASYGART_INSTALL\?\.updateNetworkText\?\.\(\)/);
+ assert.match(mobile,/document\.documentElement\.lang==='de'/);
+});
 test('printing proforma hides private app UI and prints only draft body',()=>{
   assert.match(html,/@media print/);
   assert.match(html,/#eg-print-zone/);
