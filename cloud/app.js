@@ -196,10 +196,10 @@ const withBusy = async cb => {
 const disableButtons = disabled => document.querySelectorAll('button[type=submit]').forEach(b=>b.disabled=disabled);
 const requireSuccess = r => {if(r.error)throw r.error;return r.data};
 function render() {
-  topRight.innerHTML = '<select id="locale" aria-label="Lingua" style="width:auto;background:#245343;border-color:#5b806a;color:#fff;padding:8px 10px">'+
+  topRight.innerHTML = '<select id="locale" aria-label="'+t('Lingua')+'" style="width:auto;background:#245343;border-color:#5b806a;color:#fff;padding:8px 10px">'+
     option('it','IT',locale==='it')+option('de','DE',locale==='de')+'</select>'+
     (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span><button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
-  const alert = (notice ? '<div id="notice" role="status" class="alert'+(errorNotice?' error':'')+'">'+esc(notice)+'</div>' : '')+
+  const alert = (notice ? '<div id="notice" role="status" class="alert'+(errorNotice?' error':'')+'">'+t(notice)+'</div>' : '')+
     (companyPolicyError?'<div class="alert warn" style="margin-bottom:18px">'+
     '<strong>'+t('Correzione necessaria')+'</strong> · '+
     '<a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_company_creation_fix.sql" target="_blank" rel="noopener noreferrer">'+t('Apri SQL di riparazione')+'</a>'+
@@ -207,7 +207,7 @@ function render() {
   if (!ready) {
     app.innerHTML = alert + '<div class="auth-wrap"><div class="eyebrow">EasyGart • cloud</div><h1>'+t('Configurazione richiesta')+'</h1>'+
       '<div class="card stacked"><p>'+t('L’interfaccia cloud è pronta, ma serve attivare Supabase prima di usarla.')+'</p>'+
-      '<div class="alert warn">Il progetto Supabase di EasyGart deve avere la migrazione SQL e una chiave <code>sb_publishable_…</code> impostata in <code>cloud/config.js</code>. Non inserire mai chiavi segrete.</div>'+
+      '<div class="alert warn">'+t('Nel progetto EasyGart servono la migrazione SQL e una chiave pubblicabile:')+' <code>sb_publishable_…</code> · <code>cloud/config.js</code>. '+t('Non inserire mai chiavi segrete.')+'</div>'+
       '<p><a href="../">'+t('La demo rimane disponibile')+'</a>.</p></div></div>';
     return;
   }
@@ -217,9 +217,9 @@ function render() {
   app.innerHTML = alert +
     '<div class="view-head"><div><div class="eyebrow">EasyGart Cloud</div><h1>'+esc(org?.name||'EasyGart')+'</h1>'+
     '<p>'+t('Solo i dati autorizzati dal server vengono mostrati.')+'</p></div>'+
-    '<div class="toolbar">'+(companies.length>1?'<select id="company-select" aria-label="Azienda" style="max-width:190px">'+companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select>':'')+
+    '<div class="toolbar">'+(companies.length>1?'<select id="company-select" aria-label="'+t('Azienda')+'" style="max-width:190px">'+companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select>':'')+
     '<button class="ghost" data-action="refresh">'+t('Ricarica')+'</button></div></div>'+
-    '<nav class="nav" aria-label="Sezioni">'+
+    '<nav class="nav" aria-label="'+t('Sezioni')+'">'+
       '<button data-action="view" data-view="tasks" class="'+(currentView==='tasks'?'active':'')+'">'+t('Compiti')+'</button>'+ 
       '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+(memberIsOwner() && dailyReports.some(r=>r.status==='submitted')?' · '+dailyReports.filter(r=>r.status==='submitted').length:'')+'</button>'+ 
       (memberIsOwner()?'<button data-action="view" data-view="clients" class="'+(currentView==='clients'?'active':'')+'">'+t('Clienti e cantieri')+'</button>'+
@@ -229,21 +229,21 @@ function render() {
 function authMarkup(){
   const signup=authMode==='signup';
   return '<div class="auth-wrap"><div class="eyebrow">EasyGart Cloud</div><h1>'+t('Accesso dipendenti')+'</h1>'+
-    '<p class="muted" style="margin-bottom:20px">Account individuali: i dati vengono autorizzati da Supabase.</p>'+
+    '<p class="muted" style="margin-bottom:20px">'+t("Account individuali: i dati vengono autorizzati da Supabase.")+'</p>'+
     '<div class="card"><div class="switch"><button class="'+(!signup?'primary':'ghost')+'" data-action="auth-mode" data-mode="signin">'+t('Accedi')+'</button>'+
       '<button class="'+(signup?'primary':'ghost')+'" data-action="auth-mode" data-mode="signup">'+t('Registrati')+'</button></div>'+
     '<form data-form="auth" class="stacked">'+field('Email','email','email','','autocomplete="email" required maxlength="200"')+
     field('Password','password','password','','autocomplete="'+(signup?'new-password':'current-password')+'" minlength="8" required')+
     '<button class="primary" type="submit">'+t(signup?'Crea un account':'Accedi')+'</button></form>'+
-    '<p class="muted" style="font-size:12px;margin-top:18px">I dipendenti devono registrarsi con lo stesso indirizzo email inserito dal titolare nell’invito. Verifica email obbligatoria.</p></div></div>';
+    '<p class="muted" style="font-size:12px;margin-top:18px">'+t("I dipendenti devono registrarsi con lo stesso indirizzo email inserito dal titolare nell’invito. Verifica email obbligatoria.")+'</p></div></div>';
 }
 function onboardMarkup(){
   return '<div class="view-head"><div><div class="eyebrow">EasyGart Cloud</div><h1>'+t('Nessuna azienda collegata')+'</h1>'+
-  '<p>Se sei il titolare, crea l’azienda. Se sei dipendente, conferma la tua email e accetta l’invito.</p></div></div>'+
-  '<div class="two"><div class="card stacked"><h2>'+t('Crea azienda')+'</h2><p class="muted">Usa questa opzione solo per creare un nuovo spazio aziendale indipendente.</p>'+
+  '<p>'+t("Se sei il titolare, crea l’azienda. Se sei dipendente, conferma la tua email e accetta l’invito.")+'</p></div></div>'+
+  '<div class="two"><div class="card stacked"><h2>'+t('Crea azienda')+'</h2><p class="muted">'+t("Usa questa opzione solo per creare un nuovo spazio aziendale indipendente.")+'</p>'+
   '<form class="stacked" data-form="company">'+field('Nome azienda','name','text',pendingCompanyName,'required maxlength="150" minlength="2"')+
   '<button type="submit" class="primary">'+t('Crea azienda')+'</button></form></div>'+
-  '<div class="card stacked"><h2>'+t('Accetta inviti')+'</h2><p class="muted">Un invito associato alla tua email verificata sarà collegato automaticamente al tuo account.</p>'+
+  '<div class="card stacked"><h2>'+t('Accetta inviti')+'</h2><p class="muted">'+t("Un invito associato alla tua email verificata sarà collegato automaticamente al tuo account.")+'</p>'+
   '<button data-action="claim" class="secondary">'+t('Accetta inviti')+'</button></div></div>';
 }
 function tasksMarkup(){
@@ -282,7 +282,7 @@ function taskFormMarkup(){
   const task=tasks.find(x=>x.id===editingTaskId)||{};
   const filteredSites=sites.filter(s=>s.client_id===(task.client_id||clients[0]?.id));
   const workers=members.filter(m=>m.active&&m.role==='worker');
-  if(!clients.length||!workers.length)return '<div class="alert warn" style="margin-bottom:16px">Prima inserisci un cliente e invita almeno un dipendente.</div>';
+  if(!clients.length||!workers.length)return '<div class="alert warn" style="margin-bottom:16px">'+t("Prima inserisci un cliente e invita almeno un dipendente.")+'</div>';
   return '<div class="card stacked" style="margin-bottom:18px"><div class="cardhead"><h2>'+t(editingTaskId==='new'?'Assegna compito':'Modifica')+'</h2>'+
     '<button class="ghost small" data-action="cancel-edit">'+t('Annulla')+'</button></div>'+
     '<form data-form="task" class="formgrid">'+field('Titolo attività','title','text',task.title||'','required minlength="2" maxlength="200"')+
@@ -307,9 +307,9 @@ function reportsMarkup(){
   const owner=memberIsOwner();
   if(!reportsReady){
     return '<div class="view-head"><div><h2>'+t('Rapporti giornalieri')+'</h2></div></div>'+
-      '<div class="alert warn">La funzione rapporti non è ancora attiva nel database. Esegui la migrazione aggiuntiva '+
+      '<div class="alert warn">'+t("La funzione rapporti non è ancora attiva nel database. Esegui la migrazione aggiuntiva")+''+
       '<a target="_blank" rel="noopener noreferrer" href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_daily_reports_v1.sql">easygart_daily_reports_v1.sql</a> '+
-      'nel progetto Supabase EasyGart. <span class="muted">'+esc(reportsSetupError)+'</span></div>';
+      t('nel progetto Supabase EasyGart.')+' <span class="muted">'+t(reportsSetupError)+'</span></div>';
   }
   let visible=dailyReports.filter(r=>owner||r.created_by===user.id);
   if(owner && selectedReportWorkerId!=='all')visible=visible.filter(r=>r.created_by===selectedReportWorkerId);
@@ -319,7 +319,7 @@ function reportsMarkup(){
   const corrections=visible.filter(r=>r.status==='changes_requested').length;
   const done=visible.filter(r=>r.status==='approved').length;
   const header= '<div class="view-head"><div><h2>'+t(owner?'Rapporti ricevuti':'I miei rapporti')+'</h2>'+
-    '<p class="muted">'+(owner?'Controlla quanto svolto sul campo e approva i rapporti ricevuti.':'Racconta al titolare il lavoro svolto ogni giorno.')+'</p></div>'+
+    '<p class="muted">'+t(owner?'Controlla quanto svolto sul campo e approva i rapporti ricevuti.':'Racconta al titolare il lavoro svolto ogni giorno.')+'</p></div>'+
     (!owner?'<button class="primary" data-action="report-new">+ '+t('Nuovo rapporto')+'</button>':'')+'</div>';
   const counts='<div class="grid" style="margin-bottom:18px">'+
     '<div class="card metric"><span>'+t('Da verificare')+'</span><strong>'+pending+'</strong></div>'+
@@ -327,11 +327,11 @@ function reportsMarkup(){
     '<div class="card metric"><span>'+t('Approvati')+'</span><strong>'+done+'</strong></div></div>';
   const statusChoices=[['all','Tutti gli stati'],['draft','Bozza'],['submitted','Inviato'],['changes_requested','Correzioni richieste'],['approved','Approvato']];
   const filters='<div class="card" style="margin-bottom:16px"><div class="toolbar">'+
-    '<label class="field" style="flex:1;min-width:145px"><span>Stato</span><select id="report-status-filter">'+
+    '<label class="field" style="flex:1;min-width:145px"><span>'+t('Stato')+'</span><select id="report-status-filter">'+
     statusChoices.map(([value,label])=>option(value,tr(label),reportStatusFilter===value)).join('')+'</select></label>'+
     (owner?'<label class="field" style="flex:1;min-width:145px"><span>'+t('Dipendente')+'</span><select id="report-worker-filter">'+
       option('all',tr('Tutti gli operatori'),selectedReportWorkerId==='all')+
-      members.filter(m=>m.role==='worker').map(m=>option(m.user_id,m.full_name||'Operatore',selectedReportWorkerId===m.user_id)).join('')+'</select></label>':'')+
+      members.filter(m=>m.role==='worker').map(m=>option(m.user_id,m.full_name||tr('Operatore'),selectedReportWorkerId===m.user_id)).join('')+'</select></label>':'')+
     '</div></div>';
   return header+counts+filters+
     (!owner&&reportEditingId!==null?reportFormMarkup():'')+
@@ -343,32 +343,32 @@ function reportFormMarkup(){
   if(reportEditingId!=='new'&&(!report||report.created_by!==user.id||
      !['draft','changes_requested'].includes(report.status)))return '';
   const ownTasks=tasks.filter(task=>task.assignee_id===user.id);
-  if(!ownTasks.length)return '<div class="alert warn" style="margin-bottom:16px">Per compilare il rapporto serve un compito assegnato dal titolare.</div>';
+  if(!ownTasks.length)return '<div class="alert warn" style="margin-bottom:16px">'+t("Per compilare il rapporto serve un compito assegnato dal titolare.")+'</div>';
   const taskId=report?.task_id||ownTasks[0]?.id;
   const task=ownTasks.find(x=>x.id===taskId);
   const taskInput=report
-    ? '<div class="field"><span>'+t('Compiti')+'</span><strong>'+esc(task?.title||'Attività non più assegnata')+'</strong><input type="hidden" name="task_id" value="'+esc(taskId)+'"></div>'
+    ? '<div class="field"><span>'+t('Compiti')+'</span><strong>'+esc(task?.title||tr('Attività non più assegnata'))+'</strong><input type="hidden" name="task_id" value="'+esc(taskId)+'"></div>'
     : select('Compiti','task_id',ownTasks.map(x=>option(x.id,x.title+(x.due_date?' · '+x.due_date:''),x.id===taskId)).join(''),'required');
   return '<div class="card stacked" style="margin-bottom:18px"><div class="cardhead"><div><div class="eyebrow">EasyGart Cloud</div><h2>'+t(report?'Modifica':'Nuovo rapporto')+'</h2>'+
-    '<p class="muted">Completa il rapporto e invialo al titolare. Dopo l’invio non è più modificabile finché non vengono richieste correzioni.</p></div>'+
+    '<p class="muted">'+t("Completa il rapporto e invialo al titolare. Dopo l’invio non è più modificabile finché non vengono richieste correzioni.")+'</p></div>'+
     '<button class="ghost small" data-action="report-cancel">'+t('Annulla')+'</button></div>'+
     (report?.manager_feedback?'<div class="alert warn"><strong>'+t('Feedback del titolare')+': </strong>'+esc(report.manager_feedback)+'</div>':'')+
     '<form data-form="daily-report" class="formgrid">'+
     taskInput+
     field('Data','work_date','date',report?.work_date||dateToday(),'required')+
     field('Ore effettive (minuti)','minutes_worked','number',report?.minutes_worked??'','min="0" max="1440" required')+
-    '<label class="field span2"><span>'+t('Lavoro svolto')+' *</span><textarea name="work_summary" maxlength="6000" rows="5" placeholder="Descrivi in modo preciso gli interventi effettuati…">'+esc(report?.work_summary||'')+'</textarea></label>'+
-    '<label class="field span2"><span>'+t('Materiali utilizzati')+'</span><textarea name="materials_used" maxlength="4000" rows="2" placeholder="Tipi e quantità di materiale, se presenti">'+esc(report?.materials_used||'')+'</textarea></label>'+
-    '<label class="field span2"><span>'+t('Problemi e imprevisti')+'</span><textarea name="issues" maxlength="4000" rows="2" placeholder="Anomalie, interventi rimandati, comunicazioni importanti">'+esc(report?.issues||'')+'</textarea></label>'+
+    '<label class="field span2"><span>'+t('Lavoro svolto')+' *</span><textarea name="work_summary" maxlength="6000" rows="5" placeholder="'+t("Descrivi in modo preciso gli interventi effettuati…")+'">'+esc(report?.work_summary||'')+'</textarea></label>'+
+    '<label class="field span2"><span>'+t('Materiali utilizzati')+'</span><textarea name="materials_used" maxlength="4000" rows="2" placeholder="'+t("Tipi e quantità di materiale, se presenti")+'">'+esc(report?.materials_used||'')+'</textarea></label>'+
+    '<label class="field span2"><span>'+t('Problemi e imprevisti')+'</span><textarea name="issues" maxlength="4000" rows="2" placeholder="'+t("Anomalie, interventi rimandati, comunicazioni importanti")+'">'+esc(report?.issues||'')+'</textarea></label>'+
     '<div class="span2 actions"><button class="ghost" type="submit" value="draft">'+t('Salva bozza')+'</button>'+
     '<button class="primary" type="submit" value="send">'+t('Invia al titolare')+'</button></div></form>'+
-    '<p class="muted" style="font-size:12px">Le indicazioni sui materiali sono un riepilogo operativo e non generano addebiti o fatture automatiche.</p></div>';
+    '<p class="muted" style="font-size:12px">'+t("Le indicazioni sui materiali sono un riepilogo operativo e non generano addebiti o fatture automatiche.")+'</p></div>';
 }
 function reportCardMarkup(report,owner){
   const task=tasks.find(x=>x.id===report.task_id);
   const isPending=report.status==='submitted';
   const tone=isPending?'amber':report.status==='changes_requested'?'red':'';
-  const title=task?.title||'Intervento';
+  const title=task?.title||tr('Intervento');
   return '<article class="taskrow"><div style="flex:1;min-width:180px">'+
     '<div class="task-title">'+esc(title)+'</div>'+
     '<div class="task-meta"><span>'+esc(report.work_date)+'</span>'+
@@ -376,13 +376,13 @@ function reportCardMarkup(report,owner){
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
     '<span>'+esc(getName(clients,task?.client_id))+'</span>'+
     '<span>'+esc(getName(sites,task?.site_id))+'</span></div>'+
-    '<p class="task-note">'+esc(report.work_summary||'Descrizione non ancora compilata')+'</p>'+
+    '<p class="task-note">'+esc(report.work_summary||tr('Descrizione non ancora compilata'))+'</p>'+
     (report.materials_used?'<p class="task-note"><strong>'+t('Materiali utilizzati')+': </strong>'+esc(report.materials_used)+'</p>':'')+
     (report.issues?'<p class="task-note"><strong>'+t('Problemi e imprevisti')+': </strong>'+esc(report.issues)+'</p>':'')+
     (report.manager_feedback?'<div class="alert warn" style="margin-top:12px"><strong>'+t('Feedback del titolare')+': </strong>'+esc(report.manager_feedback)+'</div>':'')+
     (owner&&isPending?'<form data-form="daily-review" class="stacked" style="margin-top:16px">'+
       '<input type="hidden" name="report_id" value="'+esc(report.id)+'">'+
-      '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="Motivo di eventuali correzioni o indicazioni operative"></textarea></label>'+
+      '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="'+t("Motivo di eventuali correzioni o indicazioni operative")+'"></textarea></label>'+
       '<div class="actions"><button class="primary small" type="submit" value="approved">'+t('Approva')+'</button>'+
       '<button class="ghost small" type="submit" value="changes_requested">'+t('Richiedi correzioni')+'</button></div></form>':'')+
     (!owner&&['draft','changes_requested'].includes(report.status)?'<div style="margin-top:13px"><button class="secondary small" data-action="report-edit" data-id="'+esc(report.id)+'">'+t('Modifica')+'</button></div>':'')+
