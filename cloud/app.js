@@ -5,6 +5,7 @@ const esc = s => String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').
 const cfg = window.EASYGART_SUPABASE_CONFIG || {};
 const app = $('app'), topRight = $('top-right');
 let client = null;
+let operations = null;
 let authMode = 'signin';
 let notice = '';
 let errorNotice = false;
@@ -251,10 +252,11 @@ function render() {
     '<button class="ghost" data-action="refresh">'+t('Ricarica')+'</button></div></div>'+
     '<nav class="nav" aria-label="'+t('Sezioni')+'">'+
       '<button data-action="view" data-view="tasks" class="'+(currentView==='tasks'?'active':'')+'">'+t('Compiti')+'</button>'+ 
+      '<button data-action="view" data-view="clock" class="'+(currentView==='clock'?'active':'')+'">'+t('Timbrature')+'</button>'+ 
       '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+(memberIsOwner() && dailyReports.some(r=>r.status==='submitted')?' · '+dailyReports.filter(r=>r.status==='submitted').length:'')+'</button>'+ 
       (memberIsOwner()?'<button data-action="view" data-view="clients" class="'+(currentView==='clients'?'active':'')+'">'+t('Clienti e cantieri')+'</button>'+
       '<button data-action="view" data-view="team" class="'+(currentView==='team'?'active':'')+'">'+t('La tua squadra')+'</button>':'')+'</nav>'+
-    (currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():tasksMarkup());
+    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():tasksMarkup());
 }
 function authMarkup(){
   const signup=authMode==='signup';
@@ -410,6 +412,7 @@ function reportCardMarkup(report,owner){
     (report.materials_used?'<p class="task-note"><strong>'+t('Materiali utilizzati')+': </strong>'+esc(report.materials_used)+'</p>':'')+
     (report.issues?'<p class="task-note"><strong>'+t('Problemi e imprevisti')+': </strong>'+esc(report.issues)+'</p>':'')+
     (report.manager_feedback?'<div class="alert warn" style="margin-top:12px"><strong>'+t('Feedback del titolare')+': </strong>'+esc(report.manager_feedback)+'</div>':'')+
+    (operations?operations.mediaMarkup(report):'')+
     (owner&&isPending?'<form data-form="daily-review" class="stacked" style="margin-top:16px">'+
       '<input type="hidden" name="report_id" value="'+esc(report.id)+'">'+
       '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="'+t("Motivo di eventuali correzioni o indicazioni operative")+'"></textarea></label>'+
@@ -445,7 +448,7 @@ async function refresh() {
   if(!client||!user)return;
   const list=requireSuccess(await client.from('eg_members').select('company_id,user_id,full_name,role,active').eq('user_id',user.id).eq('active',true));
   memberships=list||[];
-  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;render();return}
+  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;operations?.reset();render();return}
   const cids=memberships.map(x=>x.company_id);
   companies=requireSuccess(await client.from('eg_companies').select('id,name').in('id',cids))||[];
   if(!cids.includes(selectedCompanyId))selectedCompanyId=cids[0];
@@ -470,7 +473,8 @@ async function refresh() {
   } else {
     reportsReady=true;reportsSetupError='';dailyReports=reportResponse.data||[];
   }
-  if(!owner&&!['tasks','reports'].includes(currentView))currentView='tasks';
+  await operations?.refresh(org);
+  if(!owner&&!['tasks','reports','clock'].includes(currentView))currentView='tasks';
   render();
 }
 async function onAuth(form){
@@ -487,6 +491,7 @@ async function onAuth(form){
   notice='';await refresh();
 }
 async function submitForm(form,formAction='draft'){
+  if(form.dataset.form==='ops-signature')return operations?.saveSignature(form);
   const vals=Object.fromEntries(new FormData(form));
   switch(form.dataset.form){
     case 'auth':await onAuth(form);break;
@@ -588,6 +593,11 @@ async function boot(){
       auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true},
       global:{headers:{'x-client-info':'easygarte-cloud-v1'}}
     });
+    operations = window.createEasyGartOperations({
+      client,
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,reports:dailyReports,locale,reload:refresh}),
+      t,tr,esc,onSuccess:success,rerender:render
+    });
     const r=await client.auth.getUser();
     if(r.error&&r.error.status!==400)throw r.error;
     user=r.data?.user||null;
@@ -596,7 +606,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;render()}else await refresh();
+        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;operations?.reset();render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
@@ -653,6 +663,7 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-action]');
   if(!b)return;
   const a=b.dataset.action;
+  if(a.startsWith('ops-')){withBusy(()=>operations?.handleAction(b));return}
   if(a==='auth-mode'){authMode=b.dataset.mode;notice='';render();return}
   if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
@@ -684,6 +695,8 @@ document.addEventListener('click',e=>{
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
 });
 document.addEventListener('change',e=>{
+  if(e.target.dataset.opsInput){withBusy(()=>operations?.uploadPhotos(e.target));return}
+  if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
   if(e.target.id==='company-select'){selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
@@ -694,5 +707,9 @@ document.addEventListener('change',e=>{
     s.innerHTML=option('','—')+sites.filter(x=>x.client_id===e.target.value).map(x=>option(x.id,x.name)).join('');
   }
 });
+document.addEventListener('pointerdown',e=>operations?.pointerStart(e));
+document.addEventListener('pointermove',e=>operations?.pointerMove(e));
+document.addEventListener('pointerup',()=>operations?.pointerEnd());
+document.addEventListener('pointercancel',()=>operations?.pointerEnd());
 render();
 boot();
