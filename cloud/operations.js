@@ -189,11 +189,27 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     if(!file.type.startsWith('image/') || /svg|gif/i.test(file.type))
       throw Error(tr('Formato immagine non supportato.'));
     // Converte HEIC/HEIF e foto grandi in JPEG limitato; Safari deve poter leggere il file.
-    const bitmap=await createImageBitmap(file);
-    const ratio=Math.min(1,2200/Math.max(bitmap.width,bitmap.height));
+    let bitmap;
+    try{
+      bitmap=await createImageBitmap(file);
+    }catch{
+      // iOS/Safari può non supportare createImageBitmap per i file HEIC.
+      const objectUrl=URL.createObjectURL(file);
+      try{
+        bitmap=await new Promise((resolve,reject)=>{
+          const image=new Image();
+          image.onload=()=>resolve(image);
+          image.onerror=()=>reject(Error(tr('Impossibile leggere questa foto. Converti il file in JPEG.')));
+          image.src=objectUrl;
+        });
+      }finally{URL.revokeObjectURL(objectUrl)}
+    }
+    const originalWidth=bitmap.width||bitmap.naturalWidth;
+    const originalHeight=bitmap.height||bitmap.naturalHeight;
+    const ratio=Math.min(1,2200/Math.max(originalWidth,originalHeight));
     const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(bitmap.width*ratio));
-    canvas.height=Math.max(1,Math.round(bitmap.height*ratio));
+    canvas.width=Math.max(1,Math.round(originalWidth*ratio));
+    canvas.height=Math.max(1,Math.round(originalHeight*ratio));
     const ctx=canvas.getContext('2d');
     ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
     bitmap.close?.();
@@ -316,13 +332,25 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
       signatureDrawn=false;return;
     }
   }
+  function captureSignature(){
+    const canvas=document.querySelector?.('canvas[data-ops-signature]');
+    return signatureDrawn && canvas?.toDataURL ? canvas.toDataURL('image/png') : null;
+  }
+  function restoreSignature(pngDataUrl){
+    if(!pngDataUrl || !signingReportId)return;
+    const canvas=document.querySelector?.('canvas[data-ops-signature]');
+    if(!canvas || typeof Image==='undefined')return;
+    const image=new Image();
+    image.onload=()=>canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+    image.src=pngDataUrl;
+  }
   function handleChange(el){
     if(el.dataset.opsFilter==='worker'){selectedWorker=el.value;rerender();return true}
     return false;
   }
   return {
     refresh,clockMarkup,mediaMarkup,uploadPhotos,saveSignature,handleAction,handleChange,
-    pointerStart,pointerMove,pointerEnd,
-    reset:()=>{shifts=[];media=[];shiftsReady=false;mediaReady=false;mediaUrls.clear();signingReportId=null}
+    pointerStart,pointerMove,pointerEnd,captureSignature,restoreSignature,isSigning:()=>signingReportId!==null,
+    reset:()=>{shifts=[];media=[];shiftsReady=false;mediaReady=false;mediaUrls.clear();signingReportId=null;signatureDrawn=false}
   };
 };
