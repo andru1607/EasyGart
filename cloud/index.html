@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#183D30">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="EasyGart">
+<meta name="color-scheme" content="light">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="apple-touch-icon" href="./icon.svg">
 <meta name="description" content="EasyGart Cloud: gestione del verde, squadra e incarichi.">
 <title>EasyGart Cloud | Team</title>
 <meta name="robots" content="noindex,nofollow">
@@ -92,14 +100,55 @@ textarea{resize:vertical;min-height:90px}.formgrid{display:grid;grid-template-co
 .eg-signature-form{padding:10px}
 .eg-upload input{font-size:12px}
 }
+
+/* Business features and mobile installability */
+.eg-business-usage{border-top:1px solid var(--line);padding-top:14px;margin-top:16px;min-width:0}
+.eg-business-usage .taskrow{padding:9px 0}
+.eg-business-inline{background:#f6faf6;border:1px solid var(--line);border-radius:12px;padding:13px;margin-top:12px}
+.eg-business-form{margin-top:14px}
+.eg-business-form .field{min-width:0}
+.eg-invoice-total{text-align:right;margin:15px 0}
+.eg-invoice-total p{margin:5px 0}
+.eg-invoice-detail{scroll-margin-top:20px}
+#eg-network-banner{background:#74430d;color:white;padding:11px 16px;text-align:center;font-size:13px;font-weight:650;
+ position:sticky;top:0;z-index:30;box-shadow:0 2px 6px #0002}
+#eg-network-banner[hidden]{display:none}
+#eg-print-zone{display:none}
+button:disabled{cursor:not-allowed;opacity:.5}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+ outline:3px solid #86bc77;outline-offset:2px
+}
+@media(max-width:760px){
+ input,select,textarea{font-size:16px}
+ .eg-business-inline{padding:10px}
+ .eg-invoice-detail{overflow-wrap:anywhere}
+ .view-head>.actions{width:100%;flex-wrap:wrap}
+ .view-head>.actions button{flex:1;min-width:130px}
+ .eg-invoice-total{text-align:left}
+}
+@media print{
+ @page{size:A4;margin:17mm}
+ body{background:#fff;color:#111;font:11pt/1.4 Arial,sans-serif}
+ body>header,body>main,body>footer,body>#eg-network-banner{display:none!important}
+ #eg-print-zone{display:block!important;position:static!important;background:#fff;color:#111}
+ #eg-print-zone .eg-print-sheet{padding:0;max-width:none}
+ #eg-print-zone table{width:100%;border-collapse:collapse;margin:24px 0}
+ #eg-print-zone th,#eg-print-zone td{border-bottom:1px solid #777;padding:9px 7px;text-align:left}
+ #eg-print-zone th{font-weight:700}
+ #eg-print-zone h1{font-size:24pt}
+ #eg-print-zone .eg-invoice-total{text-align:right}
+}
 </style>
 </head>
 <body>
 <header class="top"><div><div class="brand">easygart<span>.</span></div><div class="top-sub">Team Cloud • account e incarichi</div></div><div id="top-right" class="actions"></div></header>
 <main class="container" id="app"><div class="card">Caricamento EasyGart Cloud…</div></main>
+<div id="eg-print-zone" aria-hidden="true"></div>
 <footer class="container footer">EasyGart Cloud MVP · La demo storica resta disponibile sulla pagina principale · Non inserire dati reali prima della verifica dei permessi.</footer>
 <script src="./config.js"></script>
 <script src="./operations.js?v=20261115-ops-v1"></script>
-<script type="module" src="./app.js?v=20261115-security-v2"></script>
+<script src="./business.js?v=20261116-business-v1"></script>
+<script src="./mobile.js?v=20261116-mobile-v1"></script>
+<script type="module" src="./app.js?v=20261116-business-v1"></script>
 </body>
 </html>
