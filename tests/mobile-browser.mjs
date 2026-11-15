@@ -95,8 +95,12 @@ async function smoke(engineName,browserType,device){
  await page.locator('button[data-view="archive"]').click();
  assert.ok(await page.locator('button[data-action="biz-export-data"]').isVisible());
  // Real browser download, not just static code: WebKit and Chromium.
- const downloadPromise=page.waitForEvent('download',{timeout:20000});
  await page.locator('button[data-action="biz-export-data"]').click();
+ // iOS requires a new, explicit tap after async preparation before starting the download.
+ const downloadLink=page.locator('a[download][href^="blob:"]');
+ await downloadLink.waitFor({timeout:15000});
+ const downloadPromise=page.waitForEvent('download',{timeout:20000});
+ await downloadLink.click();
  const download=await downloadPromise;
  assert.match(download.suggestedFilename(),/^easygart-export-\d{4}-\d{2}-\d{2}\.json$/);
  const contents=JSON.parse(await readFile(await download.path(),'utf8'));
