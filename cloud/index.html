@@ -46,6 +46,30 @@ textarea{resize:vertical;min-height:90px}.formgrid{display:grid;grid-template-co
 .hidden{display:none!important}.footer{font-size:12px;color:var(--muted);margin-top:28px;padding-top:15px;border-top:1px solid var(--line)}
 #notice{margin-bottom:18px}.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 @media(max-width:760px){.grid{grid-template-columns:1fr}.two{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.span2{grid-column:1}.container{padding:20px 14px 90px}.card{padding:17px}.view-head{align-items:flex-start}.taskrow{flex-direction:column;gap:11px}.task-right{align-items:flex-start}.top{padding:15px 18px}.auth-wrap{margin:20px auto}.auth-wrap .card{padding:22px}}
+/* On narrow screens, long German labels stay inside accessible two-column navigation. */
+@media(max-width:760px){
+  .top{flex-direction:column;align-items:stretch;gap:12px;padding:15px 16px}
+  #top-right{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%}
+  #top-right span{font-size:11px;line-height:1.3;min-width:0;overflow-wrap:anywhere}
+  #top-right select{min-width:0;max-width:100%;width:100%!important}
+  #top-right .ghost{padding:9px 10px;min-height:40px;white-space:nowrap}
+  .nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:26px;align-items:stretch}
+  .nav button{background:#fff;border:1px solid var(--line);min-width:0;width:100%;
+    min-height:52px;padding:10px 8px;text-align:center;line-height:1.3;
+    font-size:13px;overflow-wrap:anywhere;white-space:normal;hyphens:auto}
+  .nav button.active{background:var(--green);color:#fff;border-color:var(--green)}
+  .view-head{gap:11px}
+  .view-head h1{font-size:clamp(28px,9vw,36px);overflow-wrap:anywhere}
+  .card,.taskrow{min-width:0}
+  .task-title,.task-note,.card p{overflow-wrap:anywhere}
+  .toolbar>*{max-width:100%}
+  .cardhead{flex-wrap:wrap}
+}
+@media(max-width:380px){
+  #top-right{grid-template-columns:66px minmax(0,1fr) auto;gap:6px}
+  #top-right .ghost{font-size:12px;padding:8px}
+  .nav button{font-size:12px;padding:9px 6px}
+}
 </style>
 </head>
 <body>
