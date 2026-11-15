@@ -42,7 +42,7 @@ const fakeData={
 };
 async function smoke(engineName,browserType,device){
  const browser=await browserType.launch({headless:true});
- const context=await browser.newContext({...device,serviceWorkers:'block'});
+ const context=await browser.newContext({...device,serviceWorkers:'block',acceptDownloads:true});
  const page=await context.newPage();
  const errors=[];
  page.on('pageerror',e=>errors.push(e.message));
@@ -57,9 +57,10 @@ async function smoke(engineName,browserType,device){
    eq(k,v){this.filters.push(row=>row[k]===v);return this}
    in(k,vals){this.filters.push(row=>vals.includes(row[k]));return this}
    order(){return this}
+   range(from,to){this.from=from;this.to=to+1;return this}
    limit(n){this.max=n;return this}
    then(resolve,reject){
-    const rows=(data[this.table]||[]).filter(row=>this.filters.every(fn=>fn(row))).slice(0,this.max);
+    const rows=(data[this.table]||[]).filter(row=>this.filters.every(fn=>fn(row))).slice(this.from||0,this.to||this.max);
     return Promise.resolve({data:rows,error:null}).then(resolve,reject);
    }
   }
@@ -93,6 +94,19 @@ async function smoke(engineName,browserType,device){
  assert.ok(await page.locator('button[data-view="materials"]').textContent().then(x=>x.includes('Materialkatalog')));
  await page.locator('button[data-view="archive"]').click();
  assert.ok(await page.locator('button[data-action="biz-export-data"]').isVisible());
+ // Real browser download, not just static code: WebKit and Chromium.
+ const downloadPromise=page.waitForEvent('download',{timeout:20000});
+ await page.locator('button[data-action="biz-export-data"]').click();
+ const download=await downloadPromise;
+ assert.match(download.suggestedFilename(),/^easygart-export-\d{4}-\d{2}-\d{2}\.json$/);
+ const contents=JSON.parse(await readFile(await download.path(),'utf8'));
+ assert.equal(contents.format,'easygart-json-export');
+ assert.equal(contents.company.id,'org1');
+ assert.equal(contents.tables.eg_clients[0].name,'Cliente prova');
+ assert.equal(contents.tables.eg_materials[0].sale_price,12);
+ assert.equal(contents.tables.eg_invoice_drafts[0].id,'i1');
+ assert.ok(!('auth.users' in contents.tables));
+ assert.ok(!('media_binary' in contents));
  await context.setOffline(true);
  // Mobile network banners depend on navigator.onLine; context offline event should fire.
  await page.waitForTimeout(200);
