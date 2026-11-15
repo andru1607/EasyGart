@@ -55,7 +55,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
         .eq('company_id',companyId).eq('status','uploaded')
         .order('created_at',{ascending:false}).limit(180)
     ]);
-    shiftsReady=!rs.error;shiftsError=rs.error?.message||'';
+    shiftsReady=!rs.error;shiftError=rs.error?.message||'';
     shifts=rs.data||[];
     mediaReady=!rm.error;mediaError=rm.error?.message||'';
     media=rm.data||[];
@@ -126,7 +126,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   }
   function mediaMarkup(report){
     if(!report||!report.id)return '';
-    if(!mediaReady)return '<div class="alert warn" style="margin-top:12px">'+showMissing('media')+'</div>';
+    if(!mediaReady)return '<div style="margin-top:12px">'+showMissing('media')+'</div>';
     const files=media.filter(m=>m.report_id===report.id);
     const editable=ownReport(report);
     const photos=phase=>{
