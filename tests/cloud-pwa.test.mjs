@@ -68,7 +68,7 @@ test('printing proforma hides private app UI and prints only draft body',()=>{
 test('session-only drafts exclude credentials, photo uploads and signatures',()=>{
   assert.match(app,/const DRAFT_FORMS=new Set/);
   assert.match(app,/const DRAFT_TTL=24\*60\*60\*1000/);
-  assert.match(app,/!\\['hidden','password','email','file','radio'\\]\.includes\(el\.type\)/);
+  assert.ok(app.includes("!['hidden','password','email','file','radio'].includes(el.type)"));
   assert.match(app,/sessionStorage\.setItem\(key/);
   assert.match(app,/restoreSessionDrafts\(\)/);
   assert.match(app,/clearAccountDrafts\(\)/);
