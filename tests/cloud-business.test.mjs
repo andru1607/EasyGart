@@ -136,3 +136,17 @@ test('business German dictionary covers all direct business labels',()=>{
  const missing=[...new Set(words)].filter(x=>!Object.hasOwn(dictionary,x)&&!Object.hasOwn(businessTranslations,x));
  assert.deepEqual(missing,[],'Missing German words: '+missing.join(' | '));
 });
+
+test('owner-only exports are paginated and explicitly exclude original private media and Auth users',async()=>{
+ const o=harness(true);await o.business.refresh('org');
+ const screen=o.business.markup('archive');
+ assert.match(screen,/biz-export-data/);
+ assert.match(screen,/fotografie e le firme originali non sono incluse/);
+ assert.match(source,/for\(let page=0;page<pageCap;page\+\+\)/);
+ assert.match(source,/table==='eg_companies'\?'id':'company_id'/);
+ assert.match(source,/\.range\(page\*limit,\(page\+1\)\*limit-1\)/);
+ assert.doesNotMatch(source,/['"]auth\.users['"]/);
+ assert.match(source,/Solo il titolare può esportare i dati/);
+ const worker=harness(false);await worker.business.refresh('org');
+ assert.doesNotMatch(worker.business.markup('archive'),/biz-export-data/);
+});
