@@ -3,6 +3,7 @@
 'use strict';
 window.EASYGART_BUSINESS_I18N={
   "Operazione non riuscita.": "Vorgang fehlgeschlagen.",
+  "Chiudi": "Schließen",
   "Gestione aziendale non ancora disponibile. Controlla la migrazione SQL.": "Die Betriebsverwaltung ist noch nicht verfügbar. Bitte die SQL-Migration prüfen.",
   "Apri SQL gestionale": "SQL-Skript für die Verwaltung öffnen",
   "Nome materiale": "Materialname",
