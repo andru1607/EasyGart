@@ -70,8 +70,15 @@ create or replace function private.eg_media_can_read(p_path text)
 returns boolean language sql stable security definer set search_path='' as $eg_read$
   select auth.uid() is not null and exists(
     select 1 from public.eg_report_media m
-    where m.storage_path=p_path and m.status='uploaded'
-      and (
+    where m.storage_path=p_path and (
+        m.status='uploaded'
+        or (m.status='reserved' and m.author_id=auth.uid()
+            and exists (
+              select 1 from public.eg_daily_reports r
+              where r.id=m.report_id and r.company_id=m.company_id
+                and r.created_by=auth.uid() and r.status in ('draft','changes_requested')
+            ))
+      ) and (
         private.eg_is_owner(m.company_id)
         or (private.eg_is_member(m.company_id) and m.author_id=auth.uid())
       )
