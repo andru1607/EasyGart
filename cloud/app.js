@@ -25,6 +25,9 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Catalogo materiali": "Materialkatalog",
+  "Manutenzioni ricorrenti": "Wiederkehrende Wartungen",
+  "Bozze proforma": "Proforma-Entwürfe",
   "Usa una password unica di almeno 12 caratteri, preferibilmente generata da un gestore password.": "Verwende ein einmaliges Passwort mit mindestens 12 Zeichen, am besten aus einem Passwortmanager.",
   "Per registrarti usa almeno 12 caratteri per la password.": "Für die Registrierung muss das Passwort mindestens 12 Zeichen lang sein.",
   "Impossibile leggere questa foto. Converti il file in JPEG.": "Dieses Foto kann nicht gelesen werden. Bitte konvertiere es in JPEG.",
@@ -235,7 +238,7 @@ const german = {
   'Attività assegnate':'Zugewiesene Aufgaben','I miei compiti':'Meine Aufgaben',
   'Tutti':'Alle','Aperte':'Offen','Scadute':'Überfällig','Ricarica':'Neu laden'
 };
-const tr = s => locale === 'de' ? german[s] || s : s;
+const tr = s => locale === 'de' ? (german[s] || window.EASYGART_BUSINESS_I18N?.[s] || s) : s;
 const t = s => esc(tr(s));
 const field = (label,name,type='text',value='',options='') => '<label class="field"><span>'+t(label)+'</span><input name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+options+'></label>';
 const select = (label,name,opts,extra='') => '<label class="field"><span>'+t(label)+'</span><select name="'+name+'" '+extra+'>'+opts+'</select></label>';
