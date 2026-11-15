@@ -188,6 +188,53 @@ test('signature panel asks for consent and explains limits of on-site signature'
   assert.match(html,/non è una firma elettronica qualificata/);
   assert.match(html,/data-form="ops-signature"/);
 });
+test('signature drawing requires a real stroke, consent and the signatory name',async()=>{
+  const h=fakeContext();
+  await h.ops.refresh('org-1');
+  await h.ops.handleAction({dataset:{action:'ops-sign-open',reportId:'report-1'}});
+  const fakeCanvas={
+    width:900,height:280,
+    getBoundingClientRect:()=>({left:0,top:0,width:900,height:280}),
+    setPointerCapture(){},
+    getContext:()=>({
+      beginPath(){},arc(){},fill(){},moveTo(){},lineTo(){},stroke(){},drawImage(){},
+    }),
+    toBlob(callback){callback({type:'image/png',size:1024})},
+    toDataURL:()=> 'data:image/png;base64,fake',
+  };
+  const inputName={value:'Kunde Muster'},consent={checked:true};
+  const form={
+    dataset:{reportId:'report-1'},
+    querySelector:selector=>{
+      if(selector==='[name="signer_name"]')return inputName;
+      if(selector==='[name="consent"]')return consent;
+      if(selector==='canvas[data-ops-signature]')return fakeCanvas;
+      return null;
+    }
+  };
+  await assert.rejects(h.ops.saveSignature(form),/deve firmare/);
+  h.ops.pointerStart({
+    target:{matches:x=>x==='canvas[data-ops-signature]',...fakeCanvas},
+    pointerId:1,clientX:15,clientY:20,preventDefault(){}
+  });
+  h.ops.pointerEnd();
+  await h.ops.saveSignature(form);
+  const reserved=h.data.calls.find(x=>x.name==='eg_media_reserve');
+  assert.equal(reserved.args.p_kind,'signature');
+  assert.equal(reserved.args.p_mime,'image/png');
+  assert.equal(reserved.args.p_signer_name,'Kunde Muster');
+  assert.equal(reserved.args.p_consent,true);
+  assert.ok(h.data.calls.some(x=>x.name==='eg_media_finalize'));
+  assert.equal(h.loads,1);
+});
+
+test('signature is never auto-refreshed during drawing, even if the form loses focus',()=>{
+  assert.match(app,/!operations\?\.isSigning\?\.\(\)/);
+  assert.match(app,/operations\?\.captureSignature\?\.\(\)/);
+  assert.match(app,/operations\?\.restoreSignature\?\.\(signature\)/);
+  assert.match(operations,/touch-action:none|pointerStart/);
+});
+
 test('client never uses public URL, admin API or browser-supplied attendance times',()=>{
   assert.doesNotMatch(operations.replace(/\/\/[^\n]*/g,''),/getPublicUrl|service_role|sb_secret_|auth\.admin/);
   assert.match(operations,/createSignedUrl\(m\.storage_path,API_SIGNED_URL_TTL\)/);
