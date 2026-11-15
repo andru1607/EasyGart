@@ -24,6 +24,8 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Usa una password unica di almeno 12 caratteri, preferibilmente generata da un gestore password.": "Verwende ein einmaliges Passwort mit mindestens 12 Zeichen, am besten aus einem Passwortmanager.",
+  "Per registrarti usa almeno 12 caratteri per la password.": "Für die Registrierung muss das Passwort mindestens 12 Zeichen lang sein.",
   "Impossibile leggere questa foto. Converti il file in JPEG.": "Dieses Foto kann nicht gelesen werden. Bitte konvertiere es in JPEG.",
   "Per aggiungere foto prima/dopo e firma del cliente, salva prima il rapporto come bozza.": "Um Vorher-/Nachher-Fotos und die Kundenunterschrift hinzuzufügen, speichere den Bericht zuerst als Entwurf.",
   "Apri lo script SQL": "SQL-Skript öffnen",
@@ -329,7 +331,8 @@ function authMarkup(){
     '<div class="card"><div class="switch"><button class="'+(!signup?'primary':'ghost')+'" data-action="auth-mode" data-mode="signin">'+t('Accedi')+'</button>'+
       '<button class="'+(signup?'primary':'ghost')+'" data-action="auth-mode" data-mode="signup">'+t('Registrati')+'</button></div>'+
     '<form data-form="auth" class="stacked">'+field('Email','email','email','','autocomplete="email" required maxlength="200"')+
-    field('Password','password','password','','autocomplete="'+(signup?'new-password':'current-password')+'" minlength="8" required')+
+    field('Password','password','password','','autocomplete="'+(signup?'new-password':'current-password')+'" minlength="'+(signup?'12':'8')+'" required')+
+    (signup?'<p class="muted" style="font-size:12px;margin:2px 0 12px">'+t('Usa una password unica di almeno 12 caratteri, preferibilmente generata da un gestore password.')+'</p>':'')+
     '<button class="primary" type="submit">'+t(signup?'Crea un account':'Accedi')+'</button></form>'+
     '<p class="muted" style="font-size:12px;margin-top:18px">'+t("I dipendenti devono registrarsi con lo stesso indirizzo email inserito dal titolare nell’invito. Verifica email obbligatoria.")+'</p></div></div>';
 }
@@ -546,6 +549,7 @@ async function onAuth(form){
   const vals=Object.fromEntries(new FormData(form));
   const email=String(vals.email||'').trim().toLowerCase(),password=String(vals.password||'');
   if(authMode==='signup'){
+    if(password.length<12)throw Error('Per registrarti usa almeno 12 caratteri per la password.');
     const r=await client.auth.signUp({email,password,options:{emailRedirectTo:location.href.split('?')[0].split('#')[0]}});
     requireSuccess(r);
     if(!r.data?.session){authMode='signin';success('Registrazione avviata. Controlla la posta, conferma la tua email e poi accedi.');return}
