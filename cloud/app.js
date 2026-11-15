@@ -677,7 +677,7 @@ async function boot(){
       const formFocused=!!document.activeElement?.closest?.('form');
       // Non cancellare i campi di un rapporto, di un compito o di un modulo mentre si scrive.
       if(user && document.visibilityState==='visible' && !busy && !formFocused &&
-         reportEditingId===null && editingTaskId===null)refresh().catch(fail);
+         reportEditingId===null && editingTaskId===null && !operations?.isSigning?.())refresh().catch(fail);
     },30000);
   }catch(e){fail(e)}
 }
@@ -714,8 +714,10 @@ function restoreEditableForms(drafts){
 }
 function renderPreservingForms(){
   const drafts=captureEditableForms();
+  const signature=operations?.captureSignature?.();
   render();
   restoreEditableForms(drafts);
+  operations?.restoreSignature?.(signature);
 }
 document.addEventListener('submit',e=>{
   const form=e.target.closest('form[data-form]');
