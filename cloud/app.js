@@ -328,9 +328,9 @@ function reportsMarkup(){
   const owner=memberIsOwner();
   if(!reportsReady){
     return '<div class="view-head"><div><h2>'+t('Rapporti giornalieri')+'</h2></div></div>'+
-      '<div class="alert warn">'+t("La funzione rapporti non è ancora attiva nel database. Esegui la migrazione aggiuntiva")+''+
+      '<div class="alert warn">'+t("La funzione rapporti non è ancora attiva nel database. Esegui la migrazione aggiuntiva")+' '+
       '<a target="_blank" rel="noopener noreferrer" href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_daily_reports_v1.sql">easygart_daily_reports_v1.sql</a> '+
-      t('nel progetto Supabase EasyGart.')+' <span class="muted">'+t(reportsSetupError)+'</span></div>';
+      t('nel progetto Supabase EasyGart.')+' <span class="muted">'+(locale==='de'?t('Tabelle rapporti non disponibili'):esc(reportsSetupError))+'</span></div>';
   }
   let visible=dailyReports.filter(r=>owner||r.created_by===user.id);
   if(owner && selectedReportWorkerId!=='all')visible=visible.filter(r=>r.created_by===selectedReportWorkerId);
