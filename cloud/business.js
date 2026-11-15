@@ -333,12 +333,67 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
     zone.innerHTML=sheet;
     window.print?.();
   }
+  function archiveMarkup(){
+    if(!owner())return '';
+    return '<div class="view-head"><div><h2>'+b('Dati ed esportazione')+'</h2>'+
+      '<p class="muted">'+b('Esporta una copia JSON dei dati di gestione. Il file rimane sul tuo dispositivo.')+'</p></div></div>'+
+      '<div class="card stacked"><h3>'+b('Esportazione aziendale')+'</h3>'+
+      '<p>'+b('Include clienti, cantieri, attività, rapporti, timbrature, catalogo, consumi, piani e bozze.')+'</p>'+
+      '<p class="alert warn">'+b('Il file contiene dati personali. Conservalo in un luogo protetto. Le fotografie e le firme originali non sono incluse; questa esportazione non sostituisce un backup completo del database.')+'</p>'+
+      '<div class="actions"><button class="primary" data-action="biz-export-data">'+b('Esporta JSON')+'</button></div></div>'+
+      '<div class="card stacked" style="margin-top:17px"><h3>'+b('Protezione dei dati')+'</h3>'+
+      '<p>'+b('L’accesso ai dati aziendali è regolato dai permessi sul server. Definisci informativa privacy, tempi di conservazione e procedure di cancellazione prima dell’uso reale.')+'</p>'+
+      '<p>'+b('Per un ripristino completo, compresi allegati e firme, configura backup PostgreSQL e Supabase Storage tramite procedure amministrative.')+'</p></div>';
+  }
+  async function exportCompany(){
+    if(!owner())throw Error(tr('Solo il titolare può esportare i dati.'));
+    const c=ctx(),collected={},limit=500,pageCap=40;
+    const sources=[
+      ['eg_companies','id'],['eg_members','user_id'],['eg_clients','id'],['eg_sites','id'],
+      ['eg_tasks','id'],['eg_task_events','id'],
+      ['eg_daily_reports','id'],['eg_daily_report_events','id'],['eg_shifts','id'],
+      ['eg_shift_events','id'],['eg_report_media','id'],['eg_materials','id'],
+      ['eg_report_materials','material_id'],['eg_maintenance_plans','id'],
+      ['eg_invoice_drafts','id'],['eg_invoice_lines','id']
+    ];
+    for(const [table,orderColumn] of sources){
+      const rows=[];
+      for(let page=0;page<pageCap;page++){
+        const query=client.from(table).select('*')
+          .eq(table==='eg_companies'?'id':'company_id',c.companyId)
+          .order(orderColumn,{ascending:true}).range(page*limit,(page+1)*limit-1);
+        const current=db(await query)||[];
+        rows.push(...current);
+        if(current.length<limit)break;
+        if(page===pageCap-1)throw Error(tr('Esportazione troppo grande: usa un backup amministrativo del database.'));
+      }
+      collected[table]=rows;
+    }
+    const backup={
+      format:'easygart-json-export',
+      version:1,created_at:new Date().toISOString(),
+      company:{id:c.companyId,name:c.companyName},
+      caveat:'This is an application-data export, NOT a complete database backup. Original photos/signatures and Auth identities are not included.',
+      tables:collected
+    };
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const filename='easygart-export-'+new Date().toISOString().slice(0,10)+'.json';
+    const url=URL.createObjectURL(blob);
+    try{
+      const link=document.createElement('a');
+      link.href=url;link.download=filename;link.style.display='none';
+      document.body.appendChild(link);link.click();link.remove();
+    }finally{setTimeout(()=>URL.revokeObjectURL(url),60000)}
+    onSuccess(tr('Esportazione completata. Conserva il file in modo sicuro.'));
+  }
+
   function markup(view){
     if(!ready)return warning();
     if(!owner())return '<p class="muted">'+b('Solo il titolare può gestire questa sezione.')+'</p>';
     if(view==='materials')return materialCatalogMarkup();
     if(view==='maintenance')return maintenanceMarkup();
     if(view==='invoices')return invoicesMarkup();
+    if(view==='archive')return archiveMarkup();
     return '';
   }
   async function handleSubmit(form){
@@ -433,6 +488,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
         .eq('id',plan.id).eq('company_id',c.companyId));
       await c.reload();return;
     }
+    if(a==='biz-export-data')return exportCompany();
     if(a==='biz-generate'){
       const count=Number(db(await client.rpc('eg_generate_maintenance',{
         p_company_id:c.companyId,p_horizon_days:30
