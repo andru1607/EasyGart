@@ -51,8 +51,35 @@ Dopo l'applicazione della migrazione aggiuntiva:
 
 La migrazione aggiuntiva va eseguita DOPO il file SQL base, sempre e soltanto nel progetto EasyGart. Se non è stata applicata, il portale mostra un avviso e il modulo compiti rimane utilizzabile.
 
+## Timbrature, pause, fotografie e firma cliente
+
+Attivazione **separata**, sullo stesso progetto Supabase EasyGart, senza modificare gli altri servizi:
+
+1. Verifica che lo script base e lo script dei rapporti giornalieri siano già stati applicati con esito **Success**.
+2. Apri una **nuova query SQL** nel progetto ID \`xdwsqkteykjjpzogwocx\` e applica tutto [easygart_attendance_v1.sql](../supabase/easygart_attendance_v1.sql). Crea \`eg_shifts\` e \`eg_shift_events\`, con RLS e funzione \`eg_shift_action\`.
+3. Apri un'altra **nuova query SQL** dello stesso progetto e applica tutto [easygart_private_media_v1.sql](../supabase/easygart_private_media_v1.sql). Crea \`eg_report_media\`, un bucket privato \`eg-report-media\`, policy Storage e funzioni di prenotazione/finalizzazione/rimozione.
+4. Riapri **https://easygarte.vercel.app/cloud/** in una sessione già autenticata e premi **Ricarica**. Le nuove sezioni appaiono solo dopo aver applicato gli script.
+5. Prova **con dati fittizi** su due dispositivi: il dipendente preme **Entra → Inizia pausa → Termina pausa → Esci dal turno**, mentre il titolare verifica le ore e le pause.
+6. Dal proprio account il dipendente crea un rapporto sul compito assegnato, lo **salva come bozza**, aggiunge fino a **3 foto prima e 3 foto dopo**, chiede al cliente presente di firmare sullo schermo (nome e consenso richiesti) e infine invia il rapporto. Il titolare lo vede con fotografie e presa visione, approva o chiede correzioni.
+
+**Regole e limitazioni:**
+- Orari del turno e delle pause generati sul server. I dipendenti possono visualizzare e registrare solo i propri turni. Il titolare consulta la squadra, senza poter alterare retroattivamente gli orari tramite l'app.
+- Più turni al giorno sono consentiti; un solo turno aperto per dipendente e azienda. La pausa aperta è chiusa automaticamente all'uscita.
+- Le foto non usano un bucket pubblico: i caricamenti richiedono un rapporto personale **in bozza o da correggere**, e l'accesso avviene tramite URL firmati temporanei. Fino a **5 MB per file**, JPEG/PNG/WebP; il browser tenta di convertire i formati iPhone supportati. Le autorizzazioni di Storage e i metadati sono controllati da RLS e RPC.
+- Firma del cliente raccolta sul dispositivo: obbligatori tratto disegnato, nome e consenso; una firma per rapporto. È una **presa visione**, non una firma elettronica avanzata o qualificata; per impieghi con valore legale specifico servono ulteriori verifiche e procedure.
+- Una volta inviato o approvato un rapporto, gli allegati non sono più modificabili dal dipendente fino a eventuale richiesta di correzioni.
+- Le foto, le firme e i dati personali non devono essere usati in produzione prima dei test reali di RLS, retention, privacy, informativa e consenso, backups e procedure di cancellazione.
+- La sincronizzazione non è in tempo reale continuo: il portale aggiorna i dati periodicamente (circa 30 secondi) o tramite il pulsante Ricarica.
+
+**Test obbligatori su Supabase reale:**
+- Worker A non vede, scarica, modifica o cancella immagini, firme e turni di Worker B, né quelli di un'altra azienda.
+- Il titolare della stessa azienda legge i documenti della squadra, ma gli altri titolari non possono accedere ai file privati anche conoscendone il percorso.
+- Un dipendente disattivato non può fare nuove timbrature né prenotare/caricare foto o firme.
+- Inviare un rapporto impedisce nuovi upload, mentre la bozza permette cancellazione e sostituzione. Verificare limiti 3/3 e firma unica, due tentativi simultanei, errori e pulizia dei caricamenti incompleti.
+- Controllare Safari iOS per scelta foto, HEIC, navigazione e firma touch, su rete reale e con due account autentici. I test automatici attuali sono unitari/statici e **non sostituiscono questi controlli**.
+
 ## Stato delle funzionalità
-La nuova app Cloud comprende account, aziende, clienti, cantieri, inviti, assegnazioni, avanzamento, revoca dei dipendenti e rapporti giornalieri dopo l'attivazione del relativo SQL. Timbrature, manutenzioni, foto e firme, listini materiali/fatture della demo NON sono ancora migrati al Cloud. I dati della demo nel browser non si sincronizzano automaticamente.
+La nuova app Cloud comprende account, aziende, clienti, cantieri, inviti, assegnazioni, avanzamento, revoca dei dipendenti, rapporti giornalieri, **timbrature e pause, foto prima/dopo e firma cliente**, dopo l'attivazione dei rispettivi SQL e la verifica in ambiente reale. Manutenzioni ricorrenti, listini materiali e fatture della demo NON sono ancora migrati al Cloud. I dati della demo nel browser non si sincronizzano automaticamente.
 
 ## File
 - cloud/index.html: portale responsive
@@ -65,3 +92,8 @@ La nuova app Cloud comprende account, aziende, clienti, cantieri, inviti, assegn
 - tests/cloud-daily-reports.test.mjs: test su permessi SQL e viste dipendente/titolare
 
 Non inserire dati reali prima dei test di sicurezza su database.
+
+- supabase/easygart_attendance_v1.sql: timbrature, pause, eventi e RLS
+- supabase/easygart_private_media_v1.sql: storage privato, foto, firme, prenotazioni e RLS
+- cloud/operations.js: moduli operativi Cloud
+- tests/cloud-operations.test.mjs: test automatici delle nuove funzioni
