@@ -21,4 +21,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Check Cloud JS and SQL/RLS invariants
-        run: node --test tests/cloud-static.test.mjs tests/cloud-daily-reports.test.mjs
+        run: node --test tests/cloud-*.test.mjs
