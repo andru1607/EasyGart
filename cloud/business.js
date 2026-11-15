@@ -2,6 +2,18 @@
    Tutti i dati di fatturazione restano privati al titolare tramite Supabase RLS. */
 'use strict';
 window.EASYGART_BUSINESS_I18N={
+  "Esporta i dati gestionali in JSON oppure prepara un archivio ZIP con le foto e le firme originali.": "Exportiere Betriebsdaten als JSON oder erstelle ein ZIP-Archiv mit den Originalfotos und Unterschriften.",
+  "Il file contiene dati personali, fotografie e firme se scegli ZIP. Conserva il download in un luogo protetto e rimuovi le copie superflue. Questa esportazione non sostituisce un backup amministrativo ripristinabile.": "Die Datei enthält personenbezogene Daten; das ZIP enthält auch Fotos und Unterschriften. Bewahre sie sicher auf und entferne unnötige Kopien. Der Export ersetzt kein wiederherstellbares administratives Backup.",
+  "Prepara JSON": "JSON vorbereiten",
+  "Prepara ZIP con foto e firme": "ZIP mit Fotos und Unterschriften vorbereiten",
+  "Scarica archivio ZIP": "ZIP-Archiv herunterladen",
+  "Archivio ZIP non disponibile. Ricarica la pagina.": "ZIP-Funktion nicht verfügbar. Bitte lade die Seite neu.",
+  "Troppi allegati per un archivio mobile: utilizza un backup amministrativo.": "Zu viele Anhänge für ein mobiles Archiv. Bitte erstelle ein administratives Backup.",
+  "Azienda o account cambiato durante l’esportazione.": "Betrieb oder Benutzerkonto wurde während des Exports gewechselt.",
+  "Percorso allegato non valido nell’archivio.": "Ungültiger Anhangspfad im Archiv.",
+  "Archivio troppo grande per il telefono. Esegui un backup amministrativo.": "Das Archiv ist für das Smartphone zu groß. Bitte erstelle ein administratives Backup.",
+  "Impossibile recuperare un allegato privato.": "Ein geschützter Anhang konnte nicht geladen werden.",
+  "Esportazione pronta. Tocca il pulsante di download per salvare il file.": "Export bereit. Tippe auf Herunterladen, um die Datei zu speichern.",
   "Prepara esportazione": "Export vorbereiten",
   "Scarica file JSON": "JSON-Datei herunterladen",
   "Esportazione pronta. Tocca Scarica file JSON per salvarla sul dispositivo.": "Export bereit. Tippe auf 'JSON-Datei herunterladen', um ihn auf deinem Gerät zu speichern.",
@@ -420,7 +432,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
           throw Error(tr('Azienda o account cambiato durante l’esportazione.'));
         const relative=String(m.storage_path||'');
         if(!relative.startsWith(selectedCompany+'/')||
-            !/^[a-f0-9-]+\/[a-f0-9-]+\/(before|after|signature)\/[a-f0-9-]+\.(jpg|png|webp)$/.test(relative))
+            !/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/(before|after|signature)\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(relative))
           throw Error(tr('Percorso allegato non valido nell’archivio.'));
         if(total+Number(m.bytes||0)>window.EASYGART_ARCHIVE.MAX_BYTES)
           throw Error(tr('Archivio troppo grande per il telefono. Esegui un backup amministrativo.'));
