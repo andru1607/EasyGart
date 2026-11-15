@@ -2,6 +2,18 @@
    Tutti i dati di fatturazione restano privati al titolare tramite Supabase RLS. */
 'use strict';
 window.EASYGART_BUSINESS_I18N={
+  "Dati ed esportazione": "Daten und Export",
+  "Esporta una copia JSON dei dati di gestione. Il file rimane sul tuo dispositivo.": "Exportiere eine JSON-Kopie deiner Betriebsdaten. Die Datei bleibt auf deinem Gerät.",
+  "Esportazione aziendale": "Betriebsdaten exportieren",
+  "Include clienti, cantieri, attività, rapporti, timbrature, catalogo, consumi, piani e bozze.": "Enthält Kunden, Einsatzorte, Aufgaben, Berichte, Zeiterfassung, Materialkatalog, Verbrauch, Wartungspläne und Entwürfe.",
+  "Il file contiene dati personali. Conservalo in un luogo protetto. Le fotografie e le firme originali non sono incluse; questa esportazione non sostituisce un backup completo del database.": "Diese Datei enthält personenbezogene Daten. Bewahre sie sicher auf. Originalfotos und Unterschriften sind nicht enthalten. Der Export ersetzt kein vollständiges Datenbank-Backup.",
+  "Esporta JSON": "JSON exportieren",
+  "Protezione dei dati": "Datenschutz",
+  "L’accesso ai dati aziendali è regolato dai permessi sul server. Definisci informativa privacy, tempi di conservazione e procedure di cancellazione prima dell’uso reale.": "Der Zugriff auf Betriebsdaten wird durch Serverberechtigungen geregelt. Lege vor dem produktiven Einsatz Datenschutzhinweise, Aufbewahrungsfristen und Löschverfahren fest.",
+  "Per un ripristino completo, compresi allegati e firme, configura backup PostgreSQL e Supabase Storage tramite procedure amministrative.": "Für eine vollständige Wiederherstellung einschließlich Anhängen und Unterschriften müssen PostgreSQL- und Supabase-Storage-Backups administrativ eingerichtet werden.",
+  "Solo il titolare può esportare i dati.": "Nur der Betriebsinhaber darf Daten exportieren.",
+  "Esportazione troppo grande: usa un backup amministrativo del database.": "Der Export ist zu groß. Verwende ein administratives Datenbank-Backup.",
+  "Esportazione completata. Conserva il file in modo sicuro.": "Export abgeschlossen. Bewahre die Datei sicher auf.",
   "Operazione non riuscita.": "Vorgang fehlgeschlagen.",
   "Chiudi": "Schließen",
   "Gestione aziendale non ancora disponibile. Controlla la migrazione SQL.": "Die Betriebsverwaltung ist noch nicht verfügbar. Bitte die SQL-Migration prüfen.",
