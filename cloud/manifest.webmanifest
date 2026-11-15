@@ -1,0 +1,25 @@
+{
+  "name": "EasyGart Cloud",
+  "short_name": "EasyGart",
+  "description": "Gestione interventi, squadra e manutenzione del verde",
+  "id": "/cloud/",
+  "start_url": "/cloud/",
+  "scope": "/cloud/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#f5f8f3",
+  "theme_color": "#183d30",
+  "orientation": "any",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "/cloud/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
