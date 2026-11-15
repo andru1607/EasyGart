@@ -56,8 +56,8 @@ La migrazione aggiuntiva va eseguita DOPO il file SQL base, sempre e soltanto ne
 Attivazione **separata**, sullo stesso progetto Supabase EasyGart, senza modificare gli altri servizi:
 
 1. Verifica che lo script base e lo script dei rapporti giornalieri siano già stati applicati con esito **Success**.
-2. Apri una **nuova query SQL** nel progetto ID \`xdwsqkteykjjpzogwocx\` e applica tutto [easygart_attendance_v1.sql](../supabase/easygart_attendance_v1.sql). Crea \`eg_shifts\` e \`eg_shift_events\`, con RLS e funzione \`eg_shift_action\`.
-3. Apri un'altra **nuova query SQL** dello stesso progetto e applica tutto [easygart_private_media_v1.sql](../supabase/easygart_private_media_v1.sql). Crea \`eg_report_media\`, un bucket privato \`eg-report-media\`, policy Storage e funzioni di prenotazione/finalizzazione/rimozione.
+2. Apri una **nuova query SQL** nel progetto ID `xdwsqkteykjjpzogwocx` e applica tutto [easygart_attendance_v1.sql](../supabase/easygart_attendance_v1.sql). Crea `eg_shifts` e `eg_shift_events`, con RLS e funzione `eg_shift_action`.
+3. Apri un'altra **nuova query SQL** dello stesso progetto e applica tutto [easygart_private_media_v1.sql](../supabase/easygart_private_media_v1.sql). Crea `eg_report_media`, un bucket privato `eg-report-media`, policy Storage e funzioni di prenotazione/finalizzazione/rimozione.
 4. Riapri **https://easygarte.vercel.app/cloud/** in una sessione già autenticata e premi **Ricarica**. Le nuove sezioni appaiono solo dopo aver applicato gli script.
 5. Prova **con dati fittizi** su due dispositivi: il dipendente preme **Entra → Inizia pausa → Termina pausa → Esci dal turno**, mentre il titolare verifica le ore e le pause.
 6. Dal proprio account il dipendente crea un rapporto sul compito assegnato, lo **salva come bozza**, aggiunge fino a **3 foto prima e 3 foto dopo**, chiede al cliente presente di firmare sullo schermo (nome e consenso richiesti) e infine invia il rapporto. Il titolare lo vede con fotografie e presa visione, approva o chiede correzioni.
