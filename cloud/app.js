@@ -391,25 +391,25 @@ function reportCardMarkup(report,owner){
 
 function clientsMarkup(){
   return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
-    '<div class="card stacked"><h2>'+t('Nuovo cliente')+'</h2><form data-form="client" class="stacked">'+field('Nome azienda','name','text','','required maxlength="150"')+
+    '<div class="card stacked"><h2>'+t('Nuovo cliente')+'</h2><form data-form="client" class="stacked">'+field('Nome cliente','name','text','','required maxlength="150"')+
     '<button type="submit" class="primary">'+t('Nuovo cliente')+'</button></form>'+
-    '<h3>Elenco clienti</h3>'+(clients.length?clients.map(c=>'<p>'+esc(c.name)+'</p>').join(''):'<p class="muted">Nessun cliente</p>')+'</div>'+
+    '<h3>'+t("Elenco clienti")+'</h3>'+(clients.length?clients.map(c=>'<p>'+esc(c.name)+'</p>').join(''):'<p class="muted">'+t("Nessun cliente")+'</p>')+'</div>'+
     '<div class="card stacked"><h2>'+t('Nuovo cantiere')+'</h2><form data-form="site" class="stacked">'+
     select('Cliente','client_id',clients.map(c=>option(c.id,c.name)).join(''),'required')+
     field('Cantiere','name','text','','required maxlength="150"')+field('Indirizzo','address','text','')+
     '<button type="submit" class="primary" '+(!clients.length?'disabled':'')+'>'+t('Nuovo cantiere')+'</button></form>'+
-    '<h3>Cantieri</h3>'+(sites.length?sites.map(s=>'<p>'+esc(s.name)+' <span class="muted">· '+esc(getName(clients,s.client_id))+'</span></p>').join(''):'<p class="muted">Nessun cantiere</p>')+'</div></div>';
+    '<h3>'+t("Cantieri")+'</h3>'+(sites.length?sites.map(s=>'<p>'+esc(s.name)+' <span class="muted">· '+esc(getName(clients,s.client_id))+'</span></p>').join(''):'<p class="muted">'+t("Nessun cantiere")+'</p>')+'</div></div>';
 }
 function teamMarkup(){
   return '<div class="view-head"><h2>'+t('Squadra e inviti')+'</h2></div><div class="two">'+
-    '<div class="card stacked"><h2>'+t('Invita dipendente')+'</h2><p class="muted">Inserisci l’email del lavoratore. Condividi il link del portale: l’invito sarà associato alla sua email verificata.</p>'+
+    '<div class="card stacked"><h2>'+t('Invita dipendente')+'</h2><p class="muted">'+t("Inserisci l’email del lavoratore. Condividi il link del portale: l’invito sarà associato alla sua email verificata.")+'</p>'+
     '<form data-form="invite" class="stacked">'+field('Email','email','email','','required maxlength="200"')+
     '<button type="submit" class="primary">'+t('Invia invito')+'</button></form>'+
-    '<p class="muted" style="font-size:12px">Link di accesso: '+esc(location.origin+location.pathname)+'</p></div>'+
+    '<p class="muted" style="font-size:12px">'+t('Link di accesso:')+' '+esc(location.origin+location.pathname)+'</p></div>'+
     '<div class="card stacked"><h2>'+t('La tua squadra')+'</h2>'+
-    (members.length?members.map(m=>'<div class="taskrow"><div><strong>'+esc(m.full_name||'—')+'</strong><p class="muted">'+esc(m.role)+'</p></div><div class="actions"><span class="pill">'+(m.active?'Attivo':'Disattivato')+'</span>'+(m.role==='worker'?'<button class="ghost small" data-action="member-active" data-user="'+esc(m.user_id)+'" data-active="'+(!m.active)+'">'+(m.active?'Disattiva':'Riattiva')+'</button>':'')+'</div></div>').join(''):'<p>'+t('Nessun dipendente')+'</p>')+
+    (members.length?members.map(m=>'<div class="taskrow"><div><strong>'+esc(m.full_name||'—')+'</strong><p class="muted">'+t(m.role==='owner'?'Titolare':'Dipendente')+'</p></div><div class="actions"><span class="pill">'+t(m.active?'Attivo':'Disattivato')+'</span>'+(m.role==='worker'?'<button class="ghost small" data-action="member-active" data-user="'+esc(m.user_id)+'" data-active="'+(!m.active)+'">'+t(m.active?'Disattiva':'Riattiva')+'</button>':'')+'</div></div>').join(''):'<p>'+t('Nessun dipendente')+'</p>')+
     '<h3>'+t('Inviti in attesa')+'</h3>'+
-    (invites.filter(i=>!i.claimed_at).length?invites.filter(i=>!i.claimed_at).map(i=>'<p>'+esc(i.email)+' · <small>'+esc(i.expires_at?.slice(0,10))+'</small></p>').join(''):'<p class="muted">Nessun invito</p>')+'</div></div>';
+    (invites.filter(i=>!i.claimed_at).length?invites.filter(i=>!i.claimed_at).map(i=>'<p>'+esc(i.email)+' · <small>'+esc(i.expires_at?.slice(0,10))+'</small></p>').join(''):'<p class="muted">'+t('Nessun invito')+'</p>')+'</div></div>';
 }
 async function refresh() {
   if(!client||!user)return;
@@ -612,7 +612,7 @@ document.addEventListener('click',e=>{
     const member=members.find(m=>m.user_id===b.dataset.user && m.role==='worker');
     if(!member)return;
     const enable=b.dataset.active==='true';
-    if(!enable && !confirm('Disattivare il dipendente? Non potrà più accedere ai dati aziendali.'))return;
+    if(!enable && !confirm(tr('Disattivare il dipendente? Non potrà più accedere ai dati aziendali.')))return;
     withBusy(async()=>{requireSuccess(await client.rpc('eg_set_worker_active',{p_company_id:selectedCompanyId,p_user_id:member.user_id,p_active:enable}));await refresh()});return;
   }
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
