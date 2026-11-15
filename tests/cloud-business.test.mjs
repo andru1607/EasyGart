@@ -56,7 +56,7 @@ test('business module parses and is loaded before main app',()=>{
  new Script(source);
  assert.ok(html.indexOf('business.js')<html.indexOf('app.js?v='));
  assert.match(app,/window\.createEasyGartBusiness/);
- assert.match(app,/business\?\.reportMaterialsMarkup\(report\)/);
+ assert.match(app,/business\.reportMaterialsMarkup\(report\)/);
  assert.match(app,/business\?\.refresh\(org\)/);
 });
 test('material catalog keeps unit costs and selling prices owner-only',async()=>{
