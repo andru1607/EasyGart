@@ -105,7 +105,83 @@ async function smoke(engineName,browserType,device){
  await browser.close();
  console.log(engineName+': all nine views, German UI, offline warning and no horizontal scrolling OK');
 }
+async function workerSmoke(engineName,browserType,device){
+ const browser=await browserType.launch({headless:true});
+ const context=await browser.newContext({...device,serviceWorkers:'block'});
+ const page=await context.newPage(),errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.route('https://esm.sh/**',route=>route.fulfill({
+  status:200,contentType:'text/javascript',headers:{'access-control-allow-origin':'*'},
+  body:'export function createClient(){return window.__testSupabase}'
+ }));
+ const data=JSON.parse(JSON.stringify(fakeData));
+ data.eg_daily_reports=[{...data.eg_daily_reports[0],id:'r2',status:'draft'}];
+ data.eg_invoice_drafts=[];
+ data.eg_invoice_lines=[];
+ await page.addInitScript(data=>{
+  class Query{
+   constructor(table){this.table=table;this.filters=[];this.max=10000}
+   select(){return this}
+   eq(k,v){this.filters.push(x=>x[k]===v);return this}
+   in(k,vals){this.filters.push(x=>vals.includes(x[k]));return this}
+   order(){return this}
+   limit(n){this.max=n;return this}
+   then(resolve,reject){return Promise.resolve({
+    data:(data[this.table]||[]).filter(x=>this.filters.every(f=>f(x))).slice(0,this.max),error:null
+   }).then(resolve,reject)}
+  }
+  window.__testSupabase={
+   auth:{getUser:async()=>({data:{user:{id:'worker1',email:'worker@example.invalid'}},error:null}),
+    onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
+   from:table=>new Query(table),
+   rpc:async(name,args)=>({error:null,
+    data:name==='eg_list_materials'?[{id:'m1',name:'Terriccio',unit:'kg'}]:
+      name==='eg_list_report_materials'?[]:
+      name==='eg_media_reserve'?{id:'media-test',path:'org1/r2/'+(args?.p_kind||'before')+'/media-test.png'}:
+      name==='eg_shift_action'?'shift-test':null
+   }),
+   storage:{from:()=>({
+    createSignedUrl:async()=>({data:{},error:null}),
+    upload:async()=>({data:{path:'uploaded'},error:null}),
+    remove:async()=>({data:[],error:null})
+   })}
+  };
+ },data);
+ await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
+ await page.locator('button[data-view="reports"]').waitFor({timeout:15000});
+ assert.equal(await page.locator('button[data-view="materials"]').count(),0,'Worker has manager-only navigation');
+ await page.locator('button[data-view="reports"]').click();
+ await page.locator('[data-action="biz-open-usage"]').click();
+ assert.ok(await page.locator('form[data-form="biz-usage"]').isVisible());
+ assert.ok((await page.locator('form[data-form="biz-usage"]').innerText()).includes('Terriccio'));
+ const image=await readFile(resolve(root,'cloud/icon-192.png'));
+ await page.locator('input[data-ops-input="before"]').setInputFiles({
+  name:'photo.png',mimeType:'image/png',buffer:image
+ });
+ await page.getByText('Fotografie caricate nel deposito privato.').waitFor({timeout:10000});
+ await page.locator('[data-action="ops-sign-open"]').click();
+ const canvas=page.locator('canvas[data-ops-signature]');
+ await canvas.waitFor();
+ await canvas.scrollIntoViewIfNeeded();
+ const box=await canvas.boundingBox();
+ await page.mouse.move(box.x+30,box.y+box.height/2);
+ await page.mouse.down();
+ await page.mouse.move(box.x+box.width/3,box.y+box.height/2-12,{steps:7});
+ await page.mouse.move(box.x+box.width/2,box.y+box.height/2+10,{steps:7});
+ await page.mouse.up();
+ await page.locator('form[data-form="ops-signature"] [name="signer_name"]').fill('Cliente Demo');
+ await page.locator('form[data-form="ops-signature"] [name="consent"]').check();
+ await page.locator('form[data-form="ops-signature"] button[type="submit"]').click();
+ await page.getByText('Firma salvata in archivio privato.').waitFor({timeout:10000});
+ const size=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
+ assert.ok(size.scroll<=size.width+2,engineName+' overflow with worker media forms');
+ assert.deepEqual(errors,[],engineName+' worker JS errors');
+ await browser.close();
+ console.log(engineName+': employee material catalog, photo upload and touch signature OK');
+}
 try{
  await smoke('iOS WebKit emulation',webkit,devices['iPhone 13']);
  await smoke('Android Chromium emulation',chromium,devices['Pixel 7']);
+ await workerSmoke('iOS WebKit emulation',webkit,devices['iPhone 13']);
+ await workerSmoke('Android Chromium emulation',chromium,devices['Pixel 7']);
 }finally{server.close()}
