@@ -6,6 +6,7 @@ const cfg = window.EASYGART_SUPABASE_CONFIG || {};
 const app = $('app'), topRight = $('top-right');
 let client = null;
 let operations = null;
+let business = null;
 let authMode = 'signin';
 let notice = '';
 let errorNotice = false;
@@ -321,8 +322,11 @@ function render() {
       '<button data-action="view" data-view="clock" class="'+(currentView==='clock'?'active':'')+'">'+t('Timbrature')+'</button>'+ 
       '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+(memberIsOwner() && dailyReports.some(r=>r.status==='submitted')?' · '+dailyReports.filter(r=>r.status==='submitted').length:'')+'</button>'+ 
       (memberIsOwner()?'<button data-action="view" data-view="clients" class="'+(currentView==='clients'?'active':'')+'">'+t('Clienti e cantieri')+'</button>'+
-      '<button data-action="view" data-view="team" class="'+(currentView==='team'?'active':'')+'">'+t('La tua squadra')+'</button>':'')+'</nav>'+
-    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():tasksMarkup());
+      '<button data-action="view" data-view="team" class="'+(currentView==='team'?'active':'')+'">'+t('La tua squadra')+'</button>'+ 
+      '<button data-action="view" data-view="materials" class="'+(currentView==='materials'?'active':'')+'">'+t('Catalogo materiali')+'</button>'+
+      '<button data-action="view" data-view="maintenance" class="'+(currentView==='maintenance'?'active':'')+'">'+t('Manutenzioni ricorrenti')+'</button>'+
+      '<button data-action="view" data-view="invoices" class="'+(currentView==='invoices'?'active':'')+'">'+t('Bozze proforma')+'</button>':'')+'</nav>'+
+    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
 }
 function authMarkup(){
   const signup=authMode==='signup';
@@ -481,6 +485,7 @@ function reportCardMarkup(report,owner){
     (report.issues?'<p class="task-note"><strong>'+t('Problemi e imprevisti')+': </strong>'+esc(report.issues)+'</p>':'')+
     (report.manager_feedback?'<div class="alert warn" style="margin-top:12px"><strong>'+t('Feedback del titolare')+': </strong>'+esc(report.manager_feedback)+'</div>':'')+
     (operations?operations.mediaMarkup(report):'')+
+    (business?business.reportMaterialsMarkup(report):'')+
     (owner&&isPending?'<form data-form="daily-review" class="stacked" style="margin-top:16px">'+
       '<input type="hidden" name="report_id" value="'+esc(report.id)+'">'+
       '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="'+t("Motivo di eventuali correzioni o indicazioni operative")+'"></textarea></label>'+
@@ -516,7 +521,7 @@ async function refresh() {
   if(!client||!user)return;
   const list=requireSuccess(await client.from('eg_members').select('company_id,user_id,full_name,role,active').eq('user_id',user.id).eq('active',true));
   memberships=list||[];
-  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;operations?.reset();render();return}
+  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();render();return}
   const cids=memberships.map(x=>x.company_id);
   companies=requireSuccess(await client.from('eg_companies').select('id,name').in('id',cids))||[];
   if(!cids.includes(selectedCompanyId))selectedCompanyId=cids[0];
@@ -542,6 +547,11 @@ async function refresh() {
     reportsReady=true;reportsSetupError='';dailyReports=reportResponse.data||[];
   }
   await operations?.refresh(org);
+  const created=await business?.refresh(org);
+  if(created>0){
+    const newTasks=requireSuccess(await client.from('eg_tasks').select('*').eq('company_id',org));
+    tasks=newTasks||[];
+  }
   if(!owner&&!['tasks','reports','clock'].includes(currentView))currentView='tasks';
   render();
 }
@@ -561,6 +571,7 @@ async function onAuth(form){
 }
 async function submitForm(form,formAction='draft'){
   if(form.dataset.form==='ops-signature')return operations?.saveSignature(form);
+  if(form.dataset.form?.startsWith('biz-'))return business?.handleSubmit(form,formAction);
   const vals=Object.fromEntries(new FormData(form));
   switch(form.dataset.form){
     case 'auth':await onAuth(form);break;
@@ -667,6 +678,12 @@ async function boot(){
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,reports:dailyReports,locale,reload:refresh}),
       t,tr,esc,onSuccess:success,rerender:render
     });
+    business = window.createEasyGartBusiness({
+      client,
+      getContext:()=>({companyId:selectedCompanyId,companyName:company()?.name||'EasyGart',
+        user,isOwner:memberIsOwner(),members,clients,sites,tasks,reports:dailyReports,locale,reload:refresh}),
+      t,tr,esc,onSuccess:success,rerender:render
+    });
     const r=await client.auth.getUser();
     if(r.error&&r.error.status!==400)throw r.error;
     user=r.data?.user||null;
@@ -675,14 +692,15 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;operations?.reset();render()}else await refresh();
+        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
       const formFocused=!!document.activeElement?.closest?.('form');
       // Non cancellare i campi di un rapporto, di un compito o di un modulo mentre si scrive.
       if(user && document.visibilityState==='visible' && !busy && !formFocused &&
-         reportEditingId===null && editingTaskId===null && !operations?.isSigning?.())refresh().catch(fail);
+         reportEditingId===null && editingTaskId===null && !operations?.isSigning?.() &&
+         !business?.hasOpenForm?.())refresh().catch(fail);
     },30000);
   }catch(e){fail(e)}
 }
@@ -735,10 +753,11 @@ document.addEventListener('click',e=>{
   if(!b)return;
   const a=b.dataset.action;
   if(a.startsWith('ops-')){withBusy(()=>operations?.handleAction(b));return}
+  if(a.startsWith('biz-')){withBusy(()=>business?.handleAction(b));return}
   if(a==='auth-mode'){authMode=b.dataset.mode;notice='';render();return}
   if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;render()});return}
+  if(a==='signout'){withBusy(async()=>{requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='report-new'){
     if(memberIsOwner()||!reportsReady)return;
@@ -766,6 +785,7 @@ document.addEventListener('click',e=>{
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
 });
 document.addEventListener('change',e=>{
+  if(e.target.dataset.bizClient){business?.handleChange(e.target);return}
   if(e.target.dataset.opsInput){withBusy(()=>operations?.uploadPhotos(e.target));return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
