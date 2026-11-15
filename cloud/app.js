@@ -356,7 +356,8 @@ function render() {
     (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span>'+
       (!window.EASYGART_INSTALL?.isStandalone?.()?'<button class="ghost small" data-action="install">'+t('Installa app')+'</button>':'')+
       '<button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
-  const displayNotice = errorNotice && locale==='de' && !Object.hasOwn(german,notice)
+  const displayNotice = errorNotice && locale==='de' && !Object.hasOwn(german,notice) &&
+    !Object.hasOwn(window.EASYGART_BUSINESS_I18N||{},notice)
     ? 'Impossibile completare l’operazione. Riprova o ricarica la pagina.'
     : notice;
   const alert = (notice ? '<div id="notice" role="status" class="alert'+(errorNotice?' error':'')+'">'+t(displayNotice)+'</div>' : '')+
