@@ -25,6 +25,8 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Installa app": "App installieren",
+  "Su iPhone apri Condividi e scegli Aggiungi alla schermata Home. Su Android usa Installa app dal menu del browser.": "Auf dem iPhone wähle im Teilen-Menü 'Zum Home-Bildschirm'. Unter Android verwende im Browsermenü 'App installieren'.",
   "Catalogo materiali": "Materialkatalog",
   "Manutenzioni ricorrenti": "Wiederkehrende Wartungen",
   "Bozze proforma": "Proforma-Entwürfe",
@@ -350,7 +352,9 @@ function render() {
   if (footer) footer.textContent = tr('EasyGart Cloud MVP · La demo storica resta disponibile sulla pagina principale · Non inserire dati reali prima della verifica dei permessi.');
   topRight.innerHTML = '<select id="locale" aria-label="'+t('Lingua')+'" style="width:auto;background:#245343;border-color:#5b806a;color:#fff;padding:8px 10px">'+
     option('it','IT',locale==='it')+option('de','DE',locale==='de')+'</select>'+
-    (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span><button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
+    (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span>'+
+      (!window.EASYGART_INSTALL?.isStandalone?.()?'<button class="ghost small" data-action="install">'+t('Installa app')+'</button>':'')+
+      '<button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
   const displayNotice = errorNotice && locale==='de' && !Object.hasOwn(german,notice)
     ? 'Impossibile completare l’operazione. Riprova o ricarica la pagina.'
     : notice;
@@ -813,6 +817,15 @@ document.addEventListener('click',e=>{
   const a=b.dataset.action;
   if(a.startsWith('ops-')){withBusy(()=>operations?.handleAction(b));return}
   if(a.startsWith('biz-')){withBusy(()=>business?.handleAction(b));return}
+  if(a==='install'){
+    withBusy(async()=>{
+      const installed=await window.EASYGART_INSTALL?.install?.();
+      if(!installed){
+        notice='Su iPhone apri Condividi e scegli Aggiungi alla schermata Home. Su Android usa Installa app dal menu del browser.';
+        errorNotice=false;render();
+      }
+    });return;
+  }
   if(a==='auth-mode'){authMode=b.dataset.mode;notice='';render();return}
   if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
