@@ -128,7 +128,7 @@ const german = {
   'Rapporti giornalieri':'Tagesberichte','Nuovo rapporto':'Neuer Tagesbericht',
   'Rapporti ricevuti':'Eingegangene Berichte','I miei rapporti':'Meine Berichte',
   'Rapporto giornaliero':'Tagesbericht','Rapporto da verificare':'Bericht zur Prüfung',
-  'Salva bozza':'Entwurf speichern','Invia al titolare':'An Vorgesetzten senden',
+  'Salva bozza':'Entwurf speichern','Invia al titolare':'An die Betriebsleitung senden',
   'Da verificare':'Zur Prüfung','Approvati':'Freigegeben','Correzioni richieste':'Korrekturen erforderlich',
   'Bozza':'Entwurf','Inviato':'Eingereicht','Approvato':'Freigegeben',
   'Ore effettive (minuti)':'Tatsächliche Arbeitszeit (Minuten)',
@@ -173,6 +173,12 @@ const field = (label,name,type='text',value='',options='') => '<label class="fie
 const select = (label,name,opts,extra='') => '<label class="field"><span>'+t(label)+'</span><select name="'+name+'" '+extra+'>'+opts+'</select></label>';
 const option = (value,label,chosen=false) => '<option value="'+esc(value)+'"'+(chosen?' selected':'')+'>'+esc(label)+'</option>';
 const dateToday = () => {const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
+const displayDate = value => {
+  const raw=String(value||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;
+  const [year,month,day]=raw.split('-');
+  return locale==='de'?day+'.'+month+'.'+year:day+'/'+month+'/'+year;
+};
 const statusLabel = task => task.status === 'done' ? 'Completato' : task.due_date < dateToday() ? 'In ritardo' : task.status === 'in_progress' ? 'In corso' : 'Assegnato';
 const pillTone = task => task.status === 'done' ? '' : task.due_date < dateToday() ? 'red' : task.status === 'in_progress' ? 'amber' : '';
 const memberIsOwner = () => memberships.some(m => m.company_id === selectedCompanyId && m.role === 'owner' && m.active);
@@ -290,7 +296,7 @@ function taskMarkup(task){
     (task.status==='assigned'?'<button class="secondary small" data-action="status" data-id="'+esc(task.id)+'" data-status="in_progress">'+t('Inizia')+'</button>':'')+
     '<button class="primary small" data-action="status" data-id="'+esc(task.id)+'" data-status="done">'+t('Completa')+'</button>';
   return '<article class="taskrow"><div style="flex:1"><div class="task-title">'+esc(task.title)+'</div>'+
-    '<div class="task-meta"><span>'+esc(task.due_date)+(task.start_time?' · '+esc(task.start_time.slice(0,5)):'')+'</span>'+
+    '<div class="task-meta"><span>'+esc(displayDate(task.due_date))+(task.start_time?' · '+esc(task.start_time.slice(0,5)):'')+'</span>'+
       '<span>'+esc(getName(clients,task.client_id))+'</span>'+
       '<span>'+esc(getName(sites,task.site_id))+'</span>'+
       (memberIsOwner()?'<span>'+esc(getWorkerName(task.assignee_id))+'</span>':'')+
@@ -369,7 +375,7 @@ function reportFormMarkup(){
   const task=ownTasks.find(x=>x.id===taskId);
   const taskInput=report
     ? '<div class="field"><span>'+t('Compiti')+'</span><strong>'+esc(task?.title||tr('Attività non più assegnata'))+'</strong><input type="hidden" name="task_id" value="'+esc(taskId)+'"></div>'
-    : select('Compiti','task_id',ownTasks.map(x=>option(x.id,x.title+(x.due_date?' · '+x.due_date:''),x.id===taskId)).join(''),'required');
+    : select('Compiti','task_id',ownTasks.map(x=>option(x.id,x.title+(x.due_date?' · '+displayDate(x.due_date):''),x.id===taskId)).join(''),'required');
   return '<div class="card stacked" style="margin-bottom:18px"><div class="cardhead"><div><div class="eyebrow">EasyGart Cloud</div><h2>'+t(report?'Modifica':'Nuovo rapporto')+'</h2>'+
     '<p class="muted">'+t("Completa il rapporto e invialo al titolare. Dopo l’invio non è più modificabile finché non vengono richieste correzioni.")+'</p></div>'+
     '<button class="ghost small" data-action="report-cancel">'+t('Annulla')+'</button></div>'+
@@ -392,7 +398,7 @@ function reportCardMarkup(report,owner){
   const title=task?.title||tr('Intervento');
   return '<article class="taskrow"><div style="flex:1;min-width:180px">'+
     '<div class="task-title">'+esc(title)+'</div>'+
-    '<div class="task-meta"><span>'+esc(report.work_date)+'</span>'+
+    '<div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
     (owner?'<span>'+esc(getWorkerName(report.created_by))+'</span>':'')+
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
     '<span>'+esc(getName(clients,task?.client_id))+'</span>'+
@@ -430,7 +436,7 @@ function teamMarkup(){
     '<div class="card stacked"><h2>'+t('La tua squadra')+'</h2>'+
     (members.length?members.map(m=>'<div class="taskrow"><div><strong>'+esc(m.full_name||'—')+'</strong><p class="muted">'+t(m.role==='owner'?'Titolare':'Dipendente')+'</p></div><div class="actions"><span class="pill">'+t(m.active?'Attivo':'Disattivato')+'</span>'+(m.role==='worker'?'<button class="ghost small" data-action="member-active" data-user="'+esc(m.user_id)+'" data-active="'+(!m.active)+'">'+t(m.active?'Disattiva':'Riattiva')+'</button>':'')+'</div></div>').join(''):'<p>'+t('Nessun dipendente')+'</p>')+
     '<h3>'+t('Inviti in attesa')+'</h3>'+
-    (invites.filter(i=>!i.claimed_at).length?invites.filter(i=>!i.claimed_at).map(i=>'<p>'+esc(i.email)+' · <small>'+esc(i.expires_at?.slice(0,10))+'</small></p>').join(''):'<p class="muted">'+t('Nessun invito')+'</p>')+'</div></div>';
+    (invites.filter(i=>!i.claimed_at).length?invites.filter(i=>!i.claimed_at).map(i=>'<p>'+esc(i.email)+' · <small>'+esc(displayDate(i.expires_at?.slice(0,10)))+'</small></p>').join(''):'<p class="muted">'+t('Nessun invito')+'</p>')+'</div></div>';
 }
 async function refresh() {
   if(!client||!user)return;
@@ -645,13 +651,13 @@ document.addEventListener('click',e=>{
   if(!b)return;
   const a=b.dataset.action;
   if(a==='auth-mode'){authMode=b.dataset.mode;notice='';render();return}
-  if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();return}
+  if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
   if(a==='signout'){withBusy(async()=>{requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='report-new'){
     if(memberIsOwner()||!reportsReady)return;
-    reportEditingId='new';render();return;
+    reportEditingId='new';render();document.querySelector?.('form[data-form="daily-report"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return;
   }
   if(a==='report-edit'){
     if(memberIsOwner()||!reportsReady)return;
@@ -661,7 +667,7 @@ document.addEventListener('click',e=>{
     reportEditingId=report.id;render();return;
   }
   if(a==='report-cancel'){reportEditingId=null;render();return}
-  if(a==='new-task'){editingTaskId='new';render();return}
+  if(a==='new-task'){editingTaskId='new';render();document.querySelector?.('form[data-form="task"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
   if(a==='cancel-edit'){editingTaskId=null;render();return}
   if(a==='member-active'){
