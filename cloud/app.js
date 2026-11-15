@@ -25,6 +25,7 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Dati ed esportazione": "Daten und Export",
   "Installa app": "App installieren",
   "Su iPhone apri Condividi e scegli Aggiungi alla schermata Home. Su Android usa Installa app dal menu del browser.": "Auf dem iPhone wähle im Teilen-Menü 'Zum Home-Bildschirm'. Unter Android verwende im Browsermenü 'App installieren'.",
   "Catalogo materiali": "Materialkatalog",
@@ -386,8 +387,9 @@ function render() {
       '<button data-action="view" data-view="team" class="'+(currentView==='team'?'active':'')+'">'+t('La tua squadra')+'</button>'+ 
       '<button data-action="view" data-view="materials" class="'+(currentView==='materials'?'active':'')+'">'+t('Catalogo materiali')+'</button>'+
       '<button data-action="view" data-view="maintenance" class="'+(currentView==='maintenance'?'active':'')+'">'+t('Manutenzioni ricorrenti')+'</button>'+
-      '<button data-action="view" data-view="invoices" class="'+(currentView==='invoices'?'active':'')+'">'+t('Bozze proforma')+'</button>':'')+'</nav>'+
-    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
+      '<button data-action="view" data-view="invoices" class="'+(currentView==='invoices'?'active':'')+'">'+t('Bozze proforma')+'</button>'+
+      '<button data-action="view" data-view="archive" class="'+(currentView==='archive'?'active':'')+'">'+t('Dati ed esportazione')+'</button>':'')+'</nav>'+
+    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
   restoreSessionDrafts();
 }
 function authMarkup(){
