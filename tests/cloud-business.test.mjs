@@ -141,7 +141,10 @@ test('owner-only exports are paginated and explicitly exclude original private m
  const o=harness(true);await o.business.refresh('org');
  const screen=o.business.markup('archive');
  assert.match(screen,/biz-export-data/);
- assert.match(screen,/fotografie e le firme originali non sono incluse/);
+ assert.match(screen,/Prepara ZIP con foto e firme/);
+ assert.match(screen,/non sostituisce un backup amministrativo ripristinabile/);
+ assert.match(source,/m\.status==='uploaded'/);
+ assert.match(source,/client\.storage\.from\('eg-report-media'\)\.download\(relative\)/);
  assert.match(source,/for\(let page=0;page<pageCap;page\+\+\)/);
  assert.match(source,/table==='eg_companies'\?'id':'company_id'/);
  assert.match(source,/\.range\(page\*limit,\(page\+1\)\*limit-1\)/);
