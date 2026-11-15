@@ -2,6 +2,10 @@
    Tutti i dati di fatturazione restano privati al titolare tramite Supabase RLS. */
 'use strict';
 window.EASYGART_BUSINESS_I18N={
+  "Prepara esportazione": "Export vorbereiten",
+  "Scarica file JSON": "JSON-Datei herunterladen",
+  "Esportazione pronta. Tocca Scarica file JSON per salvarla sul dispositivo.": "Export bereit. Tippe auf 'JSON-Datei herunterladen', um ihn auf deinem Gerät zu speichern.",
+
   "Dati ed esportazione": "Daten und Export",
   "Esporta una copia JSON dei dati di gestione. Il file rimane sul tuo dispositivo.": "Exportiere eine JSON-Kopie deiner Betriebsdaten. Die Datei bleibt auf deinem Gerät.",
   "Esportazione aziendale": "Betriebsdaten exportieren",
@@ -104,6 +108,11 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   let materials=[], catalog=[], plans=[], invoices=[], lines=[], usage=[];
   let selectedReportId=null, workerUsage=[],showNewMaterial=false,showNewPlan=false;
   let editingPlanId=null,selectedInvoiceId=null;
+  let pendingExportUrl=null,pendingExportFilename='',lastCompanyId=null;
+  const clearPendingExport=()=>{
+    if(pendingExportUrl&&typeof URL!=='undefined')URL.revokeObjectURL(pendingExportUrl);
+    pendingExportUrl=null;pendingExportFilename='';
+  };
   const ctx=()=>getContext();
   const owner=()=>!!ctx().isOwner;
   const b=t;
@@ -148,6 +157,8 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
     ['draft','changes_requested'].includes(r.status)&&!owner();
   async function refresh(companyId){
     if(!companyId){reset();return 0}
+    if(lastCompanyId!==null&&lastCompanyId!==companyId)clearPendingExport();
+    lastCompanyId=companyId;
     try{
       if(owner()){
         const rr=await Promise.all([
@@ -177,7 +188,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   function reset(){
     ready=false;error='';materials=[];catalog=[];plans=[];invoices=[];lines=[];usage=[];
     selectedReportId=null;workerUsage=[];showNewMaterial=false;showNewPlan=false;
-    editingPlanId=null;selectedInvoiceId=null;
+    editingPlanId=null;selectedInvoiceId=null;clearPendingExport();lastCompanyId=null;
   }
   function materialCatalogMarkup(){
     if(!owner())return '';
@@ -352,7 +363,9 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       '<div class="card stacked"><h3>'+b('Esportazione aziendale')+'</h3>'+
       '<p>'+b('Include clienti, cantieri, attività, rapporti, timbrature, catalogo, consumi, piani e bozze.')+'</p>'+
       '<p class="alert warn">'+b('Il file contiene dati personali. Conservalo in un luogo protetto. Le fotografie e le firme originali non sono incluse; questa esportazione non sostituisce un backup completo del database.')+'</p>'+
-      '<div class="actions"><button class="primary" data-action="biz-export-data">'+b('Esporta JSON')+'</button></div></div>'+
+      '<div class="actions"><button class="primary" data-action="biz-export-data">'+b('Prepara esportazione')+'</button>'+
+      (pendingExportUrl?'<a class="primary" href="'+safe(pendingExportUrl)+'" download="'+safe(pendingExportFilename)+'">'+b('Scarica file JSON')+'</a>':'')+
+      '</div></div>'+
       '<div class="card stacked" style="margin-top:17px"><h3>'+b('Protezione dei dati')+'</h3>'+
       '<p>'+b('L’accesso ai dati aziendali è regolato dai permessi sul server. Definisci informativa privacy, tempi di conservazione e procedure di cancellazione prima dell’uso reale.')+'</p>'+
       '<p>'+b('Per un ripristino completo, compresi allegati e firme, configura backup PostgreSQL e Supabase Storage tramite procedure amministrative.')+'</p></div>';
@@ -390,13 +403,10 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
     };
     const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
     const filename='easygart-export-'+new Date().toISOString().slice(0,10)+'.json';
-    const url=URL.createObjectURL(blob);
-    try{
-      const link=document.createElement('a');
-      link.href=url;link.download=filename;link.style.display='none';
-      document.body.appendChild(link);link.click();link.remove();
-    }finally{setTimeout(()=>URL.revokeObjectURL(url),60000)}
-    onSuccess(tr('Esportazione completata. Conserva il file in modo sicuro.'));
+    clearPendingExport();
+    pendingExportUrl=URL.createObjectURL(blob);
+    pendingExportFilename=filename;
+    onSuccess(tr('Esportazione pronta. Tocca Scarica file JSON per salvarla sul dispositivo.'));
   }
 
   function markup(view){
