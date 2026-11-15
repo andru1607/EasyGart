@@ -14,6 +14,18 @@ test('operations JavaScript parses and loads before app',()=>{
   assert.ok(html.indexOf('operations.js')<html.indexOf('app.js?'));
   assert.match(app,/window\.createEasyGartOperations/);
 });
+test('all operations UI literals have dedicated German translations',()=>{
+  const code=app.slice(app.indexOf('const german ='),app.indexOf('const tr ='));
+  const dict=new Function(code+';return german')();
+  const found=[...operations.matchAll(/\b(?:t|tr)\((?:'([^']+)'|"([^"]+)")\)/g)]
+    .map(x=>x[1]??x[2]);
+  const missing=[...new Set(found)].filter(x=>!Object.hasOwn(dict,x));
+  assert.deepEqual(missing,[],'Missing German operations strings: '+missing.join(', '));
+  for(const phrase of ['Zeiterfassung','Vorher-Fotos','Nachher-Fotos','Kundenunterschrift']){
+    assert.ok(Object.values(dict).includes(phrase),phrase);
+  }
+});
+
 test('attendance migration uses tenant RLS, audit events, server time and atomic actions',()=>{
   assert.match(attendanceSQL,/^begin;/m);
   assert.match(attendanceSQL,/^commit;/m);
