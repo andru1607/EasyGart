@@ -148,6 +148,27 @@ test('errors and success messages are mapped to German',()=>{
     'Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut oder lade die Seite neu.');
 });
 
+test('unfinished daily report survives a failed server operation',()=>{
+  const h=makeHarness();
+  const oldInput={name:'work_summary',value:'Wichtige Arbeit, noch nicht gespeichert',type:'textarea',checked:false};
+  const newInput={name:'work_summary',value:'',type:'textarea',checked:false};
+  const makeForm=input=>({
+    dataset:{form:'daily-report'},
+    querySelectorAll:()=>[input]
+  });
+  let current=makeForm(oldInput);
+  const next=makeForm(newInput);
+  h.document.querySelectorAll=selector=>selector==='form[data-form]'?[current]:[];
+  let html='';
+  Object.defineProperty(h.elements.app,'innerHTML',{
+    get(){return html},
+    set(value){html=value;current=next}
+  });
+  h.exec("fail({message:'Invalid login credentials'})");
+  assert.equal(newInput.value,oldInput.value);
+  assert.match(html,/Ungültige E-Mail-Adresse/);
+});
+
 test('responsive CSS supports longer German labels and avoids single-line nav',()=>{
   assert.match(html,/@media\(max-width:760px\)/);
   assert.match(html,/\.nav\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
