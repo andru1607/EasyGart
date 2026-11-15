@@ -24,6 +24,7 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Impossibile leggere questa foto. Converti il file in JPEG.": "Dieses Foto kann nicht gelesen werden. Bitte konvertiere es in JPEG.",
   "Per aggiungere foto prima/dopo e firma del cliente, salva prima il rapporto come bozza.": "Um Vorher-/Nachher-Fotos und die Kundenunterschrift hinzuzufügen, speichere den Bericht zuerst als Entwurf.",
   "Apri lo script SQL": "SQL-Skript öffnen",
   "Timbrature": "Zeiterfassung",
