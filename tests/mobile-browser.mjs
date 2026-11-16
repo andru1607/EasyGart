@@ -272,7 +272,7 @@ async function authSmoke(engineName,browserType,device){
  await page.getByText(/Wenn die Adresse registriert ist/).waitFor({timeout:10000});
  const reset=await page.evaluate(()=>window.__testSupabase.events[0]);
  assert.equal(reset.action,'reset');
- assert.equal(reset.options.redirectTo,'https://easygarte.vercel.app/cloud/');
+ assert.equal(reset.options.redirectTo,base+'/cloud/');
  await page.evaluate(()=>window.__authCallback('PASSWORD_RECOVERY',{
   user:{id:'recover-user',email:'example@invalid.test'}
  }));
