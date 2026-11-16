@@ -60,7 +60,7 @@ test('password reset email uses fixed EasyGart redirect and generic response',as
   h.run("authMode='forgot'");
   h.context.testForm={dataset:{form:'password-request'},values:{email:' SOMEONE@EXAMPLE.TEST '}};
   await h.run('submitForm(testForm)');
-  assert.deepEqual(h.events[0],{action:'reset',email:'someone@example.test',
+  assert.deepEqual(JSON.parse(JSON.stringify(h.events[0])),{action:'reset',email:'someone@example.test',
     options:{redirectTo:'https://easygarte.vercel.app/cloud/'}});
   assert.equal(h.run('authMode'),'signin');
   assert.match(h.elements.app.innerHTML,/Se l’indirizzo è registrato/);
