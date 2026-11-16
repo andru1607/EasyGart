@@ -92,6 +92,7 @@ test('password recovery is recognized before Supabase clears URL fragment',()=>{
   const h=harness('#access_token=example&type=recovery');
   assert.equal(h.run('recoveryLinkOpened'),true);
   assert.match(source,/ev==='PASSWORD_RECOVERY'/);
+  assert.match(source,/if\(user && authMode!=='reset' && document\.visibilityState/);
   assert.match(source,/if\(recoveryLinkOpened\)\{authMode='reset'/);
   assert.match(source,/client\.auth\.updateUser\(\{password\}\)/);
   assert.doesNotMatch(source,/localStorage\.setItem\([^)]*password/);
