@@ -84,3 +84,32 @@ Una copia JSON/ZIP non deve essere presentata come prova di ripristino fino al c
 ### Criterio di via libera
 
 Dichiarare **produzione autorizzata** solo quando tutti i gate amministrativi sono risolti e i test con due account reali, backup/ripristino e dispositivi fisici sono superati. Fino ad allora usare solo dati fittizi o beta controllata.
+
+## 7. Autenticazione, recupero password e protezioni di produzione
+
+**Implementato nel portale:** accesso/registrazione con email, recupero password tramite link Supabase Auth, modifica della password da un account autenticato, doppia conferma, minimo 12 caratteri per le nuove password e uscita dalla sessione dopo il cambio. Le schermate sono disponibili in italiano e tedesco. La password non viene inclusa nelle bozze locali né nell'export.
+
+**Configurazione da verificare nel progetto Supabase prima del rilascio:**
+
+1. Authentication → URL Configuration: impostare il **Site URL** coerente con l'app e aggiungere **\`https://easygarte.vercel.app/cloud/\`** tra gli URL di redirect consentiti. I link di recupero password tornano precisamente a questo indirizzo.
+2. Authentication → Providers: verificare conferma email obbligatoria, criteri di password e durata OTP.
+3. Configurare e testare il servizio SMTP destinato alle email di conferma e recupero. Il semplice superamento dei test simulati non dimostra che le email reali vengano consegnate.
+4. Verificare l'impostazione di protezione contro password compromesse, se disponibile sul piano Supabase; il Security Advisor può continuare a segnalarla.
+5. Provare un recupero password reale con un account **di test** sia su iOS sia su Android. Il link di recupero è monouso e non deve essere condiviso.
+
+**Protezioni Vercel:** \`vercel.json\` imposta Content Security Policy (CSP) per la sezione Cloud, blocco dell'incorporamento in iframe, referrer riservato, restrizioni delle funzionalità browser e cache con rivalidazione per service worker e HTML. Controllare anche gli **header HTTP sul dominio di produzione** dopo il deploy: il test statico verifica la configurazione, non la consegna degli header dal CDN.
+
+**Prestazioni Supabase:** \`supabase/easygart_fk_indexes_v1.sql\` aggiunge in modo idempotente gli indici necessari alle chiavi esterne. Applicata al progetto EasyGart il 16 novembre 2026: 27 indici nuovi; la segnalazione \`unindexed_foreign_keys\` non appare più. Gli avvisi \`unused_index\` possono essere normali subito dopo la creazione degli indici su un database di prova quasi vuoto: non rimuoverli senza dati di utilizzo rappresentativi.
+
+**Verifica tecnica del database (16 novembre 2026):** 17 tabelle EasyGart con RLS attivo, zero tabelle con RLS disattivato, zero permessi SELECT diretti al ruolo anon, bucket media non pubblico e un job Cron di manutenzione attivo. Sono controlli puntuali, non un audit di sicurezza completo.
+
+### Gate finali non automatizzabili in questa fase
+
+- Recupero password e consegna email con configurazione Auth reale.
+- Verifica degli header CSP sul dominio servito da Vercel.
+- Installazione e collaudo su **dispositivi fisici** iPhone e Android.
+- Backup amministrativo completo e **prova di ripristino** in progetto separato.
+- Privacy e adempimenti lavoristici approvati dal titolare del trattamento.
+- Test RLS end-to-end con **due account Supabase reali** appartenenti a due aziende diverse.
+
+La versione è una **release candidate tecnica**. Non presentarla come pronta per la gestione di dati reali finché tutti i gate precedenti non risultano superati e documentati.
