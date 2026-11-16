@@ -778,6 +778,7 @@ function captureEditableForms(){
     .map(form => ({
       type:form.dataset.form,
       fields:[...form.querySelectorAll('[name]')]
+        .filter(input=>input.name&&input.type!=='file'&&input.type!=='password')
         .map(input=>({name:input.name,value:input.value,checked:input.checked,type:input.type}))
     }));
 }
@@ -795,7 +796,7 @@ function restoreEditableForms(drafts){
     }
     for(const field of draft.fields){
       const element=[...form.querySelectorAll('[name]')].find(el=>el.name===field.name);
-      if(!element)continue;
+      if(!element||element.type==='file'||element.type==='password')continue;
       if(field.type==='checkbox'||field.type==='radio')element.checked=field.checked;
       else element.value=field.value;
     }
