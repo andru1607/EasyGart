@@ -9,6 +9,10 @@ const root=resolve(process.cwd()),mimes={
  '.html':'text/html','.js':'text/javascript','.json':'application/json',
  '.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png'
 };
+const securityConfig=JSON.parse(await readFile(resolve(root,'vercel.json'),'utf8'));
+const cloudCsp=securityConfig.headers.find(x=>x.source==='/cloud/(.*)')
+  ?.headers.find(x=>x.key==='Content-Security-Policy')?.value;
+assert.ok(cloudCsp,'Missing production CSP');
 const server=createServer(async(req,res)=>{
  try{
   const path=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
@@ -16,7 +20,9 @@ const server=createServer(async(req,res)=>{
   if(!filename.startsWith(root+sep)){res.writeHead(403);res.end();return}
   const file=await stat(filename);
   if(!file.isFile()){res.writeHead(404);res.end();return}
-  res.writeHead(200,{'content-type':mimes[extname(filename)]||'text/plain','cache-control':'no-store'});
+  const headers={'content-type':mimes[extname(filename)]||'text/plain','cache-control':'no-store'};
+  if(path.startsWith('/cloud/'))headers['content-security-policy']=cloudCsp;
+  res.writeHead(200,headers);
   res.end(await readFile(filename));
  }catch{res.writeHead(404);res.end()}
 });
@@ -94,7 +100,8 @@ async function smoke(engineName,browserType,device){
    })}
   };
  },ownerData);
- await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
+ const response=await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
+ assert.match(response.headers()['content-security-policy'],/frame-ancestors 'none'/);
  await page.locator('button[data-view="materials"]').waitFor({timeout:15000});
  const views=['materials','maintenance','invoices','archive','tasks','reports','clock','clients','team'];
  for(const view of views){
