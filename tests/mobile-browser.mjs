@@ -277,7 +277,7 @@ async function authSmoke(engineName,browserType,device){
  await page.getByText(/Passwort aktualisiert/).waitFor({timeout:10000});
  const events=await page.evaluate(()=>window.__testSupabase.events);
  assert.deepEqual(events.map(e=>e.action),['reset','update','signout']);
- assert.equal(events[2].options.scope,'local');
+ assert.equal(events[2].options.scope,'global');
  assert.deepEqual(errors,[],engineName+' password recovery JS errors');
  await browser.close();
  console.log(engineName+': German password recovery and secure signout OK');
