@@ -1,0 +1,24 @@
+name: EasyGart production availability and security
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 5 * * *'
+  push:
+    paths:
+      - 'tests/production-smoke.mjs'
+      - '.github/workflows/production-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  production:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only HTTPS production smoke
+        run: node tests/production-smoke.mjs
