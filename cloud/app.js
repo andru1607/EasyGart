@@ -25,6 +25,7 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Connessione assente. Riprova quando torni online: i testi del modulo sono conservati in questa sessione.": "Keine Internetverbindung. Bitte versuche es online erneut. Die Formulareingaben bleiben in dieser Sitzung erhalten.",
   "Dati ed esportazione": "Daten und Export",
   "Installa app": "App installieren",
   "Su iPhone apri Condividi e scegli Aggiungi alla schermata Home. Su Android usa Installa app dal menu del browser.": "Auf dem iPhone wähle im Teilen-Menü 'Zum Home-Bildschirm'. Unter Android verwende im Browsermenü 'App installieren'.",
@@ -814,13 +815,24 @@ document.addEventListener('submit',e=>{
   if(!form)return;
   e.preventDefault();
   const key=draftKeyForForm(form);
+  if(typeof navigator!=='undefined'&&navigator.onLine===false){
+    saveSessionDraft(form);
+    fail({message:'Connessione assente. Riprova quando torni online: i testi del modulo sono conservati in questa sessione.'});
+    return;
+  }
   withBusy(async()=>{await submitForm(form,e.submitter?.value||'draft');clearDraftKey(key)});
 });
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-action]');
   if(!b)return;
   const a=b.dataset.action;
-  if(a.startsWith('ops-')){withBusy(()=>operations?.handleAction(b));return}
+  if(a.startsWith('ops-')){
+    if(a==='ops-clock'&&typeof navigator!=='undefined'&&navigator.onLine===false){
+      fail({message:'Connessione assente. Riprova quando torni online: i testi del modulo sono conservati in questa sessione.'});
+      return;
+    }
+    withBusy(()=>operations?.handleAction(b));return
+  }
   if(a.startsWith('biz-')){withBusy(()=>business?.handleAction(b));return}
   if(a==='install'){
     withBusy(async()=>{
@@ -867,7 +879,13 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',e=>{
   if(e.target.dataset.bizClient){business?.handleChange(e.target);return}
-  if(e.target.dataset.opsInput){withBusy(()=>operations?.uploadPhotos(e.target));return}
+  if(e.target.dataset.opsInput){
+    if(typeof navigator!=='undefined'&&navigator.onLine===false){
+      fail({message:'Connessione assente. Riprova quando torni online: i testi del modulo sono conservati in questa sessione.'});
+      return;
+    }
+    withBusy(()=>operations?.uploadPhotos(e.target));return
+  }
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
   if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
