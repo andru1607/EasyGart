@@ -7,7 +7,7 @@ import {resolve,extname,sep} from 'node:path';
 import assert from 'node:assert/strict';
 const root=resolve(process.cwd()),mimes={
  '.html':'text/html','.js':'text/javascript','.json':'application/json',
- '.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png'
+ '.webmanifest':'application/manifest+json','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'
 };
 const securityConfig=JSON.parse(await readFile(resolve(root,'vercel.json'),'utf8'));
 const cloudCsp=securityConfig.headers.find(x=>x.source==='/cloud/(.*)')
@@ -103,6 +103,11 @@ async function smoke(engineName,browserType,device){
  const response=await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
  assert.match(response.headers()['content-security-policy'],/frame-ancestors 'none'/);
  await page.locator('button[data-view="materials"]').waitFor({timeout:15000});
+ const guideDialog=page.locator('#eg-guide-root [role="dialog"]');
+ await guideDialog.waitFor({timeout:10000});
+ assert.equal(await guideDialog.locator('#eg-guide-description').textContent(),'Il pannello del titolare');
+ await guideDialog.locator('[data-eg-guide="skip"]').click();
+ assert.equal(await guideDialog.count(),0,'owner dismissed first-login guide');
  const views=['materials','maintenance','invoices','archive','tasks','reports','clock','clients','team'];
  for(const view of views){
   await page.locator('button[data-view="'+view+'"]').click();
@@ -209,6 +214,11 @@ async function workerSmoke(engineName,browserType,device){
  },data);
  await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
  await page.locator('button[data-view="reports"]').waitFor({timeout:15000});
+ const guideDialog=page.locator('#eg-guide-root [role="dialog"]');
+ await guideDialog.waitFor({timeout:10000});
+ assert.equal(await guideDialog.locator('#eg-guide-description').textContent(),'Il tuo spazio di lavoro');
+ await guideDialog.locator('[data-eg-guide="skip"]').click();
+ assert.equal(await guideDialog.count(),0,'worker dismissed first-login guide');
  assert.equal(await page.locator('button[data-view="materials"]').count(),0,'Worker has manager-only navigation');
  await page.locator('button[data-view="reports"]').click();
  await page.locator('[data-action="biz-open-usage"]').click();
