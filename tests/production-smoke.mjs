@@ -21,12 +21,13 @@ async function check(){
  assert.equal(page.response.headers.get('x-frame-options'),'DENY');
  assert.equal(page.response.headers.get('referrer-policy'),'no-referrer');
  assert.match(page.text,/EasyGart Cloud/);
- assert.match(page.text,/app\.js\?v=20261116-rc2-auth/);
- const app=await get('/cloud/app.js');
+ const appSrc=page.text.match(/<script type="module" src="(\.\/app\.js\?v=[^"]+)"/)?.[1];
+ assert.ok(appSrc,'Missing versioned Cloud application module');
+ const app=await get('/cloud/'+appSrc.slice(2));
  assert.match(app.text,/PASSWORD_RECOVERY/);
  assert.match(app.text,/resetPasswordForEmail/);
  const sw=await get('/cloud/sw.js');
- assert.match(sw.text,/easygart-shell-v5-20261116-rc2/);
+ assert.match(sw.text,/easygart-shell-v\d+-20261116/);
  assert.doesNotMatch(sw.text,/rest\/v1|storage\/v1/);
  const manifest=JSON.parse((await get('/cloud/manifest.webmanifest')).text);
  assert.equal(manifest.scope,'/cloud/');
