@@ -68,3 +68,5 @@ body.eg-guide-lock{overflow:hidden}
  .eg-guide-footer-left{flex:1}
 }
 @media(prefers-reduced-motion:reduce){.eg-guide-progress i{transition:none}}
+
+@media print{#eg-guide-root{display:none!important}}
