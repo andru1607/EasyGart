@@ -57,6 +57,7 @@ const german = {
   "Impossibile leggere questa foto. Converti il file in JPEG.": "Dieses Foto kann nicht gelesen werden. Bitte konvertiere es in JPEG.",
   "Per aggiungere foto prima/dopo e firma del cliente, salva prima il rapporto come bozza.": "Um Vorher-/Nachher-Fotos und die Kundenunterschrift hinzuzufügen, speichere den Bericht zuerst als Entwurf.",
   "Apri lo script SQL": "SQL-Skript öffnen",
+  "Calendario": "Kalender",
   "Timbrature": "Zeiterfassung",
   "Timbrature della squadra": "Zeiterfassung des Teams",
   "Le mie timbrature": "Meine Zeiterfassung",
