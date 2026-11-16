@@ -207,7 +207,7 @@
             '<h3 id="eg-guide-description">'+escapeHTML(page.title[n])+'</h3>'+
             '<p class="eg-guide-intro">'+escapeHTML(page.intro[n])+'</p>'+
             '<ol>'+page.points.map(x=>'<li>'+escapeHTML(x[n])+'</li>').join('')+'</ol>'+
-            (page.view?'<button type="button" class="eg-guide-open" data-eg-guide="visit" data-view="'+escapeHTML(page.view)+'">'+escapeHTML(labels.visit)+' <span aria-hidden="true">↗</span></button>':'')+
+            (page.view?'<button type="button" class="eg-guide-open" data-eg-guide="visit" data-guide-view="'+escapeHTML(page.view)+'">'+escapeHTML(labels.visit)+' <span aria-hidden="true">↗</span></button>':'')+
           '</div></div>'+
         '<div class="eg-guide-footer"><div class="eg-guide-footer-left"><button class="eg-guide-skip" type="button" data-eg-guide="skip">'+escapeHTML(labels.skip)+'</button>'+
           '<small>'+escapeHTML(labels.auto)+'</small></div>'+
@@ -263,7 +263,7 @@
       return;
     }
     if(action==='visit'){
-      const view=btn.dataset.view;
+      const view=btn.dataset.guideView;
       const allowed=(chapters[current.role]||[])[index]?.view===view;
       if(allowed&&view){hide(true);current?.onNavigate?.(view)}
     }
