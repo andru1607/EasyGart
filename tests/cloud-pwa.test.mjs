@@ -57,6 +57,9 @@ test('network status and installation workflow support iPhone and Android',()=>{
   assert.match(app,/Aggiungi alla schermata Home/);
   assert.match(app,/App installieren/);
 });
+test('automatic Cloud refresh pauses while offline',()=>{
+ assert.match(app,/document\.visibilityState==='visible' && navigator\.onLine!==false/);
+});
 test('offline warning follows language changes while already offline',()=>{
  assert.match(mobile,/updateNetworkText:showNetwork/);
  assert.match(app,/window\.EASYGART_INSTALL\?\.updateNetworkText\?\.\(\)/);
