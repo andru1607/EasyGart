@@ -81,7 +81,7 @@ test('successful password change signs out locally and clears app state',async()
     password:'a-strong-password-1234',confirm_password:'a-strong-password-1234'}};
   await h.run('submitForm(testForm)');
   assert.deepEqual(h.events.map(x=>x.action),['update','signout']);
-  assert.equal(h.events[1].options.scope,'local');
+  assert.equal(h.events[1].options.scope,'global');
   assert.equal(h.run('user'),null);
   assert.equal(h.run('authMode'),'signin');
   assert.equal(h.run('companies.length'),0);
