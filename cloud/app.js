@@ -697,7 +697,7 @@ async function submitForm(form,formAction='draft'){
       if(password.length<12)throw Error('La password deve contenere almeno 12 caratteri.');
       if(password!==confirm)throw Error('Le due password non coincidono.');
       requireSuccess(await client.auth.updateUser({password}));
-      requireSuccess(await client.auth.signOut({scope:'local'}));
+      requireSuccess(await client.auth.signOut({scope:'global'}));
       user=null;memberships=[];companies=[];members=[];clients=[];sites=[];tasks=[];dailyReports=[];
       reportsReady=false;operations?.reset();business?.reset();
       authMode='signin';recoveryLinkOpened=false;
