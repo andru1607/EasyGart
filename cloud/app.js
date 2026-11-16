@@ -242,6 +242,7 @@ const german = {
   'L’interfaccia cloud è pronta, ma serve attivare Supabase prima di usarla.':'Die Cloud-Oberfläche ist vorbereitet. Supabase muss noch aktiviert werden.',
   'Crea azienda':'Betrieb erstellen','Nome azienda':'Firmenname',
   'Accetta inviti':'Einladungen annehmen','Nessuna azienda collegata':'Kein verbundener Betrieb',
+  'Guida':'Anleitung','Apri guida':'Anleitung öffnen',
   'La tua squadra':'Dein Team','Compiti':'Aufgaben','Clienti e cantieri':'Kunden und Einsatzorte',
   'Invita dipendente':'Mitarbeiter einladen','Assegna compito':'Aufgabe zuweisen',
   'Da fare':'Offen','In corso':'In Arbeit','Completate':'Erledigt',
@@ -387,6 +388,26 @@ function render() {
     '<strong>'+t('Correzione necessaria')+'</strong> · '+
     '<a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_company_creation_fix.sql" target="_blank" rel="noopener noreferrer">'+t('Apri SQL di riparazione')+'</a>'+
     ' · '+t('Eseguilo nel progetto Supabase EasyGart, poi riprova.')+'</div>':'');
+  // The guide is independent of the data views: it appears only for authenticated users,
+  // once per account and company, and never while changing the account password.
+  window.EASYGART_GUIDE?.sync({
+    active:ready && !!user && authMode!=='reset',
+    userId:user?.id||'',
+    companyId:memberships.length?selectedCompanyId:'',
+    role:memberships.length?(memberIsOwner()?'owner':'worker'):'setup',
+    locale,
+    onLocale(next){
+      if(next!==locale){
+        locale=next==='de'?'de':'it';
+        try{localStorage.setItem(localeKey,locale)}catch{}
+        renderPreservingForms();
+      }
+    },
+    onNavigate(view){
+      const button=document.querySelector?.('[data-action="view"][data-view="'+view+'"]');
+      button?.click?.();
+    }
+  });
   if (!ready) {
     app.innerHTML = alert + '<div class="auth-wrap"><div class="eyebrow">EasyGart • cloud</div><h1>'+t('Configurazione richiesta')+'</h1>'+
       '<div class="card stacked"><p>'+t('L’interfaccia cloud è pronta, ma serve attivare Supabase prima di usarla.')+'</p>'+
@@ -412,7 +433,7 @@ function render() {
       '<button data-action="view" data-view="materials" class="'+(currentView==='materials'?'active':'')+'">'+t('Catalogo materiali')+'</button>'+
       '<button data-action="view" data-view="maintenance" class="'+(currentView==='maintenance'?'active':'')+'">'+t('Manutenzioni ricorrenti')+'</button>'+
       '<button data-action="view" data-view="invoices" class="'+(currentView==='invoices'?'active':'')+'">'+t('Bozze proforma')+'</button>'+
-      '<button data-action="view" data-view="archive" class="'+(currentView==='archive'?'active':'')+'">'+t('Dati ed esportazione')+'</button>':'')+'</nav>'+
+      '<button data-action="view" data-view="archive" class="'+(currentView==='archive'?'active':'')+'">'+t('Dati ed esportazione')+'</button>':'')+'<button data-action="guide-open" class="eg-guide-nav">'+t('Guida')+'</button></nav>'+
     (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
   restoreSessionDrafts();
 }
@@ -449,6 +470,7 @@ function passwordResetMarkup(){
 function onboardMarkup(){
   return '<div class="view-head"><div><div class="eyebrow">EasyGart Cloud</div><h1>'+t('Nessuna azienda collegata')+'</h1>'+
   '<p>'+t("Se sei il titolare, crea l’azienda. Se sei dipendente, conferma la tua email e accetta l’invito.")+'</p></div></div>'+
+  '<div style="margin-bottom:16px"><button class="secondary small" data-action="guide-open">'+t('Apri guida')+'</button></div>'+ 
   '<div class="two"><div class="card stacked"><h2>'+t('Crea azienda')+'</h2><p class="muted">'+t("Usa questa opzione solo per creare un nuovo spazio aziendale indipendente.")+'</p>'+
   '<form class="stacked" data-form="company">'+field('Nome azienda','name','text',pendingCompanyName,'required maxlength="150" minlength="2"')+
   '<button type="submit" class="primary">'+t('Crea azienda')+'</button></form></div>'+
@@ -919,6 +941,7 @@ document.addEventListener('click',e=>{
     if(!user&&['signin','signup','forgot'].includes(mode)){authMode=mode;notice='';render()}
     return;
   }
+  if(a==='guide-open'){window.EASYGART_GUIDE?.open?.();return}
   if(a==='account-password'){
     if(!user)return;
     authMode='reset';notice='';render();return;
