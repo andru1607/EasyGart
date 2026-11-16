@@ -232,9 +232,61 @@ async function workerSmoke(engineName,browserType,device){
  await browser.close();
  console.log(engineName+': employee material catalog, photo upload and touch signature OK');
 }
+async function authSmoke(engineName,browserType,device){
+ const browser=await browserType.launch({headless:true});
+ const context=await browser.newContext({...device,serviceWorkers:'block'});
+ const page=await context.newPage(),errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.route('https://esm.sh/**',route=>route.fulfill({
+  status:200,contentType:'text/javascript',headers:{'access-control-allow-origin':'*'},
+  body:'export function createClient(){return window.__testSupabase}'
+ }));
+ await page.addInitScript(()=>{
+  const events=[];
+  window.__testSupabase={
+   events,
+   auth:{
+    getUser:async()=>({data:{user:null},error:null}),
+    onAuthStateChange:callback=>{window.__authCallback=callback;return {data:{subscription:{unsubscribe(){}}}}},
+    resetPasswordForEmail:async(email,options)=>{
+     events.push({action:'reset',email,options});return {data:{},error:null};
+    },
+    updateUser:async(payload)=>{events.push({action:'update',passwordLength:payload.password.length});return {data:{},error:null}},
+    signOut:async(options)=>{events.push({action:'signout',options});return {data:{},error:null}}
+   }
+  };
+ });
+ await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
+ await page.locator('button[data-mode="forgot"]').waitFor({timeout:15000});
+ await page.locator('#locale').selectOption('de');
+ await page.locator('button[data-mode="forgot"]').click();
+ await page.locator('form[data-form="password-request"] [name="email"]').fill('example@invalid.test');
+ await page.locator('form[data-form="password-request"] button[type="submit"]').click();
+ await page.getByText(/Wenn die Adresse registriert ist/).waitFor({timeout:10000});
+ const reset=await page.evaluate(()=>window.__testSupabase.events[0]);
+ assert.equal(reset.action,'reset');
+ assert.equal(reset.options.redirectTo,'https://easygarte.vercel.app/cloud/');
+ await page.evaluate(()=>window.__authCallback('PASSWORD_RECOVERY',{
+  user:{id:'recover-user',email:'example@invalid.test'}
+ }));
+ await page.locator('form[data-form="password-update"]').waitFor({timeout:10000});
+ assert.ok(await page.getByText('Neues Passwort festlegen').isVisible());
+ await page.locator('form[data-form="password-update"] [name="password"]').fill('very-long-new-password-123');
+ await page.locator('form[data-form="password-update"] [name="confirm_password"]').fill('very-long-new-password-123');
+ await page.locator('form[data-form="password-update"] button[type="submit"]').click();
+ await page.getByText(/Passwort aktualisiert/).waitFor({timeout:10000});
+ const events=await page.evaluate(()=>window.__testSupabase.events);
+ assert.deepEqual(events.map(e=>e.action),['reset','update','signout']);
+ assert.equal(events[2].options.scope,'local');
+ assert.deepEqual(errors,[],engineName+' password recovery JS errors');
+ await browser.close();
+ console.log(engineName+': German password recovery and secure signout OK');
+}
 try{
  await smoke('iOS WebKit emulation',webkit,devices['iPhone 13']);
  await smoke('Android Chromium emulation',chromium,devices['Pixel 7']);
  await workerSmoke('iOS WebKit emulation',webkit,devices['iPhone 13']);
  await workerSmoke('Android Chromium emulation',chromium,devices['Pixel 7']);
+ await authSmoke('iOS WebKit emulation',webkit,devices['iPhone 13']);
+ await authSmoke('Android Chromium emulation',chromium,devices['Pixel 7']);
 }finally{server.close()}
