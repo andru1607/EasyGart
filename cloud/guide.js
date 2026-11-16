@@ -264,7 +264,7 @@
     }
     if(action==='visit'){
       const view=btn.dataset.view;
-      const allowed=chapters[current.role]?.some(s=>s.view===view);
+      const allowed=(chapters[current.role]||[])[index]?.view===view;
       if(allowed&&view){hide(true);current?.onNavigate?.(view)}
     }
   });
