@@ -139,6 +139,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  #eg-print-zone h1{font-size:24pt}
  #eg-print-zone .eg-invoice-total{text-align:right}
 }
+
+/* Calendario mensile: vista mobile-first */
+.eg-calendar-controls{margin-bottom:16px}.eg-calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.eg-calendar-toolbar h3{text-transform:capitalize;min-width:140px;text-align:center}
+.eg-calendar-toolbar label{min-width:170px}.eg-calendar-totals{margin-bottom:16px}.eg-calendar-totals strong{font-size:24px}
+.eg-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}.eg-calendar-week{text-align:center;font-size:11px;font-weight:800;color:var(--muted);padding:7px 0}
+.eg-calendar-days{display:contents}.eg-calendar-day{border:1px solid var(--line);background:#fafcf9;border-radius:9px;min-height:84px;padding:7px 5px;text-align:left;min-width:0;display:flex;flex-direction:column;gap:3px;color:var(--dark)}
+.eg-calendar-day strong{font-size:14px}.eg-calendar-day span{font-size:11px;font-weight:800;overflow-wrap:anywhere}.eg-calendar-day small{font-size:10px;color:var(--muted)}.eg-calendar-day.filled{background:#e8f3e4}
+.eg-calendar-day.selected{outline:3px solid #426d4b;outline-offset:-2px;background:#d7edcf}
+.eg-calendar-detail{margin-top:16px}.eg-calendar-record{border-bottom:1px solid var(--line);padding:14px 0}.eg-calendar-record:last-child{border-bottom:0}
+.eg-calendar-note{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:7px}.eg-calendar-foot{font-size:12px;margin-top:12px}
+@media(max-width:760px){.eg-calendar-card{padding:10px}.eg-calendar-grid{gap:3px}.eg-calendar-day{min-height:73px;padding:4px 3px;border-radius:7px}.eg-calendar-day span{font-size:10px}.eg-calendar-day small{font-size:9px}.eg-calendar-toolbar label{width:100%}}
 </style>
 </head>
 <body>
@@ -153,6 +164,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <script src="./business.js?v=20261116-final-v1"></script>
 <script src="./mobile.js?v=20261116-mobile-v1"></script>
 <script src="./guide.js?v=20261116-guide-v1"></script>
-<script type="module" src="./app.js?v=20261116-guide-v1"></script>
+<script src="./calendar.js?v=20261116-calendar-v1"></script>
+<script type="module" src="./app.js?v=20261116-calendar-v1"></script>
 </body>
 </html>

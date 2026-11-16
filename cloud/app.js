@@ -6,6 +6,7 @@ const cfg = window.EASYGART_SUPABASE_CONFIG || {};
 const app = $('app'), topRight = $('top-right');
 let client = null;
 let operations = null;
+let calendar = null;
 let business = null;
 let authMode = 'signin';
 // Capture the recovery marker before Supabase processes and clears URL tokens.
@@ -427,6 +428,7 @@ function render() {
     '<nav class="nav" aria-label="'+t('Sezioni')+'">'+
       '<button data-action="view" data-view="tasks" class="'+(currentView==='tasks'?'active':'')+'">'+t('Compiti')+'</button>'+ 
       '<button data-action="view" data-view="clock" class="'+(currentView==='clock'?'active':'')+'">'+t('Timbrature')+'</button>'+ 
+      '<button data-action="view" data-view="calendar" class="'+(currentView==='calendar'?'active':'')+'">'+t('Calendario')+'</button>'+ 
       '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+(memberIsOwner() && dailyReports.some(r=>r.status==='submitted')?' · '+dailyReports.filter(r=>r.status==='submitted').length:'')+'</button>'+ 
       (memberIsOwner()?'<button data-action="view" data-view="clients" class="'+(currentView==='clients'?'active':'')+'">'+t('Clienti e cantieri')+'</button>'+
       '<button data-action="view" data-view="team" class="'+(currentView==='team'?'active':'')+'">'+t('La tua squadra')+'</button>'+ 
@@ -434,7 +436,7 @@ function render() {
       '<button data-action="view" data-view="maintenance" class="'+(currentView==='maintenance'?'active':'')+'">'+t('Manutenzioni ricorrenti')+'</button>'+
       '<button data-action="view" data-view="invoices" class="'+(currentView==='invoices'?'active':'')+'">'+t('Bozze proforma')+'</button>'+
       '<button data-action="view" data-view="archive" class="'+(currentView==='archive'?'active':'')+'">'+t('Dati ed esportazione')+'</button>':'')+'<button data-action="guide-open" class="eg-guide-nav">'+t('Guida')+'</button></nav>'+
-    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
+    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar'?(calendar?.markup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
   restoreSessionDrafts();
 }
 function authMarkup(){
@@ -649,7 +651,7 @@ async function refresh() {
   if(!client||!user)return;
   const list=requireSuccess(await client.from('eg_members').select('company_id,user_id,full_name,role,active').eq('user_id',user.id).eq('active',true));
   memberships=list||[];
-  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();render();return}
+  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;operations?.reset();calendar?.reset();business?.reset();render();return}
   const cids=memberships.map(x=>x.company_id);
   companies=requireSuccess(await client.from('eg_companies').select('id,name').in('id',cids))||[];
   if(!cids.includes(selectedCompanyId))selectedCompanyId=cids[0];
@@ -675,12 +677,13 @@ async function refresh() {
     reportsReady=true;reportsSetupError='';dailyReports=reportResponse.data||[];
   }
   await operations?.refresh(org);
+  await calendar?.refresh(org);
   const created=await business?.refresh(org);
   if(created>0){
     const newTasks=requireSuccess(await client.from('eg_tasks').select('*').eq('company_id',org));
     tasks=newTasks||[];
   }
-  if(!owner&&!['tasks','reports','clock'].includes(currentView))currentView='tasks';
+  if(!owner&&!['tasks','reports','clock','calendar'].includes(currentView))currentView='tasks';
   render();
 }
 async function onAuth(form){
@@ -721,7 +724,7 @@ async function submitForm(form,formAction='draft'){
       requireSuccess(await client.auth.updateUser({password}));
       requireSuccess(await client.auth.signOut({scope:'global'}));
       user=null;memberships=[];companies=[];members=[];clients=[];sites=[];tasks=[];dailyReports=[];
-      reportsReady=false;operations?.reset();business?.reset();
+      reportsReady=false;operations?.reset();calendar?.reset();business?.reset();
       authMode='signin';recoveryLinkOpened=false;
       const print=$('eg-print-zone');if(print)print.textContent='';
       success('Password aggiornata. Accedi di nuovo con la nuova password.');
@@ -830,6 +833,10 @@ async function boot(){
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,reports:dailyReports,locale,reload:refresh}),
       t,tr,esc,onSuccess:success,rerender:render
     });
+    calendar = window.createEasyGartCalendar({client,
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,locale}),
+      esc,rerender:render
+    });
     business = window.createEasyGartBusiness({
       client,
       getContext:()=>({companyId:selectedCompanyId,companyName:company()?.name||'EasyGart',
@@ -852,7 +859,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
+        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
@@ -919,6 +926,10 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-action]');
   if(!b)return;
   const a=b.dataset.action;
+  if(a.startsWith('cal-')){
+    if(a==='cal-reports'){currentView='reports';render();return}
+    if(calendar)withBusy(()=>calendar.handleAction(b));return;
+  }
   if(a.startsWith('ops-')){
     if(a==='ops-clock'&&typeof navigator!=='undefined'&&navigator.onLine===false){
       fail({message:'Connessione assente. Riprova quando torni online: i testi del modulo sono conservati in questa sessione.'});
@@ -948,7 +959,7 @@ document.addEventListener('click',e=>{
   }
   if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='report-new'){
     if(memberIsOwner()||!reportsReady)return;
@@ -988,6 +999,7 @@ document.addEventListener('change',e=>{
     }
     withBusy(()=>operations?.uploadPhotos(e.target));return
   }
+  if(e.target.id==='eg-calendar-worker'){calendar?.handleChange(e.target);return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
   if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
