@@ -22,6 +22,19 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base='http://127.0.0.1:'+server.address().port;
+function zipPayloads(bytes){
+ const files={};let pos=0;
+ while(pos+30<=bytes.length && bytes.readUInt32LE(pos)===0x04034b50){
+   const len=bytes.readUInt32LE(pos+18);
+   const nameLength=bytes.readUInt16LE(pos+26),extra=bytes.readUInt16LE(pos+28);
+   const name=bytes.toString('utf8',pos+30,pos+30+nameLength);
+   const begin=pos+30+nameLength+extra;
+   files[name]=bytes.subarray(begin,begin+len);
+   pos=begin+len;
+ }
+ assert.equal(bytes.readUInt32LE(bytes.length-22),0x06054b50,'ZIP directory is present');
+ return files;
+}
 const fakeData={
  eg_members:[{company_id:'org1',user_id:'owner1',full_name:'Titolare Demo',role:'owner',active:true},
    {company_id:'org1',user_id:'worker1',full_name:'Operatore Demo',role:'worker',active:true}],
@@ -50,6 +63,12 @@ async function smoke(engineName,browserType,device){
   status:200,contentType:'text/javascript',headers:{'access-control-allow-origin':'*'},
   body:'export function createClient(){return window.__testSupabase}'
  }));
+ const ownerData=JSON.parse(JSON.stringify(fakeData));
+ ownerData.eg_report_media=[{
+   id:'abc123',company_id:'org1',report_id:'r1',author_id:'worker1',
+   kind:'before',status:'uploaded',mime_type:'image/png',bytes:8,
+   storage_path:'org1/r1/before/abc123.png',signer_name:null
+ }];
  await page.addInitScript(data=>{
   class FakeQuery{
    constructor(table){this.table=table;this.filters=[];this.max=9999}
@@ -69,9 +88,12 @@ async function smoke(engineName,browserType,device){
      onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
    from:table=>new FakeQuery(table),
    rpc:async(name)=>({data:name==='eg_generate_maintenance'?0:null,error:null}),
-   storage:{from:()=>({createSignedUrl:async()=>({data:{},error:null})})}
+   storage:{from:()=>({
+     createSignedUrl:async()=>({data:{},error:null}),
+     download:async()=>({data:new Blob([Uint8Array.from([137,80,78,71,0,1,2,3])],{type:'image/png'}),error:null})
+   })}
   };
- },fakeData);
+ },ownerData);
  await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
  await page.locator('button[data-view="materials"]').waitFor({timeout:15000});
  const views=['materials','maintenance','invoices','archive','tasks','reports','clock','clients','team'];
@@ -111,6 +133,19 @@ async function smoke(engineName,browserType,device){
  assert.equal(contents.tables.eg_invoice_drafts[0].id,'i1');
  assert.ok(!('auth.users' in contents.tables));
  assert.ok(!('media_binary' in contents));
+ // Complete archive: download the original private media after explicit user tap.
+ await page.locator('button[data-action="biz-export-full"]').click();
+ const zipLink=page.locator('a[download$=".zip"][href^="blob:"]');
+ await zipLink.waitFor({timeout:15000});
+ const zipPromise=page.waitForEvent('download',{timeout:20000});
+ await zipLink.click();
+ const zipped=await zipPromise;
+ assert.match(zipped.suggestedFilename(),/^easygart-export-\d{4}-\d{2}-\d{2}\.zip$/);
+ const payloads=zipPayloads(await readFile(await zipped.path()));
+ assert.ok(payloads['easygart-export.json']);
+ assert.ok(payloads['allegati/org1/r1/before/abc123.png']);
+ assert.equal(JSON.parse(payloads['easygart-export.json'].toString('utf8')).tables.eg_report_media.length,1);
+ assert.deepEqual([...payloads['allegati/org1/r1/before/abc123.png']],[137,80,78,71,0,1,2,3]);
  await context.setOffline(true);
  // Mobile network banners depend on navigator.onLine; context offline event should fire.
  await page.waitForTimeout(200);
