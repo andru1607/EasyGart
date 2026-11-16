@@ -1,0 +1,70 @@
+/* EasyGart guided onboarding: compact desktop directory and mobile-first dialog. */
+body.eg-guide-lock{overflow:hidden}
+#eg-guide-root:empty{display:none}
+.eg-guide-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(8,30,20,.73);display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px)}
+.eg-guide-panel{width:min(1040px,100%);height:min(760px,94dvh);min-height:340px;background:#fff;border-radius:23px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 28px 90px #071b1660;color:#193d2b}
+.eg-guide-head{display:flex;gap:15px;align-items:center;justify-content:space-between;padding:22px 26px 17px;border-bottom:1px solid #e3eae0}
+.eg-guide-kicker{text-transform:uppercase;letter-spacing:.14em;color:#5b8065;font-size:10px;font-weight:850}
+.eg-guide-head h2{font-size:23px;line-height:1.24;margin:3px 0 0;letter-spacing:-.5px}
+.eg-guide-head-actions{display:flex;align-items:center;gap:13px}
+.eg-guide-languages{display:flex;gap:2px;padding:3px;border:1px solid #d8e6d5;background:#f4f8f0;border-radius:10px}
+.eg-guide-languages button{border:0;background:none;border-radius:7px;font-size:12px;font-weight:800;color:#63806a;min-height:35px;padding:6px 11px}
+.eg-guide-languages button.selected{background:#24543b;color:white}
+.eg-guide-close{height:39px;width:39px;display:grid;place-items:center;padding:0;border:1px solid #dfebe0;border-radius:11px;background:#fff;color:#315940;font-size:26px;line-height:1}
+.eg-guide-progress{display:flex;align-items:center;gap:15px;padding:12px 26px;background:#f7faf5;font-size:12px;font-weight:750;color:#5a7665}
+.eg-guide-progress>span{white-space:nowrap}
+.eg-guide-progress [role=progressbar]{height:6px;flex:1;background:#e5eee0;border-radius:99px;overflow:hidden}
+.eg-guide-progress i{height:100%;display:block;background:#628e58;border-radius:99px;transition:width .18s}
+.eg-guide-layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(225px,31%) minmax(0,1fr)}
+.eg-guide-chapters{overflow:auto;background:#fafbf8;border-right:1px solid #e2eae0;padding:15px 10px}
+.eg-guide-chapters button{display:flex;align-items:center;gap:11px;width:100%;border:0;text-align:left;background:transparent;color:#4f6b57;border-radius:10px;font-weight:650;line-height:1.35;padding:11px 10px;min-height:42px;font-size:13px;overflow-wrap:anywhere}
+.eg-guide-chapters button.selected{background:#e7f1de;color:#1d5136;font-weight:820}
+.eg-guide-number{flex:none;width:24px;height:24px;border-radius:8px;background:#e9eee7;display:grid;place-items:center;font-size:11px}
+.eg-guide-chapters button.selected .eg-guide-number{background:#285c3e;color:white}
+.eg-guide-content{overflow-y:auto;padding:clamp(20px,4vw,46px);scrollbar-width:thin;min-height:0}
+.eg-guide-step-count{color:#64826c;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px}
+.eg-guide-content h3{font-size:clamp(24px,3.4vw,34px);line-height:1.18;letter-spacing:-.85px;margin:0 0 18px;color:#173d2d}
+.eg-guide-intro{font-size:16px;line-height:1.65;color:#46624e;margin-bottom:20px}
+.eg-guide-content ol{padding-left:21px;margin:0 0 24px;display:grid;gap:13px}
+.eg-guide-content li{font-size:14px;line-height:1.6;color:#34533f;padding-left:5px}
+.eg-guide-content li::marker{color:#5b9366;font-weight:900}
+.eg-guide-open{border-radius:11px;background:#e7f2db;border:1px solid #d4e8c8;color:#245336;padding:11px 14px;min-height:42px;font-weight:800}
+.eg-guide-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 24px;border-top:1px solid #e2ebe0;background:#fff}
+.eg-guide-footer-left{display:flex;flex-direction:column;gap:3px;min-width:0}
+.eg-guide-footer-left small{font-size:11px;color:#708575;line-height:1.3}
+.eg-guide-skip{background:none;border:0;color:#496450;padding:3px 0;min-height:28px;font-size:12px;text-decoration:underline;text-underline-offset:3px;text-align:left;align-self:flex-start}
+.eg-guide-step-actions{display:flex;gap:9px;flex:none}
+.eg-guide-back,.eg-guide-next{min-width:94px;min-height:43px;border-radius:10px;padding:9px 16px;font-size:14px;font-weight:790}
+.eg-guide-back{background:#fff;border:1px solid #d7e5d6;color:#295239}
+.eg-guide-next{background:#1e5036;border:1px solid #1e5036;color:white}
+.eg-guide-nav{margin-left:auto!important;border:1px solid #c7ddba!important;background:#e7f2db!important;color:#1e5036!important}
+.eg-guide-close:focus-visible,.eg-guide-panel button:focus-visible{outline:3px solid #83bb6e;outline-offset:2px}
+@media(max-width:760px){
+ .eg-guide-backdrop{align-items:flex-end;padding:0}
+ .eg-guide-panel{height:min(94dvh,900px);border-radius:22px 22px 0 0}
+ .eg-guide-head{padding:15px 17px 13px}
+ .eg-guide-head h2{font-size:20px}
+ .eg-guide-head-actions{gap:8px}
+ .eg-guide-close{height:35px;width:35px}
+ .eg-guide-progress{padding:10px 17px}
+ .eg-guide-layout{display:flex;flex-direction:column}
+ .eg-guide-chapters{flex:none;border:0;border-bottom:1px solid #e2eae0;display:flex;gap:6px;overflow-x:auto;padding:9px 12px;max-height:64px}
+ .eg-guide-chapters button{flex:none;width:auto;max-width:172px;padding:8px 10px;min-height:40px;white-space:nowrap;font-size:12px}
+ .eg-guide-chapters button span:last-child{overflow:hidden;text-overflow:ellipsis}
+ .eg-guide-content{flex:1;padding:22px 20px}
+ .eg-guide-content h3{font-size:26px;margin-bottom:13px}
+ .eg-guide-intro{font-size:15px}
+ .eg-guide-content li{font-size:14px}
+ .eg-guide-footer{padding:12px 15px max(14px,env(safe-area-inset-bottom));align-items:stretch;gap:7px}
+ .eg-guide-footer-left small{display:none}
+ .eg-guide-step-actions{gap:7px}
+ .eg-guide-back,.eg-guide-next{min-width:73px;padding:9px 11px;font-size:12px}
+ .eg-guide-nav{margin-left:0!important}
+}
+@media(max-width:375px){
+ .eg-guide-kicker{font-size:9px}
+ .eg-guide-footer{flex-wrap:wrap}
+ .eg-guide-step-actions{margin-left:auto}
+ .eg-guide-footer-left{flex:1}
+}
+@media(prefers-reduced-motion:reduce){.eg-guide-progress i{transition:none}}
