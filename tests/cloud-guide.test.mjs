@@ -107,12 +107,12 @@ test('navigation only links to authorized chapters and marks viewed guide comple
   }));
   h.fire('goto',{index:'2'});
   assert.match(h.root.innerHTML,/Squadra e inviti/);
-  h.fire('visit',{view:'team'});
+  h.fire('visit',{guideView:'team'});
   assert.deepEqual(destinations,['team']);
   assert.equal(h.root.innerHTML,'');
   assert.equal(h.storage.get('easygart-guide-v1:user-4:company-a'),'done');
   h.window.EASYGART_GUIDE.open();
-  h.fire('visit',{view:'invoices'});
+  h.fire('visit',{guideView:'invoices'});
   assert.deepEqual(destinations,['team'],'unrelated destination must be rejected');
 });
 
