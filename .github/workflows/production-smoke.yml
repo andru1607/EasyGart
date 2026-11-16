@@ -7,6 +7,13 @@ on:
     paths:
       - 'tests/production-smoke.mjs'
       - '.github/workflows/production-smoke.yml'
+      - 'cloud/app.js'
+      - 'cloud/index.html'
+      - 'cloud/sw.js'
+      - 'vercel.json'
+concurrency:
+  group: easygart-production-smoke
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
