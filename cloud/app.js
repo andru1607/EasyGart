@@ -8,6 +8,8 @@ let client = null;
 let operations = null;
 let business = null;
 let authMode = 'signin';
+// Capture the recovery marker before Supabase processes and clears URL tokens.
+let recoveryLinkOpened = /(?:^|[?&#])type=recovery(?:[&#]|$)/.test(location.search+location.hash);
 let notice = '';
 let errorNotice = false;
 let companyPolicyError = false;
@@ -25,6 +27,23 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  "Password dimenticata?": "Passwort vergessen?",
+  "Recupera password": "Passwort zurücksetzen",
+  "Inserisci la tua email: riceverai un link per impostare una nuova password.": "Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Festlegen eines neuen Passworts.",
+  "Invia link di recupero": "Wiederherstellungslink senden",
+  "Torna all’accesso": "Zurück zur Anmeldung",
+  "Se l’indirizzo è registrato, riceverai un’email con le istruzioni per recuperare la password.": "Wenn die Adresse registriert ist, erhältst du eine E-Mail mit Anweisungen zum Zurücksetzen des Passworts.",
+  "Imposta nuova password": "Neues Passwort festlegen",
+  "Scegli una password unica di almeno 12 caratteri.": "Wähle ein einzigartiges Passwort mit mindestens 12 Zeichen.",
+  "Nuova password": "Neues Passwort",
+  "Conferma nuova password": "Neues Passwort bestätigen",
+  "Salva nuova password": "Neues Passwort speichern",
+  "Le due password non coincidono.": "Die beiden Passwörter stimmen nicht überein.",
+  "La password deve contenere almeno 12 caratteri.": "Das Passwort muss mindestens 12 Zeichen lang sein.",
+  "Password aggiornata. Accedi di nuovo con la nuova password.": "Passwort aktualisiert. Melde dich mit dem neuen Passwort erneut an.",
+  "Sicurezza account": "Kontosicherheit",
+  "Modifica password": "Passwort ändern",
+  "Per motivi di sicurezza, dopo la modifica dovrai accedere nuovamente.": "Aus Sicherheitsgründen musst du dich nach der Änderung erneut anmelden.",
   "Connessione assente. Riprova quando torni online: i testi del modulo sono conservati in questa sessione.": "Keine Internetverbindung. Bitte versuche es online erneut. Die Formulareingaben bleiben in dieser Sitzung erhalten.",
   "Dati ed esportazione": "Daten und Export",
   "Installa app": "App installieren",
@@ -357,6 +376,7 @@ function render() {
     option('it','IT',locale==='it')+option('de','DE',locale==='de')+'</select>'+
     (user ? '<span style="font-size:12px;opacity:.8">'+esc(user.email)+'</span>'+
       (!window.EASYGART_INSTALL?.isStandalone?.()?'<button class="ghost small" data-action="install">'+t('Installa app')+'</button>':'')+
+      '<button class="ghost small" data-action="account-password">'+t('Sicurezza account')+'</button>'+ 
       '<button class="ghost small" data-action="signout">'+t('Esci')+'</button>' : '');
   const displayNotice = errorNotice && locale==='de' && !Object.hasOwn(german,notice) &&
     !Object.hasOwn(window.EASYGART_BUSINESS_I18N||{},notice)
@@ -375,6 +395,7 @@ function render() {
     return;
   }
   if (!user) {app.innerHTML = alert + authMarkup();return}
+  if (authMode==='reset') {app.innerHTML=alert+passwordResetMarkup();return}
   if (!memberships.length) {app.innerHTML = alert + onboardMarkup();return}
   const org = company();
   app.innerHTML = alert +
@@ -396,6 +417,12 @@ function render() {
   restoreSessionDrafts();
 }
 function authMarkup(){
+  if(authMode==='forgot')return '<div class="auth-wrap"><div class="eyebrow">EasyGart Cloud</div>'+
+    '<h1>'+t('Recupera password')+'</h1><div class="card stacked">'+
+    '<p>'+t('Inserisci la tua email: riceverai un link per impostare una nuova password.')+'</p>'+
+    '<form data-form="password-request" class="stacked">'+field('Email','email','email','','autocomplete="email" required maxlength="200"')+
+    '<button class="primary" type="submit">'+t('Invia link di recupero')+'</button></form>'+
+    '<button class="ghost" data-action="auth-mode" data-mode="signin">'+t('Torna all’accesso')+'</button></div></div>';
   const signup=authMode==='signup';
   return '<div class="auth-wrap"><div class="eyebrow">EasyGart Cloud</div><h1>'+t('Accesso dipendenti')+'</h1>'+
     '<p class="muted" style="margin-bottom:20px">'+t("Account individuali: i dati vengono autorizzati da Supabase.")+'</p>'+
@@ -404,8 +431,20 @@ function authMarkup(){
     '<form data-form="auth" class="stacked">'+field('Email','email','email','','autocomplete="email" required maxlength="200"')+
     field('Password','password','password','','autocomplete="'+(signup?'new-password':'current-password')+'" minlength="'+(signup?'12':'8')+'" required')+
     (signup?'<p class="muted" style="font-size:12px;margin:2px 0 12px">'+t('Usa una password unica di almeno 12 caratteri, preferibilmente generata da un gestore password.')+'</p>':'')+
-    '<button class="primary" type="submit">'+t(signup?'Crea un account':'Accedi')+'</button></form>'+
+    '<button class="primary" type="submit">'+t(signup?'Crea un account':'Accedi')+'</button></form>'+ 
+    (!signup?'<button class="ghost small" data-action="auth-mode" data-mode="forgot">'+t('Password dimenticata?')+'</button>':'')+
     '<p class="muted" style="font-size:12px;margin-top:18px">'+t("I dipendenti devono registrarsi con lo stesso indirizzo email inserito dal titolare nell’invito. Verifica email obbligatoria.")+'</p></div></div>';
+}
+function passwordResetMarkup(){
+  return '<div class="auth-wrap"><div class="eyebrow">EasyGart Cloud</div>'+
+    '<h1>'+t('Imposta nuova password')+'</h1><div class="card stacked">'+
+    '<p>'+t('Scegli una password unica di almeno 12 caratteri.')+'</p>'+
+    '<form data-form="password-update" class="stacked">'+
+    field('Nuova password','password','password','','autocomplete="new-password" minlength="12" required')+
+    field('Conferma nuova password','confirm_password','password','','autocomplete="new-password" minlength="12" required')+
+    '<button class="primary" type="submit">'+t('Salva nuova password')+'</button></form>'+
+    '<p class="muted">'+t('Per motivi di sicurezza, dopo la modifica dovrai accedere nuovamente.')+'</p>'+
+    '</div></div>';
 }
 function onboardMarkup(){
   return '<div class="view-head"><div><div class="eyebrow">EasyGart Cloud</div><h1>'+t('Nessuna azienda collegata')+'</h1>'+
@@ -642,6 +681,30 @@ async function submitForm(form,formAction='draft'){
   const vals=Object.fromEntries(new FormData(form));
   switch(form.dataset.form){
     case 'auth':await onAuth(form);break;
+    case 'password-request':{
+      const email=String(vals.email||'').trim().toLowerCase();
+      if(!email)throw Error('Email obbligatoria.');
+      requireSuccess(await client.auth.resetPasswordForEmail(email,{
+        redirectTo:location.origin+'/cloud/'
+      }));
+      authMode='signin';
+      success('Se l’indirizzo è registrato, riceverai un’email con le istruzioni per recuperare la password.');
+      break;
+    }
+    case 'password-update':{
+      if(!user?.id)throw Error('Sessione scaduta. Esci e accedi di nuovo prima di creare l’azienda.');
+      const password=String(vals.password||''),confirm=String(vals.confirm_password||'');
+      if(password.length<12)throw Error('La password deve contenere almeno 12 caratteri.');
+      if(password!==confirm)throw Error('Le due password non coincidono.');
+      requireSuccess(await client.auth.updateUser({password}));
+      requireSuccess(await client.auth.signOut({scope:'local'}));
+      user=null;memberships=[];companies=[];members=[];clients=[];sites=[];tasks=[];dailyReports=[];
+      reportsReady=false;operations?.reset();business?.reset();
+      authMode='signin';recoveryLinkOpened=false;
+      const print=$('eg-print-zone');if(print)print.textContent='';
+      success('Password aggiornata. Accedi di nuovo con la nuova password.');
+      break;
+    }
     case 'company':{
       const name=String(vals.name||'').trim();
       if(name.length<2)throw Error('Il nome deve contenere almeno 2 caratteri.');
@@ -754,8 +817,16 @@ async function boot(){
     const r=await client.auth.getUser();
     if(r.error&&r.error.status!==400)throw r.error;
     user=r.data?.user||null;
-    if(user)await refresh();else render();
+    if(user){
+      if(recoveryLinkOpened){authMode='reset';recoveryLinkOpened=false;render()}
+      else await refresh();
+    }else{recoveryLinkOpened=false;render()}
     client.auth.onAuthStateChange((ev,session)=>{
+      if(ev==='PASSWORD_RECOVERY'){
+        user=session?.user||user;
+        if(user){authMode='reset';recoveryLinkOpened=false;render()}
+        return;
+      }
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
@@ -843,10 +914,18 @@ document.addEventListener('click',e=>{
       }
     });return;
   }
-  if(a==='auth-mode'){authMode=b.dataset.mode;notice='';render();return}
+  if(a==='auth-mode'){
+    const mode=b.dataset.mode;
+    if(!user&&['signin','signup','forgot'].includes(mode)){authMode=mode;notice='';render()}
+    return;
+  }
+  if(a==='account-password'){
+    if(!user)return;
+    authMode='reset';notice='';render();return;
+  }
   if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;memberships=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;operations?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='report-new'){
     if(memberIsOwner()||!reportsReady)return;
