@@ -97,7 +97,7 @@ Dichiarare **produzione autorizzata** solo quando tutti i gate amministrativi so
 4. Verificare l'impostazione di protezione contro password compromesse, se disponibile sul piano Supabase; il Security Advisor può continuare a segnalarla.
 5. Provare un recupero password reale con un account **di test** sia su iOS sia su Android. Il link di recupero è monouso e non deve essere condiviso.
 
-**Protezioni Vercel:** \`vercel.json\` imposta Content Security Policy (CSP) per la sezione Cloud, blocco dell'incorporamento in iframe, referrer riservato, restrizioni delle funzionalità browser e cache con rivalidazione per service worker e HTML. Controllare anche gli **header HTTP sul dominio di produzione** dopo il deploy: il test statico verifica la configurazione, non la consegna degli header dal CDN.
+**Protezioni Vercel:** \`vercel.json\` imposta Content Security Policy (CSP) per la sezione Cloud, blocco dell'incorporamento in iframe, referrer riservato, restrizioni delle funzionalità browser e cache con rivalidazione per service worker e HTML. **Verifica sul dominio reale superata il 16 novembre 2026:** GitHub Actions ha controllato via HTTPS la consegna degli header CSP/anti-clickjacking, il recupero password nel bundle, il service worker, il manifest e le icone. Il workflow di controllo pubblico in sola lettura viene eseguito anche ogni giorno; non usa credenziali né dati aziendali.
 
 **Prestazioni Supabase:** \`supabase/easygart_fk_indexes_v1.sql\` aggiunge in modo idempotente gli indici necessari alle chiavi esterne. Applicata al progetto EasyGart il 16 novembre 2026: 27 indici nuovi; la segnalazione \`unindexed_foreign_keys\` non appare più. Gli avvisi \`unused_index\` possono essere normali subito dopo la creazione degli indici su un database di prova quasi vuoto: non rimuoverli senza dati di utilizzo rappresentativi.
 
@@ -106,7 +106,6 @@ Dichiarare **produzione autorizzata** solo quando tutti i gate amministrativi so
 ### Gate finali non automatizzabili in questa fase
 
 - Recupero password e consegna email con configurazione Auth reale.
-- Verifica degli header CSP sul dominio servito da Vercel.
 - Installazione e collaudo su **dispositivi fisici** iPhone e Android.
 - Backup amministrativo completo e **prova di ripristino** in progetto separato.
 - Privacy e adempimenti lavoristici approvati dal titolare del trattamento.
