@@ -2,6 +2,7 @@
    Tutti i dati di fatturazione restano privati al titolare tramite Supabase RLS. */
 'use strict';
 window.EASYGART_BUSINESS_I18N={
+  "Guida a backup e ripristino": "Anleitung zu Backup und Wiederherstellung",
   "Esporta i dati gestionali in JSON oppure prepara un archivio ZIP con le foto e le firme originali.": "Exportiere Betriebsdaten als JSON oder erstelle ein ZIP-Archiv mit den Originalfotos und Unterschriften.",
   "Il file contiene dati personali, fotografie e firme se scegli ZIP. Conserva il download in un luogo protetto e rimuovi le copie superflue. Questa esportazione non sostituisce un backup amministrativo ripristinabile.": "Die Datei enthält personenbezogene Daten; das ZIP enthält auch Fotos und Unterschriften. Bewahre sie sicher auf und entferne unnötige Kopien. Der Export ersetzt kein wiederherstellbares administratives Backup.",
   "Prepara JSON": "JSON vorbereiten",
@@ -381,7 +382,8 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       '</div></div>'+
       '<div class="card stacked" style="margin-top:17px"><h3>'+b('Protezione dei dati')+'</h3>'+
       '<p>'+b('L’accesso ai dati aziendali è regolato dai permessi sul server. Definisci informativa privacy, tempi di conservazione e procedure di cancellazione prima dell’uso reale.')+'</p>'+
-      '<p>'+b('Per un ripristino completo, compresi allegati e firme, configura backup PostgreSQL e Supabase Storage tramite procedure amministrative.')+'</p></div>';
+      '<p>'+b('Per un ripristino completo, compresi allegati e firme, configura backup PostgreSQL e Supabase Storage tramite procedure amministrative.')+'</p>'+
+      '<p><a href="https://github.com/andru1607/EasyGart/blob/main/cloud/RELEASE_AND_RECOVERY.md" rel="noopener noreferrer" target="_blank">'+b('Guida a backup e ripristino')+'</a></p></div>';
   }
   async function exportCompany(includeMedia=false){
     if(!owner())throw Error(tr('Solo il titolare può esportare i dati.'));
