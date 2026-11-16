@@ -105,7 +105,7 @@ async function smoke(engineName,browserType,device){
  await page.locator('button[data-view="materials"]').waitFor({timeout:15000});
  const guideDialog=page.locator('#eg-guide-root [role="dialog"]');
  await guideDialog.waitFor({timeout:10000});
- assert.ok(await guideDialog.getByText('Il pannello del titolare').isVisible());
+ assert.equal(await guideDialog.locator('#eg-guide-description').textContent(),'Il pannello del titolare');
  await guideDialog.locator('[data-eg-guide="skip"]').click();
  assert.equal(await guideDialog.count(),0,'owner dismissed first-login guide');
  const views=['materials','maintenance','invoices','archive','tasks','reports','clock','clients','team'];
@@ -216,7 +216,7 @@ async function workerSmoke(engineName,browserType,device){
  await page.locator('button[data-view="reports"]').waitFor({timeout:15000});
  const guideDialog=page.locator('#eg-guide-root [role="dialog"]');
  await guideDialog.waitFor({timeout:10000});
- assert.ok(await guideDialog.getByText('Il tuo spazio di lavoro').isVisible());
+ assert.equal(await guideDialog.locator('#eg-guide-description').textContent(),'Il tuo spazio di lavoro');
  await guideDialog.locator('[data-eg-guide="skip"]').click();
  assert.equal(await guideDialog.count(),0,'worker dismissed first-login guide');
  assert.equal(await page.locator('button[data-view="materials"]').count(),0,'Worker has manager-only navigation');
