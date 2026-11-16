@@ -79,3 +79,13 @@ test('session-only drafts exclude credentials, photo uploads and signatures',()=
   assert.match(app,/clearAccountDrafts\(\)/);
   assert.doesNotMatch(app,/DRAFT_FORMS=new Set\(\[[^\]]*'auth'/);
 });
+
+test('offline mode prevents writes without dropping typed data',()=>{
+ assert.match(app,/navigator\.onLine===false/);
+ assert.match(app,/saveSessionDraft\(form\)/);
+ assert.match(app,/Connessione assente\. Riprova quando torni online/);
+ assert.match(app,/Keine Internetverbindung\. Bitte versuche es online erneut/);
+ assert.match(app,/if\(a==='ops-clock'&&typeof navigator/);
+ assert.match(app,/if\(e\.target\.dataset\.opsInput\)/);
+ assert.match(app,/input\.type!=='file'&&input\.type!=='password'/);
+});
