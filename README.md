@@ -1,33 +1,48 @@
 # EasyGart
 
-Gestionale per aziende di giardinaggio. **Versione demo online predisposta, non ancora abilitata su GitHub Pages.**
+Gestionale per imprese di giardinaggio e manutenzione del verde, con interfaccia **italiana e tedesca**.
 
-## Pubblicazione del sito (una sola attivazione GitHub)
+## App Cloud multiutente
 
-1. Aprire **Settings → Pages** nel repository GitHub `andru1607/EasyGart`.
-2. In **Build and deployment**, impostare **Source: Deploy from a branch**.
-3. Scegliere **Branch: main**, cartella **/(root)** e premere **Save**.
-4. Una volta completata la pubblicazione, il sito sarà su `https://andru1607.github.io/EasyGart/`.
+**[Apri EasyGart Cloud](https://easygarte.vercel.app/cloud/)**
 
-Il file `index.html` è una demo indipendente e non necessita di build o dipendenze Node. Le modifiche a `main` aggiornano automaticamente il sito.
+La versione Cloud è una **Progressive Web App (PWA)** installabile su iPhone e Android. Usa Supabase Auth, PostgreSQL con Row Level Security e Supabase Storage privato. Richiede Internet per autenticazione e salvataggio. Non è un'app nativa pubblicata negli store.
 
-## Funzionalità demo
+**Titolare:** aziende, clienti e cantieri, dipendenti/inviti, assegnazioni, controllo dei rapporti, catalogo materiali e prezzi, manutenzioni ricorrenti, bozze proforma, esportazione JSON/ZIP con allegati autorizzati.
 
-Dashboard, rapporti giornalieri con dettatura se supportata dal browser, presenze, attività, manutenzioni ricorrenti, rubrica clienti e cantieri, materiali e IVA, bozze fattura, fotografie, firma di presa visione e cambio lingua IT/DE.
+**Dipendente:** compiti assegnati, timbrature e pause registrate dal server, rapporti di intervento, consumi materiali senza prezzi, foto prima/dopo e firma cliente come presa visione.
 
-## LIMITI DELLA VERSIONE PUBBLICA
+**Account:** registrazione con conferma email, recupero password e modifica della password. La lingua IT/DE può essere cambiata dall'interfaccia.
 
-Questa demo salva dati **soltanto nel browser locale** con localStorage. **Non ha autenticazione reale, sincronizzazione tra telefoni, database cloud, backup sicuri o fatturazione elettronica.** I dati demo non devono essere sostituiti con dati reali di lavoratori/clienti né con firme autentiche. L'indirizzo del sito è pubblico, anche se ciascuno vede i propri dati locali. L'installazione sullo smartphone dipende dal browser e dal supporto PWA. I documenti sono bozze/stampe di cortesia e non sostituiscono XML FatturaPA + invio SdI.
+### Installazione
 
-## Backend definitivo: Supabase
+- **iOS:** Safari → Condividi → Aggiungi alla schermata Home.
+- **Android:** Chrome → menu → Installa app.
 
-L'obiettivo è creare **un database Supabase separato**, configurare Auth e regole RLS per azienda, archiviazione privata per foto/firme, timbrature lato server, fatture e documenti. Le migrazioni pregresse v0.3.1 non sono state applicate a un database verificato: prima della pubblicazione con dati reali vanno testate con account di aziende differenti e controllate per sicurezza.
+La PWA mantiene offline soltanto i file pubblici dell'interfaccia; **non** memorizza in cache le risposte private del database o i file Storage. Non è un gestionale offline con sincronizzazione differita.
 
-## Pubblicazione alternativa su Vercel
+### Stato del rilascio
 
-1. Aprire `https://vercel.com/new` con account `alex's projects`.
-2. Selezionare **Import Git Repository** e il repository `andru1607/EasyGart`.
-3. Lasciare framework **Other**, directory radice `./`, build command vuoto, output directory predefinita.
-4. Selezionare **Deploy**. Non sono richieste variabili d'ambiente per la demo.
+**Release candidate tecnica, non ancora autorizzata per dati reali.** Il codice e i test automatici non sostituiscono le verifiche su dispositivi fisici, i test di accesso con utenti autentici, le procedure privacy/lavoro e il backup con prova di ripristino. I dettagli e la checklist sono in **[RELEASE_AND_RECOVERY.md](cloud/RELEASE_AND_RECOVERY.md)**.
 
-L'app è un singolo `index.html` statico: non servono pacchetti, API Neon o comandi di build. La prossima integrazione cloud sarà **Supabase**, con credenziali server-side o chiavi publishable e regole RLS rigorose per la versione multiutente. Non inserire chiavi segrete nei file pubblici.
+### Documentazione e database
+
+- [Uso Cloud iOS/Android](cloud/OPERATIONS.md)
+- [Configurazione Supabase](cloud/SETUP.md)
+- [Backup, ripristino e rilascio](cloud/RELEASE_AND_RECOVERY.md)
+- [Migrazioni SQL](supabase/)
+- [Verifiche automatiche](tests/)
+
+Il progetto Supabase Cloud è xdwsqkteykjjpzogwocx. Le migrazioni core, rapporti, presenze, media privati, confini RPC, business e pianificazione Cron sono state applicate al progetto corretto. La migrazione easygart_fk_indexes_v1.sql aggiunge indici per le chiavi esterne ed è idempotente.
+
+**Sicurezza:** RLS sulle tabelle EasyGart, bucket privato per foto/firme, permessi distinti per titolare e dipendenti, header CSP e anti-clickjacking su Vercel. Non inserire mai password, service-role key o stringhe di connessione nel repository.
+
+**Test:** GitHub Actions esegue controlli Node, test di browser mobile emulati (WebKit/Chromium) e una verifica pubblica in sola lettura della distribuzione Vercel. Le verifiche automatiche non sostituiscono collaudi reali.
+
+## Demo indipendente
+
+La pagina radice **[easygarte.vercel.app](https://easygarte.vercel.app/)** resta una demo storica che salva i dati **solo nel browser**. Non offre autenticazione o sincronizzazione Cloud. Non inserirvi dati di clienti, lavoratori o firme reali. La demo e la versione Cloud sono prodotti separati.
+
+## Limiti funzionali
+
+Le proforma non sono fatture elettroniche, non hanno emissione fiscale e non vengono inviate allo SDI. Le timbrature non sostituiscono automaticamente gli adempimenti giuslavoristici. I consumi materiali non costituiscono un magazzino completo. L'esportazione JSON/ZIP non sostituisce un backup PostgreSQL e Storage ripristinabile.
