@@ -836,7 +836,7 @@ async function boot(){
     setInterval(()=>{
       const formFocused=!!document.activeElement?.closest?.('form');
       // Non cancellare i campi di un rapporto, di un compito o di un modulo mentre si scrive.
-      if(user && authMode!=='reset' && document.visibilityState==='visible' && !busy && !formFocused &&
+      if(user && authMode!=='reset' && document.visibilityState==='visible' && navigator.onLine!==false && !busy && !formFocused &&
          reportEditingId===null && editingTaskId===null && !operations?.isSigning?.() &&
          !business?.hasOpenForm?.())refresh().catch(fail);
     },30000);
