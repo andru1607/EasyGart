@@ -1,7 +1,13 @@
 // Read-only production smoke. No credentials, customer data or mutations.
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 const origin=(process.env.EASYGART_URL||'https://easygarte.vercel.app').replace(/\/+$/,'');
 assert.match(origin,/^https:\/\//,'Production smoke must use HTTPS');
+const expectedHtml=readFileSync(new URL('../cloud/index.html',import.meta.url),'utf8');
+const expectedAppSrc=expectedHtml.match(/<script type="module" src="(\.\/app\.js\?v=[^"]+)"/)?.[1];
+const expectedSW=readFileSync(new URL('../cloud/sw.js',import.meta.url),'utf8')
+  .match(/const VERSION='([^']+)'/)?.[1];
+assert.ok(expectedAppSrc&&expectedSW,'Missing expected Cloud release versions');
 const get=async(path)=>{
  const response=await fetch(origin+path,{
   redirect:'manual',headers:{'cache-control':'no-cache','user-agent':'EasyGart-Production-Smoke/1.0'},
@@ -23,11 +29,12 @@ async function check(){
  assert.match(page.text,/EasyGart Cloud/);
  const appSrc=page.text.match(/<script type="module" src="(\.\/app\.js\?v=[^"]+)"/)?.[1];
  assert.ok(appSrc,'Missing versioned Cloud application module');
+ assert.equal(appSrc,expectedAppSrc,'Live HTML is not the expected release');
  const app=await get('/cloud/'+appSrc.slice(2));
  assert.match(app.text,/PASSWORD_RECOVERY/);
  assert.match(app.text,/resetPasswordForEmail/);
  const sw=await get('/cloud/sw.js');
- assert.match(sw.text,/easygart-shell-v\d+-20261116/);
+ assert.ok(sw.text.includes("const VERSION='"+expectedSW+"'"),'Live service worker is not the expected release');
  assert.doesNotMatch(sw.text,/rest\/v1|storage\/v1/);
  const manifest=JSON.parse((await get('/cloud/manifest.webmanifest')).text);
  assert.equal(manifest.scope,'/cloud/');
