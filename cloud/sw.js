@@ -1,10 +1,10 @@
 /* EasyGart Cloud offline shell only. Authenticated data and API responses NEVER cached. */
 'use strict';
-const VERSION='easygart-shell-v6-20261116-rc3';
+const VERSION='easygart-shell-v7-20261116-logo';
 const SHELL=[
   '/cloud/','/cloud/index.html','/cloud/app.js','/cloud/config.js',
   '/cloud/operations.js','/cloud/archive.js','/cloud/business.js','/cloud/mobile.js',
-  '/cloud/icon.svg','/cloud/icon-192.png','/cloud/icon-512.png','/cloud/apple-touch-icon.png','/cloud/manifest.webmanifest'
+  '/cloud/logo.png','/cloud/icon.svg','/cloud/icon-192.png','/cloud/icon-512.png','/cloud/apple-touch-icon.png','/cloud/manifest.webmanifest'
 ];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(VERSION).then(cache=>Promise.allSettled(
