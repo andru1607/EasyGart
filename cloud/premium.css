@@ -158,3 +158,81 @@ select{background-color:#fff}
  .eg-eod-fields input[type="time"]{font-size:16px}
 }
 @media(prefers-reduced-motion:reduce){.eg-main-nav button{transition:none}}
+
+
+/* Monatsübersicht / Resoconto mensile: clear employee ownership and date-scoped details. */
+.eg-monthly-page{max-width:1100px;margin:0 auto}
+.eg-monthly-page>.view-head h2{font-size:27px;letter-spacing:-.6px}
+.eg-monthly-page .eyebrow{color:#417856;font-weight:800}
+.eg-month-controls{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;
+  padding:16px 21px;margin:15px 0 18px}
+.eg-month-switch{display:flex;align-items:center;gap:14px;min-width:0}
+.eg-month-switch h3{font-size:19px;text-transform:capitalize;min-width:145px;text-align:center;letter-spacing:-.3px}
+.eg-month-switch button{min-width:43px;min-height:43px;padding:7px 13px;font-size:25px;line-height:1}
+.eg-month-worker-select{min-width:230px}
+.eg-month-worker-select>span{font-size:12px;font-weight:800}
+.eg-month-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.eg-month-metrics>.card{padding:18px 15px;min-width:0}
+.eg-month-metrics>.card span{font-size:12px;color:#607c68;font-weight:760}
+.eg-month-metrics>.card strong{font-size:25px;letter-spacing:-.7px;overflow-wrap:anywhere}
+.eg-month-help{font-size:12px;padding:12px 3px 15px;line-height:1.5}
+.eg-month-subtitle{font-size:19px;margin:12px 0 15px}
+.eg-month-person{margin-bottom:18px;padding:0!important;overflow:hidden}
+.eg-month-person-head{display:flex;align-items:center;justify-content:space-between;gap:17px;
+  padding:19px 22px;border-bottom:1px solid #e2ecdf;background:linear-gradient(95deg,#f0f8ea,#ffffff)}
+.eg-month-person-head h3{font-size:20px;letter-spacing:-.4px;margin:3px 0}
+.eg-month-person-head .muted{font-size:12px}
+.eg-month-person-total{text-align:right;flex:none}
+.eg-month-person-total strong{font-size:22px;display:block}
+.eg-month-person-total small{font-size:11px;color:#67836e;font-weight:700}
+.eg-month-inner{padding:15px 21px 21px}
+.eg-month-inner h4{font-size:15px;margin:5px 0 10px}
+.eg-month-row{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;
+  padding:16px 2px;border-bottom:1px solid #e6ede5}
+.eg-month-row-main{display:flex;gap:12px;align-items:flex-start;min-width:0;flex:1}
+.eg-month-date{font-size:11px;font-weight:800;background:#e8f3e2;border-radius:9px;padding:8px 9px;
+  flex:none;color:#336448;font-variant-numeric:tabular-nums}
+.eg-month-row-content{min-width:0;flex:1}
+.eg-month-row-content strong{font-size:14px}
+.eg-month-row-content .muted{font-size:12px;line-height:1.65;margin:5px 0}
+.eg-month-note{font-size:12px;color:#334b3c;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;margin:6px 0 0}
+.eg-month-row-actions{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.eg-month-row-actions button{min-width:115px}
+.eg-month-shifts{margin-top:17px;border:1px solid #dcebdd;border-radius:14px;padding:15px;background:#f8fbf6}
+.eg-month-shifts>summary{font-size:13px;font-weight:800;color:#21573c;cursor:pointer}
+.eg-month-shift{display:grid;grid-template-columns:100px 1fr 110px 95px 80px;
+  gap:8px;align-items:center;border-top:1px solid #dce8d8;padding:11px 0;font-size:12px}
+.eg-month-shift:first-of-type{margin-top:10px}
+.eg-month-shift small{font-size:11px;color:#66826f}
+.eg-month-empty{padding:22px}
+.eg-owner-report-group{padding:16px 20px;margin-bottom:18px}
+.eg-owner-report-group .cardhead{padding-bottom:12px;margin-bottom:2px;border-bottom:1px solid #e4eee0}
+.eg-owner-report-group .eyebrow{font-size:11px;color:#427953}
+.eg-owner-report-group h3{font-size:19px;font-weight:850}
+.eg-report-author{font-size:12px;color:#426951;margin-top:6px}
+.eg-author-tag{color:#255c39;font-weight:850}
+.eg-report-help{font-size:12px;line-height:1.55;padding:0 2px 10px}
+@media(max-width:760px){
+ .eg-monthly-page>.view-head{align-items:flex-start;gap:10px}
+ .eg-monthly-page>.view-head h2{font-size:24px}
+ .eg-monthly-page>.view-head .secondary{font-size:12px;padding:10px}
+ .eg-month-controls{flex-direction:column;align-items:stretch;padding:13px 14px;gap:13px}
+ .eg-month-switch{justify-content:space-between}
+ .eg-month-switch h3{min-width:0;font-size:18px}
+ .eg-month-worker-select{min-width:0}
+ .eg-month-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .eg-month-metrics>.card{padding:14px 12px}
+ .eg-month-metrics>.card strong{font-size:22px}
+ .eg-month-person-head{padding:15px 14px;gap:9px}
+ .eg-month-person-head h3{font-size:17px}
+ .eg-month-person-total strong{font-size:17px}
+ .eg-month-inner{padding:12px 14px 15px}
+ .eg-month-row{flex-direction:column;gap:8px}
+ .eg-month-row-main{gap:9px}
+ .eg-month-date{font-size:10px;padding:7px 6px}
+ .eg-month-row-actions{flex-direction:row;justify-content:space-between;align-items:center;width:100%;padding-left:0}
+ .eg-month-row-actions button{min-width:0}
+ .eg-month-shift{grid-template-columns:1fr 1fr;gap:6px 8px;font-size:11px}
+ .eg-month-shift small{grid-column:2}
+ .eg-owner-report-group{padding:13px 14px}
+}
