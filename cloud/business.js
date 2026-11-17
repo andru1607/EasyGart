@@ -119,7 +119,7 @@ window.EASYGART_BUSINESS_I18N={
 window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext,t,tr,esc,onSuccess,rerender}){
   let ready=false, error='';
   let materials=[], catalog=[], plans=[], invoices=[], lines=[], usage=[];
-  let selectedReportId=null, workerUsage=[],showNewMaterial=false,showNewPlan=false;
+  let selectedReportId=null, workerUsage=[],showNewMaterial=false,showNewPlan=false,editingMaterialId=null;
   let editingPlanId=null,selectedInvoiceId=null;
   let pendingExportUrl=null,pendingExportFilename='',lastCompanyId=null;
   const clearPendingExport=()=>{
@@ -200,27 +200,28 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   }
   function reset(){
     ready=false;error='';materials=[];catalog=[];plans=[];invoices=[];lines=[];usage=[];
-    selectedReportId=null;workerUsage=[];showNewMaterial=false;showNewPlan=false;
+    selectedReportId=null;workerUsage=[];showNewMaterial=false;showNewPlan=false;editingMaterialId=null;
     editingPlanId=null;selectedInvoiceId=null;clearPendingExport();lastCompanyId=null;
   }
   function materialCatalogMarkup(){
     if(!owner())return '';
+    const editMaterial=materials.find(x=>x.id===editingMaterialId);
     const add=showNewMaterial?'<form data-form="biz-material" class="formgrid eg-business-form">'+
-      '<label class="field"><span>'+b('Nome materiale')+'</span><input name="name" minlength="2" maxlength="200" required></label>'+
+      '<label class="field"><span>'+b('Nome materiale')+'</span><input name="name" minlength="2" maxlength="200" value="'+safe(editMaterial?.name||'')+'" required></label>'+
       '<label class="field"><span>'+b('Unità')+'</span><select name="unit">'+
-        ['pz','kg','l','m','m2','m3','h'].map(x=>opt(x,x)).join('')+'</select></label>'+
-      '<label class="field"><span>'+b('Costo unitario')+' (€)</span><input name="purchase_price" type="number" min="0" max="9999999" step=".01" value="0" required></label>'+
-      '<label class="field"><span>'+b('Prezzo vendita unitario')+' (€)</span><input name="sale_price" type="number" min="0" max="9999999" step=".01" value="0" required></label>'+
-      '<label class="field"><span>'+b('IVA')+' (%)</span><input name="vat_rate" type="number" min="0" max="30" step=".01" value="22" required></label>'+
-      '<div class="span2 actions"><button class="primary" type="submit">'+b('Salva materiale')+'</button>'+
+        ['pz','kg','l','m','m2','m3','h'].map(x=>opt(x,x,x===editMaterial?.unit)).join('')+'</select></label>'+
+      '<label class="field"><span>'+b('Costo unitario')+' (€)</span><input name="purchase_price" type="number" min="0" max="9999999" step=".01" value="'+safe(editMaterial?.purchase_price??0)+'" required></label>'+
+      '<label class="field"><span>'+b('Prezzo vendita unitario')+' (€)</span><input name="sale_price" type="number" min="0" max="9999999" step=".01" value="'+safe(editMaterial?.sale_price??0)+'" required></label>'+
+      '<label class="field"><span>'+b('IVA')+' (%)</span><input name="vat_rate" type="number" min="0" max="30" step=".01" value="'+safe(editMaterial?.vat_rate??22)+'" required></label>'+
+      '<div class="span2 actions"><button class="primary" type="submit">'+b(editMaterial?'Salva modifiche':'Salva materiale')+'</button>'+
       '<button class="ghost" type="button" data-action="biz-cancel-material">'+b('Annulla')+'</button></div></form>':'';
     const rows=materials.map(m=>'<div class="taskrow"><div><strong>'+safe(m.name)+'</strong>'+
       '<div class="task-meta"><span>'+safe(m.unit)+'</span>'+
       '<span>'+b('Costo')+': '+money(m.purchase_price)+'</span>'+
       '<span>'+b('Vendita')+': '+money(m.sale_price)+'</span>'+
-      '<span>'+b('IVA')+': '+safe(m.vat_rate)+'%</span></div></div>'+
+      '<span>'+b('IVA')+': '+safe(m.vat_rate)+'%</span></div>'+ (m.requires_review?'<p class="eg-material-review">'+(ctx().locale==='de'?'Preisprüfung erforderlich':'Prezzo da verificare')+'</p>':'')+'</div>'+
       '<div class="actions"><span class="pill">'+b(m.active?'Attivo':'Disattivato')+'</span>'+
-      '<button data-action="biz-toggle-material" data-id="'+safe(m.id)+'" class="ghost small">'+
+      '<button data-action="biz-edit-material" data-id="'+safe(m.id)+'" class="secondary small">'+b('Modifica')+'</button>'+ '<button data-action="biz-toggle-material" data-id="'+safe(m.id)+'" class="ghost small">'+
       b(m.active?'Disattiva':'Riattiva')+'</button></div></div>').join('');
     return '<div class="view-head"><h2>'+b('Catalogo materiali')+'</h2>'+
       '<button class="primary" data-action="biz-new-material">'+b('Nuovo materiale')+'</button></div>'+
@@ -486,8 +487,13 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       const payload={company_id:c.companyId,name:String(vals.name||'').trim(),unit:vals.unit,
         purchase_price:Number(vals.purchase_price),sale_price:Number(vals.sale_price),
         vat_rate:Number(vals.vat_rate)};
-      db(await client.from('eg_materials').insert(payload));
-      showNewMaterial=false;await c.reload();onSuccess(tr('Materiale salvato.'));return;
+      if(editingMaterialId){
+        db(await client.from('eg_materials').update({...payload,requires_review:false})
+          .eq('company_id',c.companyId).eq('id',editingMaterialId));
+      }else{
+        db(await client.from('eg_materials').insert(payload));
+      }
+      editingMaterialId=null;showNewMaterial=false;await c.reload();onSuccess(tr('Materiale salvato.'));return;
     }
     if(kind==='biz-maintenance'){
       const requestedClient=c.clients.find(x=>x.id===vals.client_id);
@@ -533,8 +539,9 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   }
   async function handleAction(el){
     const a=el.dataset.action,c=ctx(),id=el.dataset.id;
-    if(a==='biz-new-material'){showNewMaterial=true;rerender();return}
-    if(a==='biz-cancel-material'){showNewMaterial=false;rerender();return}
+    if(a==='biz-new-material'){editingMaterialId=null;showNewMaterial=true;rerender();return}
+    if(a==='biz-edit-material'){editingMaterialId=id;showNewMaterial=true;rerender();return}
+    if(a==='biz-cancel-material'){showNewMaterial=false;editingMaterialId=null;rerender();return}
     if(a==='biz-open-usage'){
       const report=c.reports.find(x=>x.id===id);
       if(!reportEditable(report))return;
