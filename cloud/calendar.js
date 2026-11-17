@@ -58,8 +58,34 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
   }
   return days;
  }
- const dayHours=v=>!v?0:v.shifts.some(s=>s.status==='closed')?v.s:v.r;
- const kind=v=>v?.shifts.some(s=>s.status==='closed')?tr('timbrate','erfasst'):tr('dichiarate','gemeldet');
+ // Prevent double counting for each worker separately, not for the whole
+ // team: on the same date one worker may have punches and another only a report.
+ function effectiveHours(v){
+  if(!v)return {minutes:0,source:'none'};
+  const byPerson=new Map(),get=id=>{
+   if(!byPerson.has(id))byPerson.set(id,{declared:0,punched:0,hasClosed:false});
+   return byPerson.get(id);
+  };
+  for(const r of v.reports)get(r.created_by).declared+=Math.max(0,Number(r.minutes_worked)||0);
+  for(const s of v.shifts)if(s.status==='closed'){
+   const item=get(s.user_id);item.hasClosed=true;item.punched+=minutes(s);
+  }
+  let total=0,hasPunched=false,hasDeclared=false;
+  for(const item of byPerson.values()){
+   if(item.hasClosed){total+=item.punched;hasPunched=true}
+   else if(item.declared>0){total+=item.declared;hasDeclared=true}
+  }
+  return {minutes:total,source:hasPunched&&hasDeclared?'mixed':
+    hasPunched?'punched':hasDeclared?'declared':'none'};
+ }
+ const dayHours=v=>effectiveHours(v).minutes;
+ const kind=v=>{
+  const source=effectiveHours(v).source;
+  return source==='mixed'?tr('timbrate e dichiarate','erfasst und gemeldet'):
+    source==='punched'?tr('timbrate','erfasst'):
+    source==='declared'?tr('dichiarate','gemeldet'):
+    v?.shifts.length?tr('in corso','laufend'):tr('nessuna','keine');
+ };
  function markup(){
   const c=ctx();
   if(!ready)return '<div class="view-head"><h2>'+tr(hoursOnly?'Calendario orari':'Calendario orari e rapporti',hoursOnly?'Stundenkalender':'Arbeitszeit- und Berichtskalender')+'</h2></div><div class="alert warn">'+
@@ -142,13 +168,14 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
    '<div class="eg-calendar-totals">'+
     '<div class="card metric"><span>'+tr('Ore timbrate','Erfasste Stunden')+'</span><strong>'+hm([...data.values()].reduce((v,x)=>v+x.s,0))+'</strong></div>'+
     '<div class="card metric"><span>'+tr('Ore dichiarate nei rapporti','Gemeldete Stunden')+'</span><strong>'+hm([...data.values()].reduce((v,x)=>v+x.r,0))+'</strong></div>'+
+    '<div class="card metric"><span>'+tr('Ore conteggiate','Berücksichtigte Stunden')+'</span><strong>'+hm([...data.values()].reduce((v,x)=>v+dayHours(x),0))+'</strong></div>'+
     '<div class="card metric"><span>'+tr('Giornate con attività','Tage mit Einträgen')+'</span><strong>'+data.size+'</strong></div></div>'+
    '<section class="card eg-calendar-card"><div class="eg-calendar-grid">'+grid+'</div></section>'+
    '<section class="card eg-calendar-detail"><div class="cardhead"><div><h2>'+esc(selectedTitle)+'</h2><p class="muted">'+hm(dayHours(selected))+
     (selected?' · '+kind(selected):'')+'</p></div>'+
     (!hoursOnly?'<button type="button" class="secondary small" data-action="cal-reports">'+tr('Apri rapporti','Berichte öffnen')+'</button>':'')+'</div>'+
     (details.length?details.join(''):'<p class="muted">'+tr('Nessuna attività registrata.','Keine Einträge vorhanden.')+'</p>')+'</section>'+
-   '<p class="muted eg-calendar-foot">'+tr('Ore timbrate e ore dichiarate restano separate per evitare doppi conteggi.','Erfasste und gemeldete Stunden bleiben getrennt, damit sie nicht doppelt gezählt werden.')+'</p>'+ 
+   '<p class="muted eg-calendar-foot">'+tr('Le ore conteggiate utilizzano, per ogni dipendente e giorno, le timbrature concluse se presenti, altrimenti gli orari dichiarati. Le due fonti non vengono sommate.','Die berücksichtigten Stunden verwenden je Mitarbeitendem und Tag abgeschlossene Stempelzeiten, andernfalls gemeldete Zeiten. Beide Quellen werden nicht addiert.')+'</p>'+ 
    '<div class="eg-cal-footer-actions"><button type="button" class="ghost small" data-action="cal-monthly">'+tr('Apri il riepilogo del mese','Monatsübersicht öffnen')+'</button></div>'+
    (overflow?'<div class="alert warn">'+tr('Troppi dati: mese non completo.','Zu viele Einträge: Monatsübersicht unvollständig.')+'</div>':'')+'</div>';
  }
