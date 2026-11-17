@@ -44,6 +44,7 @@ let memberships = [], companies = [], members = [], clients = [], sites = [], ta
 let dailyReports = [], reportsReady = false, reportsSetupError = '', reportEditingId = null;
 let selectedReportWorkerId = 'all', reportStatusFilter = 'all';
 let selectedReportId = null;
+let pendingReportDeletionId = null;
 let reportReturnView = 'reports';
 let editingFromMonthly=false;
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
@@ -57,6 +58,13 @@ const german = {
   'Tutti i dipendenti':'Alle Mitarbeitenden','Rapporti per dipendente':'Berichte nach Mitarbeitenden',
   'Modifiche storiche consentite finché il rapporto non è collegato a una proforma.':'Historische Korrekturen sind erlaubt, solange der Bericht keiner Proforma zugeordnet ist.',
   'Caricamento materiali…':'Materialien werden geladen…','Nessun materiale registrato':'Keine Materialien erfasst',
+  'Elimina rapporto':'Bericht löschen',
+  'Conferma eliminazione':'Löschen bestätigen',
+  'Vuoi eliminare questo rapporto?':'Diesen Bericht wirklich löschen?',
+  'Il rapporto scomparirà da rapporti, calendario, riepilogi mensili e storico cantieri. Resterà una traccia interna della cancellazione.':'Der Bericht wird aus Berichten, Kalender, Monatsübersichten und Einsatzort-Verlauf entfernt. Ein interner Löschvermerk bleibt erhalten.',
+  'Elimina definitivamente dalla vista':'Aus den Ansichten entfernen',
+  'Annulla':'Abbrechen',
+  'Rapporto eliminato.':'Bericht gelöscht.',
   'Panoramica azienda':'Betriebsübersicht','La tua giornata':'Dein Arbeitstag',
   'Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.':'Jede Funktion hat eine eigene Seite. Beginne mit dem Feierabendbericht.',
   'Inserisci le ore e il cantiere':'Stunden und Einsatzort erfassen',
@@ -494,7 +502,8 @@ function render() {
       currentView==='reports'?reportsMarkup():currentView==='monthly'?(monthly?.markup()||''):currentView==='sites-history'?(siteHistory?.markup()||''):currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
       currentView==='team'&&memberIsOwner()?teamMarkup():
       ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
-       (business?.markup(currentView)||''):tasksMarkup());
+       (business?.markup(currentView)||''):tasksMarkup())+
+    (pendingReportDeletionId?reportDeletionDialogMarkup():'');
   restoreSessionDrafts();
 }
 function authMarkup(){
@@ -722,6 +731,34 @@ function reportMaterialDetailMarkup(report){
       '<p class="muted">'+t('Nessun materiale registrato')+'</p>')+
     '</div>';
 }
+function canDeleteReport(report){
+  return !!report && !!user && !report.deleted_at && !report.invoice_locked &&
+    (memberIsOwner() || report.created_by===user.id);
+}
+function reportDeletionDialogMarkup(){
+  const report=dailyReports.find(r=>r.id===pendingReportDeletionId);
+  if(!canDeleteReport(report))return '';
+  const task=tasks.find(t=>t.id===report.task_id);
+  const location=getName(sites,report.site_id||task?.site_id);
+  return '<div class="eg-delete-overlay">'+
+    '<div class="eg-delete-dialog" role="alertdialog" aria-modal="true" '+
+      'aria-labelledby="eg-delete-title" aria-describedby="eg-delete-description">'+
+    '<div class="eg-delete-icon" aria-hidden="true">'+
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '+
+       'stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>'+
+    '</div>'+
+    '<h2 id="eg-delete-title">'+t('Conferma eliminazione')+'</h2>'+
+    '<p id="eg-delete-description">'+t('Vuoi eliminare questo rapporto?')+'</p>'+
+    '<div class="eg-delete-report-summary"><strong>'+esc(location)+'</strong>'+
+      '<span>'+esc(displayDate(report.work_date))+' · '+esc(getWorkerName(report.created_by))+'</span>'+
+    '</div>'+
+    '<p class="eg-delete-explanation">'+
+      t('Il rapporto scomparirà da rapporti, calendario, riepilogi mensili e storico cantieri. Resterà una traccia interna della cancellazione.')+'</p>'+
+    '<div class="eg-delete-actions">'+
+     '<button class="ghost" type="button" data-action="report-delete-cancel">'+t('Annulla')+'</button>'+
+     '<button class="eg-danger-solid" type="button" data-action="report-delete-confirm">'+t('Elimina definitivamente dalla vista')+'</button>'+
+    '</div></div></div>';
+}
 function reportDetailMarkup(){
   const report=dailyReports.find(r=>r.id===selectedReportId);
   if(!report)return '<div class="alert warn">'+t('Rapporto non trovato')+'</div>';
@@ -755,7 +792,10 @@ function reportCardMarkup(report,owner){
       '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="'+t("Motivo di eventuali correzioni o indicazioni operative")+'"></textarea></label>'+
       '<div class="actions"><button class="primary small" type="submit" value="approved">'+t('Approva')+'</button>'+
       '<button class="ghost small" type="submit" value="changes_requested">'+t('Richiedi correzioni')+'</button></div></form>':'')+
-    (endOfDay?.canEdit(report)?'<div style="margin-top:13px"><button class="secondary small" data-action="report-edit" data-id="'+esc(report.id)+'">'+t('Modifica')+'</button></div>':'')+
+    '<div class="eg-report-detail-actions">'+
+    (endOfDay?.canEdit(report)?'<button class="secondary small" data-action="report-edit" data-id="'+esc(report.id)+'">'+t('Modifica')+'</button>':'')+
+    (canDeleteReport(report)?'<button class="eg-danger-outline small" data-action="report-delete-open" data-id="'+esc(report.id)+'">'+t('Elimina rapporto')+'</button>':'')+
+    '</div>'+
     '</div><div class="task-right"><span class="pill '+tone+'">'+t(reportStatusLabel(report))+'</span></div></article>';
 }
 
@@ -1019,7 +1059,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
+        if(!user){pendingReportDeletionId=null;memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
@@ -1125,9 +1165,9 @@ document.addEventListener('click',e=>{
     if(!user)return;
     authMode='reset';notice='';render();return;
   }
-  if(a==='view'){currentView=b.dataset.view;menuOpen=false;selectedReportId=null;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='view'){currentView=b.dataset.view;menuOpen=false;selectedReportId=null;pendingReportDeletionId=null;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';pendingReportDeletionId=null;memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
   if(a==='site-history-view'){
@@ -1202,7 +1242,36 @@ document.addEventListener('click',e=>{
       currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
     });return;
   }
-  if(a==='report-back'){selectedReportId=null;currentView=reportReturnView;render();return}
+  if(a==='report-back'){selectedReportId=null;pendingReportDeletionId=null;currentView=reportReturnView;render();return}
+  if(a==='report-delete-open'){
+    const report=dailyReports.find(r=>r.id===b.dataset.id);
+    if(!canDeleteReport(report))return;
+    pendingReportDeletionId=report.id;render();
+    document.querySelector?.('[data-action="report-delete-cancel"]')?.focus?.();
+    return;
+  }
+  if(a==='report-delete-cancel'){pendingReportDeletionId=null;render();return}
+  if(a==='report-delete-confirm'){
+    const id=pendingReportDeletionId;
+    const report=dailyReports.find(r=>r.id===id);
+    if(!canDeleteReport(report))return;
+    pendingReportDeletionId=null;
+    withBusy(async()=>{
+      const response=await client.rpc('eg_delete_daily_report',{p_report_id:id});
+      if(response.error)throw response.error;
+      if(response.data!==true)throw Error(t('Impossibile eliminare il rapporto'));
+      selectedReportId=null;reportMaterialRows.delete(id);
+      endOfDay?.reset();dailyReports=dailyReports.filter(r=>r.id!==id);
+      const returnTo=reportReturnView;
+      currentView='reports';
+      await refresh();
+      if(returnTo==='monthly')await monthly?.refresh(selectedCompanyId);
+      if(returnTo==='sites-history')await siteHistory?.refresh(selectedCompanyId);
+      currentView=['monthly','sites-history'].includes(returnTo)?returnTo:'reports';
+      notice='Rapporto eliminato.';errorNotice=false;render();
+      window.scrollTo?.({top:0,behavior:'instant'});
+    });return;
+  }
   if(a==='report-edit'){
     if(!reportsReady||!endOfDay?.canEdit(dailyReports.find(r=>r.id===b.dataset.id)))return;
     withBusy(async()=>{
@@ -1256,7 +1325,7 @@ document.addEventListener('change',e=>{
   if(['eod-site','eod-worker'].includes(e.target.id)){endOfDay?.handleChange(e.target);return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
-  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';pendingReportDeletionId=null;siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
   if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
