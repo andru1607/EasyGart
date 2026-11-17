@@ -7,6 +7,8 @@ const app = $('app'), topRight = $('top-right');
 let client = null;
 let operations = null;
 let calendar = null;
+let endOfDay = null;
+let menuOpen = false;
 let business = null;
 let authMode = 'signin';
 // Capture the recovery marker before Supabase processes and clears URL tokens.
@@ -17,7 +19,7 @@ let companyPolicyError = false;
 let pendingCompanyName = '';
 let busy = false;
 let selectedCompanyId = '';
-let currentView = 'tasks';
+let currentView = 'home';
 let selectedWorkerId = 'all';
 let editingTaskId = null;
 let user = null;
@@ -316,12 +318,13 @@ const requireSuccess = r => {if(r.error)throw r.error;return r.data};
 // Mobile resilience: short-lived local drafts for text fields only (never passwords/photos/signatures).
 const DRAFT_PREFIX='easygart-cloud-draft-v1:';
 const DRAFT_TTL=24*60*60*1000;
-const DRAFT_FORMS=new Set(['daily-report','task','client','site','biz-material','biz-maintenance','biz-invoice-line']);
+const DRAFT_FORMS=new Set(['eod-report','daily-report','task','client','site','biz-material','biz-maintenance','biz-invoice-line']);
 function draftKeyForForm(form){
   if(!form||!DRAFT_FORMS.has(form.dataset?.form)||!user?.id||!selectedCompanyId)return null;
   const type=form.dataset.form;
   const hidden=form.querySelector?.('[name="report_id"],[name="invoice_id"]')?.value||'';
   const scope=hidden||(type==='daily-report'?(reportEditingId||'new'):
+    type==='eod-report'?(endOfDay?.getId?.()||'new'):
     type==='task'?(editingTaskId||'new'):
     type==='biz-maintenance'?(form.dataset.bizPlanId||'new'):'new');
   return DRAFT_PREFIX+[user.id,selectedCompanyId,type,scope].join(':');
@@ -426,18 +429,28 @@ function render() {
     '<p>'+t('Solo i dati autorizzati dal server vengono mostrati.')+'</p></div>'+
     '<div class="toolbar">'+(companies.length>1?'<select id="company-select" aria-label="'+t('Azienda')+'" style="max-width:190px">'+companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select>':'')+
     '<button class="ghost" data-action="refresh">'+t('Ricarica')+'</button></div></div>'+
-    '<nav class="nav" aria-label="'+t('Sezioni')+'">'+
-      '<button data-action="view" data-view="tasks" class="'+(currentView==='tasks'?'active':'')+'">'+t('Compiti')+'</button>'+ 
-      '<button data-action="view" data-view="clock" class="'+(currentView==='clock'?'active':'')+'">'+t('Timbrature')+'</button>'+ 
-      '<button data-action="view" data-view="calendar" class="'+(currentView==='calendar'?'active':'')+'">'+t('Calendario')+'</button>'+ 
-      '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+(memberIsOwner() && dailyReports.some(r=>r.status==='submitted')?' · '+dailyReports.filter(r=>r.status==='submitted').length:'')+'</button>'+ 
-      (memberIsOwner()?'<button data-action="view" data-view="clients" class="'+(currentView==='clients'?'active':'')+'">'+t('Clienti e cantieri')+'</button>'+
-      '<button data-action="view" data-view="team" class="'+(currentView==='team'?'active':'')+'">'+t('La tua squadra')+'</button>'+ 
-      '<button data-action="view" data-view="materials" class="'+(currentView==='materials'?'active':'')+'">'+t('Catalogo materiali')+'</button>'+
-      '<button data-action="view" data-view="maintenance" class="'+(currentView==='maintenance'?'active':'')+'">'+t('Manutenzioni ricorrenti')+'</button>'+
-      '<button data-action="view" data-view="invoices" class="'+(currentView==='invoices'?'active':'')+'">'+t('Bozze proforma')+'</button>'+
-      '<button data-action="view" data-view="archive" class="'+(currentView==='archive'?'active':'')+'">'+t('Dati ed esportazione')+'</button>':'')+'<button data-action="guide-open" class="eg-guide-nav">'+t('Guida')+'</button></nav>'+
-    (currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar'?(calendar?.markup()||''):currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():currentView==='team'&&memberIsOwner()?teamMarkup():['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?(business?.markup(currentView)||''):tasksMarkup());
+    '<nav class="eg-main-nav" aria-label="'+t('Sezioni')+'">'+
+      '<button data-action="view" data-view="home" class="'+(currentView==='home'?'active':'')+'">'+t('Home')+'</button>'+
+      '<button data-action="eod-new" class="'+(currentView==='eod'?'active':'')+'">'+t('Fine giornata')+'</button>'+
+      '<button data-action="view" data-view="calendar" class="'+(currentView==='calendar'?'active':'')+'">'+t('Calendario')+'</button>'+
+      '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+'</button>'+
+      '<button data-action="toggle-menu" aria-expanded="'+menuOpen+'" class="'+(menuOpen?'active':'')+'">'+t('Menu')+'</button></nav>'+
+    (menuOpen?'<nav class="eg-extra-nav" aria-label="'+t('Altre sezioni')+'">'+
+      '<button data-action="view" data-view="tasks">'+t('Compiti')+'</button>'+
+      '<button data-action="view" data-view="clock">'+t('Timbrature')+'</button>'+
+      (memberIsOwner()?'<button data-action="view" data-view="clients">'+t('Clienti e cantieri')+'</button>'+
+      '<button data-action="view" data-view="team">'+t('La tua squadra')+'</button>'+
+      '<button data-action="view" data-view="materials">'+t('Catalogo materiali')+'</button>'+
+      '<button data-action="view" data-view="maintenance">'+t('Manutenzioni ricorrenti')+'</button>'+
+      '<button data-action="view" data-view="invoices">'+t('Bozze proforma')+'</button>'+
+      '<button data-action="view" data-view="archive">'+t('Dati ed esportazione')+'</button>':'')+
+      '<button data-action="guide-open">'+t('Guida')+'</button></nav>':'')+
+    (currentView==='home'?homeMarkup():currentView==='eod'?(endOfDay?.markup()||''):
+      currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar'?(calendar?.markup()||''):
+      currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
+      currentView==='team'&&memberIsOwner()?teamMarkup():
+      ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
+       (business?.markup(currentView)||''):tasksMarkup());
   restoreSessionDrafts();
 }
 function authMarkup(){
@@ -537,6 +550,35 @@ function formatReportMinutes(value){
   const n=Number(value)||0;
   return Math.floor(n/60)+' h '+String(n%60).padStart(2,'0')+' min';
 }
+function homeMarkup(){
+  const owner=memberIsOwner(),mine=dailyReports.filter(r=>owner||r.created_by===user.id);
+  const pending=dailyReports.filter(r=>r.status==='submitted'&&(owner||r.created_by===user.id)).length;
+  const last=mine.slice().sort((a,b)=>b.work_date.localeCompare(a.work_date)).slice(0,4);
+  const todo=tasks.filter(x=>owner||x.assignee_id===user.id).filter(x=>x.status!=='done');
+  const actions=[
+    ['eod-new','Fine giornata','Inserisci le ore e il cantiere'],
+    ['view','Calendario','Consulta giornate e ore','calendar'],
+    ['view','Rapporti giornalieri','Consulta e modifica i rapporti','reports'],
+    ['view','Compiti','Attività assegnate','tasks']
+  ];
+  return '<div class="eg-home-page"><div class="view-head"><div><h2>'+t(owner?'Panoramica azienda':'La tua giornata')+'</h2>'+
+    '<p class="muted">'+t('Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.')+'</p></div></div>'+
+    '<div class="eg-home-actions">'+actions.map(([action,title,description,view])=>
+      '<button class="eg-home-action" data-action="'+action+'"'+(view?' data-view="'+view+'"':'')+'>'+
+      '<strong>'+t(title)+'</strong><span>'+t(description)+'</span><b aria-hidden="true">›</b></button>').join('')+'</div>'+
+    '<div class="eg-home-summary"><div class="card metric"><span>'+t('Compiti aperti')+'</span><strong>'+todo.length+'</strong></div>'+
+    '<div class="card metric"><span>'+t('Rapporti da verificare')+'</span><strong>'+pending+'</strong></div>'+
+    '<div class="card metric"><span>'+t('Rapporti registrati')+'</span><strong>'+mine.length+'</strong></div></div>'+
+    '<section class="card"><div class="cardhead"><h2>'+t('Ultimi rapporti')+'</h2><button class="ghost small" data-action="view" data-view="reports">'+t('Vedi tutti')+'</button></div>'+
+    (last.length?last.map(r=>{
+      const task=tasks.find(x=>x.id===r.task_id);
+      return '<div class="taskrow"><div><strong>'+esc(getName(sites,r.site_id||task?.site_id))+'</strong>'+
+       '<div class="task-meta">'+esc(displayDate(r.work_date))+' · '+esc(formatReportMinutes(r.minutes_worked))+
+       (owner?' · '+esc(getWorkerName(r.created_by)):'')+'</div></div>'+
+       '<button class="secondary small" data-action="view" data-view="reports">'+t('Apri')+'</button></div>';
+    }).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section></div>';
+}
+
 function reportsMarkup(){
   const owner=memberIsOwner();
   if(!reportsReady){
@@ -554,7 +596,7 @@ function reportsMarkup(){
   const done=visible.filter(r=>r.status==='approved').length;
   const header= '<div class="view-head"><div><h2>'+t(owner?'Rapporti ricevuti':'I miei rapporti')+'</h2>'+
     '<p class="muted">'+t(owner?'Controlla quanto svolto sul campo e approva i rapporti ricevuti.':'Racconta al titolare il lavoro svolto ogni giorno.')+'</p></div>'+
-    (!owner?'<button class="primary" data-action="report-new">+ '+t('Nuovo rapporto')+'</button>':'')+'</div>';
+    '<button class="primary" data-action="eod-new">+ '+t('Nuovo rapporto')+'</button>'+'</div>';
   const counts='<div class="grid" style="margin-bottom:18px">'+
     '<div class="card metric"><span>'+t('Da verificare')+'</span><strong>'+pending+'</strong></div>'+
     '<div class="card metric"><span>'+t('Correzioni richieste')+'</span><strong>'+corrections+'</strong></div>'+
@@ -568,7 +610,7 @@ function reportsMarkup(){
       members.filter(m=>m.role==='worker').map(m=>option(m.user_id,m.full_name||tr('Operatore'),selectedReportWorkerId===m.user_id)).join('')+'</select></label>':'')+
     '</div></div>';
   return header+counts+filters+
-    (!owner&&reportEditingId!==null?reportFormMarkup():'')+
+    ''+
     '<section class="card"><div class="cardhead"><h2>'+t('Rapporti giornalieri')+'</h2><span class="pill">'+visible.length+'</span></div>'+
     (visible.length?visible.map(r=>reportCardMarkup(r,owner)).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section>';
 }
@@ -603,14 +645,14 @@ function reportCardMarkup(report,owner){
   const task=tasks.find(x=>x.id===report.task_id);
   const isPending=report.status==='submitted';
   const tone=isPending?'amber':report.status==='changes_requested'?'red':'';
-  const title=task?.title||tr('Intervento');
+  const title=task?.title||getName(sites,report.site_id)||tr('Intervento');
   return '<article class="taskrow"><div style="flex:1;min-width:180px">'+
     '<div class="task-title">'+esc(title)+'</div>'+
     '<div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
     (owner?'<span>'+esc(getWorkerName(report.created_by))+'</span>':'')+
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
     '<span>'+esc(getName(clients,task?.client_id))+'</span>'+
-    '<span>'+esc(getName(sites,task?.site_id))+'</span></div>'+
+    '<span>'+esc(getName(sites,report.site_id||task?.site_id))+'</span></div>'+
     '<p class="task-note">'+esc(report.work_summary||tr('Descrizione non ancora compilata'))+'</p>'+
     (report.materials_used?'<p class="task-note"><strong>'+t('Materiali utilizzati')+': </strong>'+esc(report.materials_used)+'</p>':'')+
     (report.issues?'<p class="task-note"><strong>'+t('Problemi e imprevisti')+': </strong>'+esc(report.issues)+'</p>':'')+
@@ -622,7 +664,7 @@ function reportCardMarkup(report,owner){
       '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="'+t("Motivo di eventuali correzioni o indicazioni operative")+'"></textarea></label>'+
       '<div class="actions"><button class="primary small" type="submit" value="approved">'+t('Approva')+'</button>'+
       '<button class="ghost small" type="submit" value="changes_requested">'+t('Richiedi correzioni')+'</button></div></form>':'')+
-    (!owner&&['draft','changes_requested'].includes(report.status)?'<div style="margin-top:13px"><button class="secondary small" data-action="report-edit" data-id="'+esc(report.id)+'">'+t('Modifica')+'</button></div>':'')+
+    (endOfDay?.canEdit(report)?'<div style="margin-top:13px"><button class="secondary small" data-action="report-edit" data-id="'+esc(report.id)+'">'+t('Modifica')+'</button></div>':'')+
     '</div><div class="task-right"><span class="pill '+tone+'">'+t(reportStatusLabel(report))+'</span></div></article>';
 }
 
@@ -684,7 +726,7 @@ async function refresh() {
     const newTasks=requireSuccess(await client.from('eg_tasks').select('*').eq('company_id',org));
     tasks=newTasks||[];
   }
-  if(!owner&&!['tasks','reports','clock','calendar'].includes(currentView))currentView='tasks';
+  if(!owner&&!['home','eod','tasks','reports','clock','calendar'].includes(currentView))currentView='home';
   render();
 }
 async function onAuth(form){
@@ -702,6 +744,7 @@ async function onAuth(form){
   notice='';await refresh();
 }
 async function submitForm(form,formAction='draft'){
+  if(form.dataset.form==='eod-report')return endOfDay.submit(form,formAction==='send');
   if(form.dataset.form==='ops-signature')return operations?.saveSignature(form);
   if(form.dataset.form?.startsWith('biz-'))return business?.handleSubmit(form,formAction);
   const vals=Object.fromEntries(new FormData(form));
@@ -829,6 +872,12 @@ async function boot(){
       auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true},
       global:{headers:{'x-client-info':'easygarte-cloud-v1'}}
     });
+    endOfDay = window.createEasyGartEndOfDay({client,esc,
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
+        members,sites,clients,tasks,reports:dailyReports,locale,
+        onSaved:async send=>{currentView='reports';menuOpen=false;await refresh();
+          notice=send?'Rapporto inviato al titolare.':'Bozza salvata.';errorNotice=false;render();}})
+    });
     operations = window.createEasyGartOperations({
       client,
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,reports:dailyReports,locale,reload:refresh}),
@@ -860,7 +909,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
+        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;endOfDay?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
@@ -868,7 +917,7 @@ async function boot(){
       // Non cancellare i campi di un rapporto, di un compito o di un modulo mentre si scrive.
       if(user && authMode!=='reset' && document.visibilityState==='visible' && navigator.onLine!==false && !busy && !formFocused &&
          reportEditingId===null && editingTaskId===null && !operations?.isSigning?.() &&
-         !business?.hasOpenForm?.())refresh().catch(fail);
+         !business?.hasOpenForm?.() && currentView!=='eod')refresh().catch(fail);
     },30000);
   }catch(e){fail(e)}
 }
@@ -958,21 +1007,20 @@ document.addEventListener('click',e=>{
     if(!user)return;
     authMode='reset';notice='';render();return;
   }
-  if(a==='view'){currentView=b.dataset.view;editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='view'){currentView=b.dataset.view;menuOpen=false;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;endOfDay?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
-  if(a==='report-new'){
-    if(memberIsOwner()||!reportsReady)return;
-    reportEditingId='new';render();document.querySelector?.('form[data-form="daily-report"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return;
+  if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
+  if(a==='eod-new'||a==='report-new'){
+    if(!reportsReady)return;
+    endOfDay?.open();currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
   if(a==='report-edit'){
-    if(memberIsOwner()||!reportsReady)return;
-    const report=dailyReports.find(r=>r.id===b.dataset.id&&r.created_by===user.id&&
-      ['draft','changes_requested'].includes(r.status));
-    if(!report)return;
-    reportEditingId=report.id;render();return;
+    if(!reportsReady||!endOfDay?.open(b.dataset.id))return;
+    currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
+  if(a==='eod-back'){endOfDay?.reset();currentView='reports';render();return}
   if(a==='report-cancel'){reportEditingId=null;render();return}
   if(a==='new-task'){editingTaskId='new';render();document.querySelector?.('form[data-form="task"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
@@ -1001,9 +1049,10 @@ document.addEventListener('change',e=>{
     withBusy(()=>operations?.uploadPhotos(e.target));return
   }
   if(e.target.id==='eg-calendar-worker'){calendar?.handleChange(e.target);return}
+  if(['eod-site','eod-worker'].includes(e.target.id)){endOfDay?.handleChange(e.target);return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
-  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='tasks';selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';endOfDay?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
   if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
