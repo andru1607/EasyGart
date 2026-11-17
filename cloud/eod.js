@@ -2,6 +2,54 @@
 'use strict';
 window.createEasyGartEndOfDay=function({client,getContext,esc}){
   let editingId=null;
+  let catalog=[],chosen=[],newMaterialOpen=false,materialsReady=false;
+  const unitLabel=u=>({'pz':'pz','kg':'kg','l':'l','m':'m','m2':'m²','m3':'m³','h':'h'})[u]||u;
+  const amount=n=>String(Number(n||0));
+  async function prepareOpen(id=null){
+    if(!open(id))return false;
+    catalog=[];chosen=[];materialsReady=false;newMaterialOpen=false;
+    const c=ctx();
+    const calls=[client.rpc('eg_list_materials',{p_company_id:c.companyId})];
+    if(id)calls.push(client.rpc('eg_list_report_materials',{p_report_id:id}));
+    const rows=await Promise.all(calls);
+    for(const r of rows)if(r.error)throw r.error;
+    catalog=rows[0].data||[];
+    chosen=(rows[1]?.data||[]).map(x=>({id:x.material_id,name:x.material_name,unit:x.unit,quantity:Number(x.quantity)}));
+    materialsReady=true;
+    return true;
+  }
+  function addSelected(form){
+    const id=form.querySelector('[name="material_pick"]')?.value;
+    const qty=Number(form.querySelector('[name="material_pick_qty"]')?.value);
+    const m=catalog.find(x=>x.id===id);
+    if(!m)throw Error(tr('Seleziona un materiale dal catalogo','Material aus dem Katalog wählen'));
+    if(!Number.isFinite(qty)||qty<=0||qty>100000)throw Error(tr('Quantità non valida','Ungültige Menge'));
+    const existing=chosen.find(x=>x.id===id);
+    if(existing)existing.quantity=qty;
+    else chosen.push({id:m.id,name:m.name,unit:m.unit,quantity:qty});
+  }
+  function removeSelected(id){chosen=chosen.filter(x=>x.id!==id)}
+  function toggleNewMaterial(){newMaterialOpen=!newMaterialOpen}
+  async function createMaterial(form){
+    const name=String(form.querySelector('[name="new_material_name"]')?.value||'').trim();
+    const unit=String(form.querySelector('[name="new_material_unit"]')?.value||'pz');
+    if(name.length<2||name.length>200)throw Error(tr('Inserisci un nome materiale valido','Materialnamen eingeben'));
+    const r=await client.rpc('eg_create_basic_material',{p_company_id:ctx().companyId,p_name:name,p_unit:unit});
+    if(r.error)throw r.error;
+    const created=Array.isArray(r.data)?r.data[0]:r.data;
+    if(!created?.id)throw Error(tr('Materiale non salvato','Material wurde nicht gespeichert'));
+    if(!catalog.some(x=>x.id===created.id))catalog.push(created);
+    if(!chosen.some(x=>x.id===created.id))chosen.push({id:created.id,name:created.name,unit:created.unit,quantity:1});
+    newMaterialOpen=false;
+  }
+  function syncQuantities(form){
+    return chosen.map(x=>{
+      const input=form.querySelector('[name="quantity_'+x.id+'"]');
+      const qty=Number(input?.value??x.quantity);
+      if(!Number.isFinite(qty)||qty<=0||qty>100000)throw Error(tr('Controlla le quantità dei materiali','Materialmengen prüfen'));
+      return {material_id:x.id,quantity:qty};
+    });
+  }
   const ctx=()=>getContext();
   const tr=(it,de)=>ctx().locale==='de'?de:it;
   const dateToday=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
@@ -15,9 +63,9 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
   };
   function open(id=null){
     if(id&& !canEdit(ctx().reports.find(r=>r.id===id)))return false;
-    editingId=id||null;return true;
+    editingId=id||null;chosen=[];newMaterialOpen=false;materialsReady=false;return true;
   }
-  function reset(){editingId=null}
+  function reset(){editingId=null;catalog=[];chosen=[];newMaterialOpen=false;materialsReady=false}
   function getId(){return editingId}
   function tasksFor(workerId,siteId){
     return ctx().tasks.filter(x=>x.assignee_id===workerId&&(!x.site_id||x.site_id===siteId));
@@ -32,6 +80,11 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
     const taskOptions=tasksFor(who,siteId);
     const hasSites=c.sites.length>0;
     const workers=c.members.filter(m=>m.active&&['worker','owner'].includes(m.role));
+    const materialRows=chosen.map(m=>'<div class="eg-material-line">'+
+      '<div><strong>'+esc(m.name)+'</strong><small>'+esc(unitLabel(m.unit))+'</small></div>'+
+      '<label class="field"><span>'+tr('Quantità','Menge')+'</span>'+
+      '<input type="number" inputmode="decimal" name="quantity_'+esc(m.id)+'" min=".001" max="100000" step=".001" value="'+esc(amount(m.quantity))+'" required></label>'+
+      '<button type="button" class="ghost small" data-action="eod-remove-material" data-id="'+esc(m.id)+'" aria-label="'+tr('Rimuovi materiale','Material entfernen')+'">×</button></div>').join('');
     const icons={
       calendar:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>',
       clock:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
@@ -81,7 +134,29 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
       '<label class="field"><span>'+tr('Rapporto dei lavori','Arbeitsbericht')+' *</span>'+
       '<textarea name="work_summary" rows="5" maxlength="6000" placeholder="'+tr('Es. potatura siepi, raccolta verde, pulizia vialetti…',
         'Z. B. Hecken geschnitten, Grünabfall entfernt, Wege gereinigt …')+'">'+esc(r?.work_summary||'')+'</textarea></label>'+
-      '<label class="field"><span>'+tr('Materiali utilizzati (facoltativo)','Materialien (optional)')+'</span>'+
+      '<div class="eg-material-entry"><h3>'+tr('Materiali utilizzati','Verwendete Materialien')+'</h3>'+
+      '<p class="muted eg-small">'+tr('Scegli i materiali dal catalogo e indica le quantità. Puoi aggiungerne diversi.',
+        'Materialien aus dem Katalog auswählen und Mengen angeben. Mehrere Einträge sind möglich.')+'</p>'+
+      (materialRows||'<p class="muted eg-small">'+tr('Nessun materiale aggiunto','Noch kein Material hinzugefügt')+'</p>')+
+      '<div class="eg-material-picker">'+
+      '<label class="field"><span>'+tr('Materiale','Material')+'</span><select name="material_pick">'+
+      opt('',tr('Seleziona un materiale','Material auswählen'))+
+      catalog.map(m=>opt(m.id,m.name+' · '+unitLabel(m.unit))).join('')+'</select></label>'+
+      '<label class="field"><span>'+tr('Quantità','Menge')+'</span><input name="material_pick_qty" type="number" inputmode="decimal" min=".001" max="100000" step=".001" value="1"></label></div>'+
+      '<div class="eg-material-actions"><button type="button" class="secondary small" data-action="eod-add-material" '+(!materialsReady||!catalog.length?'disabled':'')+'>'+
+       tr('+ Aggiungi materiale','+ Material hinzufügen')+'</button>'+
+      '<button type="button" class="ghost small" data-action="eod-toggle-material">'+
+       tr('Materiale non presente?','Material fehlt?')+'</button></div>'+
+      (newMaterialOpen?'<div class="eg-material-new"><h4>'+tr('Crea un materiale','Neues Material')+'</h4>'+
+       '<div class="eg-material-picker"><label class="field"><span>'+tr('Nome','Name')+'</span><input name="new_material_name" maxlength="200" placeholder="'+tr('Es. Terriccio universale','Z. B. Universalerde')+'"></label>'+
+       '<label class="field"><span>'+tr('Unità','Einheit')+'</span><select name="new_material_unit">'+
+         ['pz','kg','l','m','m2','m3','h'].map(x=>opt(x,unitLabel(x))).join('')+'</select></label></div>'+
+       '<button type="button" class="secondary small" data-action="eod-create-material">'+tr('Crea e aggiungi','Anlegen und hinzufügen')+'</button>'+
+       '<p class="muted eg-small">'+tr('Se creato da un dipendente, il prezzo sarà verificato dal titolare.',
+         'Von Mitarbeitenden angelegte Materialien müssen durch die Leitung bepreist werden.')+'</p></div>':'')+
+      (!materialsReady?'<p class="muted eg-small">'+tr('Caricamento catalogo materiali…','Materialkatalog wird geladen…')+'</p>':'')+
+      '</div>'+
+      '<label class="field"><span>'+tr('Note aggiuntive sui materiali (facoltative)','Zusätzliche Materialnotizen (optional)')+'</span>'+
       '<textarea name="materials_used" maxlength="4000" rows="2">'+esc(r?.materials_used||'')+'</textarea></label>'+
       '<label class="field"><span>'+tr('Problemi e note (facoltativo)','Probleme und Hinweise (optional)')+'</span>'+
       '<textarea name="issues" maxlength="4000" rows="2">'+esc(r?.issues||'')+'</textarea></label>'+
@@ -104,6 +179,8 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
   }
   async function submit(form,send){
     const c=ctx(),r=report(),v=Object.fromEntries(new FormData(form));
+    if(!materialsReady)throw Error(tr('Catalogo materiali non caricato','Materialkatalog nicht geladen'));
+    const selectedMaterials=syncQuantities(form);
     const toMinutes=value=>{
       if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||'')))return null;
       const [h,m]=value.split(':').map(Number);
@@ -127,17 +204,18 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
     if(send&&(total<1||String(v.work_summary||'').trim().length<10))
       throw Error(tr('Per inviare inserisci le ore e descrivi il lavoro (almeno 10 caratteri).',
         'Zum Senden Arbeitszeit und Tätigkeitsbeschreibung (mindestens 10 Zeichen) eingeben.'));
-    const {error}=await client.rpc('eg_save_daily_report_v4',{
+    const {error}=await client.rpc('eg_save_daily_report_v5',{
       p_report_id:r?.id||null,p_company_id:c.companyId,p_worker_id:worker,
       p_site_id:site.id,p_task_id:task?.id||null,p_work_date:v.work_date,
       p_start_time:v.start_time,p_end_time:v.end_time,p_break_minutes:pause,
       p_work_summary:String(v.work_summary||''),
       p_materials_used:String(v.materials_used||''),p_issues:String(v.issues||''),
+      p_materials:selectedMaterials,
       p_send:!!send
     });
     if(error)throw error;
     editingId=null;
     await c.onSaved(send);
   }
-  return {markup,open,reset,getId,handleChange,submit,canEdit};
+  return {markup,open,prepareOpen,reset,getId,handleChange,submit,canEdit,addSelected,removeSelected,toggleNewMaterial,createMaterial};
 };
