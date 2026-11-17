@@ -26,6 +26,7 @@ let user = null;
 let memberships = [], companies = [], members = [], clients = [], sites = [], tasks = [], invites = [];
 let dailyReports = [], reportsReady = false, reportsSetupError = '', reportEditingId = null;
 let selectedReportWorkerId = 'all', reportStatusFilter = 'all';
+let selectedReportId = null;
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
@@ -38,7 +39,7 @@ const german = {
   'Consulta e modifica i rapporti':'Berichte ansehen und bearbeiten',
   'Attività assegnate':'Zugewiesene Aufgaben','Compiti aperti':'Offene Aufgaben',
   'Rapporti da verificare':'Zu prüfende Berichte','Rapporti registrati':'Gespeicherte Berichte',
-  'Ultimi rapporti':'Letzte Berichte','Vedi tutti':'Alle anzeigen','Apri':'Öffnen',
+  'Ultimi rapporti':'Letzte Berichte','Vedi tutti':'Alle anzeigen','Apri':'Öffnen','Dettaglio rapporto':'Berichtsdetails',
   "Password dimenticata?": "Passwort vergessen?",
   "Recupera password": "Passwort zurücksetzen",
   "Inserisci la tua email: riceverai un link per impostare una nuova password.": "Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Festlegen eines neuen Passworts.",
@@ -456,7 +457,7 @@ function render() {
       '<button data-action="guide-open">'+t('Guida')+'</button></nav>':'')+
     (currentView==='home'?homeMarkup():currentView==='eod'?(endOfDay?.markup()||''):
       currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar'?(calendar?.markup()||''):
-      currentView==='reports'?reportsMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
+      currentView==='reports'?reportsMarkup():currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
       currentView==='team'&&memberIsOwner()?teamMarkup():
       ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
        (business?.markup(currentView)||''):tasksMarkup());
@@ -621,7 +622,7 @@ function reportsMarkup(){
   return header+counts+filters+
     ''+
     '<section class="card"><div class="cardhead"><h2>'+t('Rapporti giornalieri')+'</h2><span class="pill">'+visible.length+'</span></div>'+
-    (visible.length?visible.map(r=>reportCardMarkup(r,owner)).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section>';
+    (visible.length?visible.map(r=>reportSummaryMarkup(r,owner)).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section>';
 }
 function reportFormMarkup(){
   const report=dailyReports.find(r=>r.id===reportEditingId)||null;
@@ -649,6 +650,26 @@ function reportFormMarkup(){
     '<button class="primary" type="submit" value="send">'+t('Invia al titolare')+'</button></div></form>'+
     '<p class="muted" style="font-size:12px">'+t('Per aggiungere foto prima/dopo e firma del cliente, salva prima il rapporto come bozza.')+'</p>'+ 
     '<p class="muted" style="font-size:12px">'+t("Le indicazioni sui materiali sono un riepilogo operativo e non generano addebiti o fatture automatiche.")+'</p></div>';
+}
+function reportSummaryMarkup(report,owner){
+  const task=tasks.find(x=>x.id===report.task_id);
+  const place=getName(sites,report.site_id||task?.site_id);
+  const label=task?.title||place;
+  return '<div class="eg-report-list-item"><div class="eg-report-list-content">'+
+    '<strong>'+esc(label)+'</strong><div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
+    '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
+    (owner?'<span>'+esc(getWorkerName(report.created_by))+'</span>':'')+
+    '<span class="pill '+(report.status==='submitted'?'amber':'')+'">'+t(reportStatusLabel(report))+'</span></div>'+
+    '<p class="muted eg-report-preview">'+esc((report.work_summary||'').slice(0,130))+'</p></div>'+
+    '<div class="actions"><button class="secondary small" data-action="report-open" data-id="'+esc(report.id)+'">'+t('Apri')+'</button></div></div>';
+}
+function reportDetailMarkup(){
+  const report=dailyReports.find(r=>r.id===selectedReportId);
+  if(!report)return '<div class="alert warn">'+t('Rapporto non trovato')+'</div>';
+  return '<div class="view-head"><div><h2>'+t('Dettaglio rapporto')+'</h2>'+
+    '<p class="muted">'+esc(displayDate(report.work_date))+' · '+esc(formatReportMinutes(report.minutes_worked))+'</p></div>'+
+    '<button class="ghost" data-action="report-back">'+t('Torna ai rapporti')+'</button></div>'+
+    '<section class="card">'+reportCardMarkup(report,memberIsOwner())+'</section>';
 }
 function reportCardMarkup(report,owner){
   const task=tasks.find(x=>x.id===report.task_id);
@@ -735,7 +756,7 @@ async function refresh() {
     const newTasks=requireSuccess(await client.from('eg_tasks').select('*').eq('company_id',org));
     tasks=newTasks||[];
   }
-  if(!owner&&!['home','eod','tasks','reports','clock','calendar'].includes(currentView))currentView='home';
+  if(!owner&&!['home','eod','tasks','reports','report-detail','clock','calendar'].includes(currentView))currentView='home';
   render();
 }
 async function onAuth(form){
@@ -1016,7 +1037,7 @@ document.addEventListener('click',e=>{
     if(!user)return;
     authMode='reset';notice='';render();return;
   }
-  if(a==='view'){currentView=b.dataset.view;menuOpen=false;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='view'){currentView=b.dataset.view;menuOpen=false;selectedReportId=null;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
   if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;endOfDay?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
@@ -1025,6 +1046,8 @@ document.addEventListener('click',e=>{
     if(!reportsReady)return;
     endOfDay?.open();currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
+  if(a==='report-open'){const report=dailyReports.find(r=>r.id===b.dataset.id);if(!report)return;selectedReportId=report.id;currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='report-back'){selectedReportId=null;currentView='reports';render();return}
   if(a==='report-edit'){
     if(!reportsReady||!endOfDay?.open(b.dataset.id))return;
     currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
