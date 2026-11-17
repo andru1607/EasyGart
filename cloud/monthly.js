@@ -155,6 +155,26 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
       '</details><details class="eg-month-shifts"><summary>'+tr('Materiali utilizzati nel mese','Im Monat verwendete Materialien')+'</summary>'+materialsMarkup(rs)+'</details>'+
       '<details class="eg-month-shifts"><summary>'+tr('Compiti previsti nel mese','Aufgaben dieses Monats')+' · '+assigned.length+'</summary>'+ (assigned.length?taskRows:'<p class="muted">'+tr('Nessun compito previsto.','Keine Aufgaben geplant.')+'</p>')+'</details></div></section>';
   }
+  function siteCards(rs,ss){
+    const ids=[...new Set([...rs.map(r=>r.site_id||ctx().tasks.find(t=>t.id===r.task_id)?.site_id),
+      ...ss.map(s=>s.site_id)].filter(Boolean))];
+    return '<section class="card eg-month-sites"><div class="cardhead"><h3>'+
+      tr('Cantieri lavorati nel mese','Bearbeitete Einsatzorte im Monat')+'</h3>'+
+      '<button type="button" class="ghost small" data-action="site-history-view">'+
+        tr('Archivio cantieri','Einsatzort-Archiv')+'</button></div>'+
+      '<div class="eg-month-site-grid">'+ids.map(id=>{
+        const matched=rs.filter(r=>(r.site_id||ctx().tasks.find(t=>t.id===r.task_id)?.site_id)===id);
+        const location=ctx().sites.find(s=>s.id===id);
+        const total=matched.reduce((sum,r)=>sum+Number(r.minutes_worked||0),0);
+        return '<button class="eg-month-site-card" type="button" data-action="monthly-site" data-id="'+safe(id)+'">'+
+          '<strong>'+safe(location?.name||tr('Cantiere','Einsatzort'))+'</strong>'+
+          '<span>'+matched.length+' '+tr('rapporti','Berichte')+' · '+duration(total)+'</span>'+
+          '<small>'+materialAggregate(matched).length+' '+tr('tipi di materiale','Materialarten')+'</small>'+
+          '<b aria-hidden="true">›</b></button>';
+      }).join('')+'</div>'+
+      (!ids.length?'<p class="muted">'+tr('Nessun cantiere registrato nel mese.','Keine Einsatzorte für diesen Monat.')+'</p>':'')+
+      '</section>';
+  }
   function markup(){
     const c=ctx(),locale=c.locale==='de'?'de-DE':'it-IT',
       title=new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(monthFirst());
@@ -184,6 +204,8 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
       '<div class="card metric"><span>'+tr('Giornate con attività','Tage mit Einträgen')+'</span><strong>'+all.days+'</strong></div></div>'+
       '<p class="muted eg-month-help">'+tr('Ore dichiarate e timbrate sono due registrazioni diverse e non vengono sommate. I rapporti includono anche le bozze.',
         'Gemeldete Stunden und Stempelzeiten werden separat angezeigt und nicht addiert. Entwürfe sind enthalten.')+'</p>'+
+      siteCards(rs,ss)+
+      '<section class="card eg-month-material-summary"><h3>'+tr('Materiali del mese','Materialien des Monats')+'</h3>'+materialsMarkup(rs)+'</section>'+ 
       (c.isOwner&&person==='all'?'<h3 class="eg-month-subtitle">'+tr('Rapporti distinti per dipendente','Berichte nach Mitarbeitenden')+'</h3>':'')+
       (person==='all'?people.map(uid=>personCard(uid,rs.filter(r=>r.created_by===uid),
         ss.filter(s=>s.user_id===uid))).join(''):personCard(person,rs,ss))+
@@ -207,7 +229,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
     const c=ctx(),data=[['Tipo','Dipendente','Data','Cantiere','Inizio','Fine','Pausa_min','Minuti_lavorati','Stato','Attivita','Materiali','Note']];
     for(const r of visibleReports())data.push(['Rapporto',worker(r.created_by),r.work_date,site(r.site_id),
       String(r.work_start_time||'').slice(0,5),String(r.work_end_time||'').slice(0,5),r.break_minutes||0,
-      r.minutes_worked||0,statusLabel(r.status),r.work_summary||'',r.materials_used||'',r.issues||'']);
+      r.minutes_worked||0,statusLabel(r.status),r.work_summary||'',usedForReport(r.id).map(m=>m.material_name+' '+m.quantity+' '+m.unit).join(' | ')+(r.materials_used?' | '+r.materials_used:''),r.issues||'']);
     for(const t of visibleTasks())data.push(['Compito',worker(t.assignee_id),t.due_date,site(t.site_id),      '','','','',t.status,t.title,'',t.instructions||'']);
     for(const s of visibleShifts())data.push(['Timbratura',worker(s.user_id),ymd(new Date(s.started_at)),site(s.site_id),
       s.started_at||'',s.ended_at||'',Math.round((s.break_seconds||0)/60),shiftMinutes(s),s.status,'','','']);
