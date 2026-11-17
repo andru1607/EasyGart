@@ -42,6 +42,7 @@ let dailyReports = [], reportsReady = false, reportsSetupError = '', reportEditi
 let selectedReportWorkerId = 'all', reportStatusFilter = 'all';
 let selectedReportId = null;
 let reportReturnView = 'reports';
+let editingFromMonthly=false;
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
@@ -703,7 +704,7 @@ function reportDetailMarkup(){
   if(!report)return '<div class="alert warn">'+t('Rapporto non trovato')+'</div>';
   return '<div class="view-head"><div><h2>'+t('Dettaglio rapporto')+'</h2>'+
     '<p class="muted">'+esc(displayDate(report.work_date))+' · '+esc(formatReportMinutes(report.minutes_worked))+'</p></div>'+
-    '<button class="ghost" data-action="report-back">'+t('Torna ai rapporti')+'</button></div>'+
+    '<button class="ghost" data-action="report-back">'+t(reportReturnView==='monthly'?'Resoconto mensile':'Torna ai rapporti')+'</button></div>'+
     '<section class="card">'+reportCardMarkup(report,memberIsOwner())+'</section>';
 }
 function reportCardMarkup(report,owner){
@@ -785,6 +786,13 @@ async function refresh() {
     reportsReady=false;dailyReports=[];reportsSetupError=reportResponse.error.message||'Tabelle rapporti non disponibili';
   } else {
     reportsReady=true;reportsSetupError='';dailyReports=reportResponse.data||[];
+    // Un rapporto storico aperto dal resoconto non deve sparire al refresh.
+    if(selectedReportId && currentView==='report-detail' &&
+       !dailyReports.some(r=>r.id===selectedReportId)){
+      const pinned=await client.from('eg_daily_reports').select('*')
+        .eq('company_id',org).eq('id',selectedReportId).maybeSingle();
+      if(!pinned.error&&pinned.data)dailyReports.push(pinned.data);
+    }
   }
   await operations?.refresh(org);
   await calendar?.refresh(org);
@@ -944,8 +952,15 @@ async function boot(){
     endOfDay = window.createEasyGartEndOfDay({client,esc,
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
         members,sites,clients,tasks,reports:dailyReports,locale,
-        onSaved:async send=>{currentView='reports';menuOpen=false;await refresh();
-          notice=send?'Rapporto inviato al titolare.':'Bozza salvata.';errorNotice=false;render();}})
+        onSaved:async send=>{
+          const backToMonth=editingFromMonthly;
+          editingFromMonthly=false;menuOpen=false;
+          currentView=backToMonth?'monthly':'reports';
+          await refresh();
+          if(backToMonth)await monthly?.refresh(selectedCompanyId);
+          notice=send?'Rapporto inviato al titolare.':'Modifiche salvate.';
+          errorNotice=false;render();
+        }})
     });
     operations = window.createEasyGartOperations({
       client,
@@ -1107,6 +1122,7 @@ document.addEventListener('click',e=>{
     });return;
   }
   if(a==='eod-new'||a==='report-new'){
+    editingFromMonthly=false;
     if(!reportsReady)return;
     endOfDay?.open();currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
@@ -1114,9 +1130,10 @@ document.addEventListener('click',e=>{
   if(a==='report-back'){selectedReportId=null;currentView=reportReturnView;render();return}
   if(a==='report-edit'){
     if(!reportsReady||!endOfDay?.open(b.dataset.id))return;
+    editingFromMonthly=reportReturnView==='monthly';
     currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
-  if(a==='eod-back'){endOfDay?.reset();currentView='reports';render();return}
+  if(a==='eod-back'){endOfDay?.reset();currentView=editingFromMonthly?'monthly':'reports';editingFromMonthly=false;render();return}
   if(a==='report-cancel'){reportEditingId=null;render();return}
   if(a==='new-task'){editingTaskId='new';render();document.querySelector?.('form[data-form="task"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
