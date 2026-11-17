@@ -774,7 +774,9 @@ function reportDetailMarkup(){
   if(!report)return '<div class="alert warn">'+t('Rapporto non trovato')+'</div>';
   return '<div class="view-head"><div><h2>'+t('Dettaglio rapporto')+'</h2>'+
     '<p class="muted">'+esc(displayDate(report.work_date))+' · '+esc(formatReportMinutes(report.minutes_worked))+'</p></div>'+
-    '<button class="ghost" data-action="report-back">'+t(reportReturnView==='monthly'?'Resoconto mensile':'Torna ai rapporti')+'</button></div>'+
+    '<button class="ghost" data-action="report-back">'+t(reportReturnView==='monthly'?'Resoconto mensile':
+      reportReturnView==='calendar'?'Calendario orari e rapporti':reportReturnView==='calendar-hours'?'Calendario orari':
+      reportReturnView==='sites-history'?'Cantieri svolti':'Torna ai rapporti')+'</button></div>'+
     '<section class="card">'+reportCardMarkup(report,memberIsOwner())+'</section>';
 }
 function reportCardMarkup(report,owner){
