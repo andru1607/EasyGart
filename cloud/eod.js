@@ -25,25 +25,32 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
   function markup(){
     const c=ctx(),r=report(),who=r?.created_by||c.user?.id||'';
     const siteId=r?.site_id||c.tasks.find(t=>t.id===r?.task_id)?.site_id||'';
-    const hours=Math.floor((r?.minutes_worked||0)/60),mins=(r?.minutes_worked||0)%60;
+    const startTime=String(r?.work_start_time||'').slice(0,5);
+    const endTime=String(r?.work_end_time||'').slice(0,5);
+    const breakMinutes=Number(r?.break_minutes||0);
     const editable=!r||canEdit(r);
     const taskOptions=tasksFor(who,siteId);
     const hasSites=c.sites.length>0;
     const workers=c.members.filter(m=>m.active&&['worker','owner'].includes(m.role));
+    const icons={
+      calendar:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>',
+      clock:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+      report:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6M8.5 10h7M8.5 14h7"/></svg>'
+    };
     return '<div class="eg-work-page">'+
       '<div class="view-head"><div><div class="eyebrow">'+tr('Registrazione giornaliera','Tägliche Erfassung')+'</div>'+
       '<h1>'+tr(r?'Modifica rapporto':'Fine giornata',r?'Bericht bearbeiten':'Feierabend')+'</h1>'+
-      '<p class="muted">'+tr('Indica il cantiere, le ore effettive e il lavoro svolto. Non serve una timbratura o un compito assegnato.',
-        'Einsatzort, tatsächliche Stunden und erledigte Arbeiten eintragen. Keine Stempeluhr und keine zugewiesene Aufgabe erforderlich.')+'</p></div>'+
+      '<p class="muted">'+tr('Registra i lavori svolti oggi. Inserisci manualmente gli orari, non le ore totali.',
+        'Erledigte Arbeiten erfassen. Anfangs- und Endzeit manuell eingeben, nicht die Gesamtstunden.')+'</p></div>'+
       '<button class="ghost small" data-action="eod-back">'+tr('Torna ai rapporti','Zurück zu Berichten')+'</button></div>'+
       (r?.manager_feedback?'<div class="alert warn">'+esc(r.manager_feedback)+'</div>':'')+
       (!hasSites?'<div class="alert warn">'+tr('Non ci sono cantieri: il titolare deve crearne uno nella sezione Clienti e cantieri.',
         'Keine Einsatzorte vorhanden: Die Betriebsleitung muss zuerst einen Einsatzort anlegen.')+'</div>':'')+
       (r&&!editable?'<div class="alert warn">'+tr('Questo rapporto è approvato e non è più modificabile.',
         'Dieser Bericht wurde freigegeben und kann nicht mehr bearbeitet werden.')+'</div>':'')+
-      '<form data-form="eod-report" class="card eg-eod-form stacked">'+
-      '<div class="eg-eod-step"><span class="eg-step-label">01</span><div class="eg-eod-fields">'+
-      '<h2>'+tr('Dove e quando hai lavorato','Wo und wann wurde gearbeitet')+'</h2>'+
+      '<form data-form="eod-report" class="eg-eod-form stacked">'+
+      '<div class="eg-eod-step card"><span class="eg-step-label">'+icons.calendar+'</span><div class="eg-eod-fields">'+
+      '<h2>'+tr('1. Data e cantiere','1. Datum und Einsatzort')+'</h2>'+
       (c.isOwner?'<label class="field"><span>'+tr('Dipendente','Mitarbeiter')+'</span><select name="worker_id" id="eod-worker" '+(r?'disabled':'required')+'>'+
         workers.map(m=>opt(m.user_id,m.full_name||workerName(m.user_id),m.user_id===who)).join('')+
         '</select>'+(r?'<input type="hidden" name="worker_id" value="'+esc(who)+'">':'')+'</label>':'')+
@@ -56,16 +63,21 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
         '<select name="task_id" id="eod-task">'+opt('',tr('Nessun compito','Keine Aufgabe'),!r?.task_id)+
           taskOptions.map(t=>opt(t.id,t.title,t.id===r?.task_id)).join('')+'</select></label>'+
       '</div></div>'+
-      '<div class="eg-eod-step"><span class="eg-step-label">02</span><div class="eg-eod-fields">'+
-      '<h2>'+tr('Quante ore hai lavorato','Wie lange hast du gearbeitet')+'</h2>'+
+      '<div class="eg-eod-step card"><span class="eg-step-label">'+icons.clock+'</span><div class="eg-eod-fields">'+
+      '<h2>'+tr('2. Orari di lavoro','2. Arbeitszeiten')+'</h2>'+
+      '<p class="muted eg-small">'+tr('Indica quando hai iniziato e quando hai finito. Gli orari sono inseriti a mano.',
+        'Beginn und Ende selbst eingeben. Die Zeiten werden manuell erfasst.')+'</p>'+
       '<div class="eg-eod-time">'+
-      '<label class="field"><span>'+tr('Ore','Stunden')+'</span><input type="number" inputmode="numeric" name="hours" min="0" max="24" step="1" value="'+hours+'" required></label>'+
-      '<label class="field"><span>'+tr('Minuti','Minuten')+'</span><input type="number" inputmode="numeric" name="minutes" min="0" max="59" step="1" value="'+mins+'" required></label>'+
-      '</div><p class="muted eg-small">'+tr('Inserisci solo il tempo effettivo, senza le pause. Le timbrature restano separate.',
-        'Nur die tatsächliche Arbeitszeit ohne Pausen eingeben. Stempelzeiten bleiben getrennt.')+'</p>'+
+      '<label class="field"><span>'+tr('Ora inizio','Beginn')+' *</span><input type="time" name="start_time" step="60" required value="'+esc(startTime)+'"></label>'+
+      '<label class="field"><span>'+tr('Ora fine','Ende')+' *</span><input type="time" name="end_time" step="60" required value="'+esc(endTime)+'"></label>'+
+      '</div>'+
+      '<label class="field"><span>'+tr('Pausa (minuti, facoltativa)','Pause (Minuten, optional)')+'</span>'+
+      '<input type="number" name="break_minutes" inputmode="numeric" min="0" max="1439" step="1" value="'+breakMinutes+'"></label>'+
+      '<p class="muted eg-small">'+tr('Le ore effettive verranno calcolate automaticamente, sottraendo la pausa. Sono separate dalle timbrature.',
+        'Die tatsächliche Arbeitszeit wird abzüglich Pause automatisch berechnet. Stempelzeiten bleiben getrennt.')+'</p>'+
       '</div></div>'+
-      '<div class="eg-eod-step"><span class="eg-step-label">03</span><div class="eg-eod-fields">'+
-      '<h2>'+tr('Che lavoro è stato fatto','Was wurde erledigt')+'</h2>'+
+      '<div class="eg-eod-step card"><span class="eg-step-label">'+icons.report+'</span><div class="eg-eod-fields">'+
+      '<h2>'+tr('3. Che lavoro è stato fatto','3. Was wurde erledigt')+'</h2>'+
       '<label class="field"><span>'+tr('Rapporto dei lavori','Arbeitsbericht')+' *</span>'+
       '<textarea name="work_summary" rows="5" maxlength="6000" placeholder="'+tr('Es. potatura siepi, raccolta verde, pulizia vialetti…',
         'Z. B. Hecken geschnitten, Grünabfall entfernt, Wege gereinigt …')+'">'+esc(r?.work_summary||'')+'</textarea></label>'+
@@ -92,10 +104,20 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
   }
   async function submit(form,send){
     const c=ctx(),r=report(),v=Object.fromEntries(new FormData(form));
-    const hours=Number(v.hours),minutes=Number(v.minutes);
-    const total=hours*60+minutes;
-    if(!Number.isInteger(hours)||!Number.isInteger(minutes)||hours<0||hours>24||
-       minutes<0||minutes>59||total>1440)throw Error(tr('Inserisci ore valide','Bitte gültige Stunden eingeben'));
+    const toMinutes=value=>{
+      if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(String(value||'')))return null;
+      const [h,m]=value.split(':').map(Number);
+      return h*60+m;
+    };
+    const start=toMinutes(v.start_time),end=toMinutes(v.end_time);
+    const pause=v.break_minutes===''?0:Number(v.break_minutes);
+    if(start===null||end===null)throw Error(tr('Inserisci ora di inizio e ora di fine valide.',
+      'Bitte gültige Beginn- und Endzeiten eingeben.'));
+    const elapsed=(end-start+1440)%1440;
+    if(!Number.isInteger(pause)||pause<0||pause>=elapsed||elapsed===0)
+      throw Error(tr('Controlla gli orari e la pausa. La pausa deve essere inferiore al turno.',
+        'Arbeitszeiten und Pause prüfen. Die Pause muss kürzer als die Schicht sein.'));
+    const total=elapsed-pause;
     const site=c.sites.find(s=>s.id===v.site_id);
     if(!site)throw Error(tr('Seleziona un cantiere','Bitte Einsatzort auswählen'));
     const worker=r?.created_by||(c.isOwner?v.worker_id:c.user?.id);
@@ -105,10 +127,11 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
     if(send&&(total<1||String(v.work_summary||'').trim().length<10))
       throw Error(tr('Per inviare inserisci le ore e descrivi il lavoro (almeno 10 caratteri).',
         'Zum Senden Arbeitszeit und Tätigkeitsbeschreibung (mindestens 10 Zeichen) eingeben.'));
-    const {error}=await client.rpc('eg_save_daily_report_v2',{
+    const {error}=await client.rpc('eg_save_daily_report_v3',{
       p_report_id:r?.id||null,p_company_id:c.companyId,p_worker_id:worker,
       p_site_id:site.id,p_task_id:task?.id||null,p_work_date:v.work_date,
-      p_minutes_worked:total,p_work_summary:String(v.work_summary||''),
+      p_start_time:v.start_time,p_end_time:v.end_time,p_break_minutes:pause,
+      p_work_summary:String(v.work_summary||''),
       p_materials_used:String(v.materials_used||''),p_issues:String(v.issues||''),
       p_send:!!send
     });
