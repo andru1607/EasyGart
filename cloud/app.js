@@ -21,6 +21,7 @@ let client = null;
 let operations = null;
 let calendar = null;
 let endOfDay = null;
+let monthly = null;
 let menuOpen = false;
 let business = null;
 let authMode = 'signin';
@@ -40,6 +41,7 @@ let memberships = [], companies = [], members = [], clients = [], sites = [], ta
 let dailyReports = [], reportsReady = false, reportsSetupError = '', reportEditingId = null;
 let selectedReportWorkerId = 'all', reportStatusFilter = 'all';
 let selectedReportId = null;
+let reportReturnView = 'reports';
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
@@ -47,6 +49,9 @@ const german = {
   'Home':'Startseite','Fine giornata':'Feierabend','Menu':'Menü','Altre sezioni':'Weitere Bereiche',
   'Impostazioni e account':'Einstellungen und Konto','Seleziona una sezione':'Bereich auswählen',
   'Inserisci gli orari e il cantiere':'Arbeitszeiten und Einsatzort erfassen','Rapporti':'Berichte',
+  'Resoconto mensile':'Monatsübersicht','Apri resoconto mensile':'Monatsübersicht öffnen',
+  'Tutti i dipendenti':'Alle Mitarbeitenden','Rapporti per dipendente':'Berichte nach Mitarbeitenden',
+  'Modifiche storiche consentite finché il rapporto non è collegato a una proforma.':'Historische Korrekturen sind erlaubt, solange der Bericht keiner Proforma zugeordnet ist.',
   'Panoramica azienda':'Betriebsübersicht','La tua giornata':'Dein Arbeitstag',
   'Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.':'Jede Funktion hat eine eigene Seite. Beginne mit dem Feierabendbericht.',
   'Inserisci le ore e il cantiere':'Stunden und Einsatzort erfassen',
@@ -55,6 +60,7 @@ const german = {
   'Attività assegnate':'Zugewiesene Aufgaben','Compiti aperti':'Offene Aufgaben',
   'Rapporti da verificare':'Zu prüfende Berichte','Rapporti registrati':'Gespeicherte Berichte',
   'Ultimi rapporti':'Letzte Berichte','Vedi tutti':'Alle anzeigen','Apri':'Öffnen','Dettaglio rapporto':'Berichtsdetails',
+  'Visualizza ore e attività mensili':'Monatliche Stunden und Tätigkeiten ansehen',
   "Password dimenticata?": "Passwort vergessen?",
   "Recupera password": "Passwort zurücksetzen",
   "Inserisci la tua email: riceverai un link per impostare una nuova password.": "Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Festlegen eines neuen Passworts.",
@@ -434,7 +440,7 @@ function render() {
       }
     },
     onNavigate(view){
-      const workerViews=['home','eod','tasks','clock','calendar','reports'];
+      const workerViews=['home','eod','tasks','clock','calendar','reports','monthly'];
       const ownerViews=['clients','team','materials','maintenance','invoices','archive'];
       if(!workerViews.includes(view)&&!(memberIsOwner()&&ownerViews.includes(view)))return;
       endOfDay?.reset();currentView=view;menuOpen=false;editingTaskId=null;reportEditingId=null;
@@ -472,10 +478,11 @@ function render() {
       '<button data-action="view" data-view="maintenance">'+t('Manutenzioni ricorrenti')+'</button>'+
       '<button data-action="view" data-view="invoices">'+t('Bozze proforma')+'</button>'+
       '<button data-action="view" data-view="archive">'+t('Dati ed esportazione')+'</button>':'')+
+      '<button data-action="monthly-view">'+t('Resoconto mensile')+'</button>'+
       '<div class="eg-menu-divider"><span>'+t('Impostazioni e account')+'</span></div>'+ '<button data-action="guide-open">'+t('Guida')+'</button>'+ '<button data-action="account-password">'+t('Sicurezza account')+'</button>'+ (!window.EASYGART_INSTALL?.isStandalone?.()?'<button data-action="install">'+t('Installa app')+'</button>':'')+ '<button data-action="signout">'+t('Esci')+'</button></nav>':'')+
     (currentView==='home'?homeMarkup():currentView==='eod'?(endOfDay?.markup()||''):
       currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar'?(calendar?.markup()||''):
-      currentView==='reports'?reportsMarkup():currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
+      currentView==='reports'?reportsMarkup():currentView==='monthly'?(monthly?.markup()||''):currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
       currentView==='team'&&memberIsOwner()?teamMarkup():
       ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
        (business?.markup(currentView)||''):tasksMarkup());
@@ -587,6 +594,7 @@ function homeMarkup(){
     ['eod-new','Fine giornata','Inserisci gli orari e il cantiere'],
     ['view','Calendario','Consulta giornate e ore','calendar'],
     ['view','Rapporti giornalieri','Consulta e modifica i rapporti','reports'],
+    ['monthly-view','Resoconto mensile','Visualizza ore e attività mensili'],
     ['view','Compiti','Attività assegnate','tasks']
   ];
   return '<div class="eg-home-page"><div class="view-head"><div><h2>'+t(owner?'Panoramica azienda':'La tua giornata')+'</h2>'+
@@ -622,9 +630,9 @@ function reportsMarkup(){
   const pending=visible.filter(r=>r.status==='submitted').length;
   const corrections=visible.filter(r=>r.status==='changes_requested').length;
   const done=visible.filter(r=>r.status==='approved').length;
-  const header= '<div class="view-head"><div><h2>'+t(owner?'Rapporti ricevuti':'I miei rapporti')+'</h2>'+
+  const header= '<div class="view-head"><div><h2>'+t(owner?'Rapporti per dipendente':'I miei rapporti')+'</h2>'+
     '<p class="muted">'+t(owner?'Controlla quanto svolto sul campo e approva i rapporti ricevuti.':'Racconta al titolare il lavoro svolto ogni giorno.')+'</p></div>'+
-    '<button class="primary" data-action="eod-new">+ '+t('Nuovo rapporto')+'</button>'+'</div>';
+    '<div class="actions"><button class="secondary" data-action="monthly-view">'+t('Resoconto mensile')+'</button>'+ '<button class="primary" data-action="eod-new">+ '+t('Nuovo rapporto')+'</button></div></div>';
   const counts='<div class="grid" style="margin-bottom:18px">'+
     '<div class="card metric"><span>'+t('Da verificare')+'</span><strong>'+pending+'</strong></div>'+
     '<div class="card metric"><span>'+t('Correzioni richieste')+'</span><strong>'+corrections+'</strong></div>'+
@@ -635,12 +643,19 @@ function reportsMarkup(){
     statusChoices.map(([value,label])=>option(value,tr(label),reportStatusFilter===value)).join('')+'</select></label>'+
     (owner?'<label class="field" style="flex:1;min-width:145px"><span>'+t('Dipendente')+'</span><select id="report-worker-filter">'+
       option('all',tr('Tutti gli operatori'),selectedReportWorkerId==='all')+
-      members.filter(m=>m.role==='worker').map(m=>option(m.user_id,m.full_name||tr('Operatore'),selectedReportWorkerId===m.user_id)).join('')+'</select></label>':'')+
+      members.filter(m=>['worker','owner'].includes(m.role)).map(m=>option(m.user_id,m.full_name||tr('Operatore'),selectedReportWorkerId===m.user_id)).join('')+'</select></label>':'')+
     '</div></div>';
+  const grouped=owner? [...new Set(visible.map(r=>r.created_by))].map(uid=>{
+    const rows=visible.filter(r=>r.created_by===uid);
+    return '<section class="card eg-owner-report-group"><div class="cardhead"><div><div class="eyebrow">'+t('Dipendente')+'</div>'+
+      '<h3>'+esc(getWorkerName(uid))+'</h3></div><span class="pill">'+rows.length+' '+t('Rapporti')+'</span></div>'+
+      rows.map(r=>reportSummaryMarkup(r,true)).join('')+'</section>';
+  }).join(''):''; 
   return header+counts+filters+
-    ''+
+    '<p class="muted eg-report-help">'+t('Modifiche storiche consentite finché il rapporto non è collegato a una proforma.')+'</p>'+
+    (owner?(grouped||'<div class="card"><p class="muted">'+t('Nessun rapporto')+'</p></div>'):
     '<section class="card"><div class="cardhead"><h2>'+t('Rapporti giornalieri')+'</h2><span class="pill">'+visible.length+'</span></div>'+
-    (visible.length?visible.map(r=>reportSummaryMarkup(r,owner)).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section>';
+    (visible.length?visible.map(r=>reportSummaryMarkup(r,false)).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section>');
 }
 function reportFormMarkup(){
   const report=dailyReports.find(r=>r.id===reportEditingId)||null;
@@ -674,7 +689,7 @@ function reportSummaryMarkup(report,owner){
   const place=getName(sites,report.site_id||task?.site_id);
   const label=task?.title||place;
   return '<div class="eg-report-list-item"><div class="eg-report-list-content">'+
-    '<strong>'+esc(label)+'</strong><div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
+    '<strong>'+esc(label)+'</strong><div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+ (owner?'<span class="eg-author-tag">'+esc(getWorkerName(report.created_by))+'</span>':'')+
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
     (report.work_start_time&&report.work_end_time?
       '<span>'+esc(String(report.work_start_time).slice(0,5))+' – '+esc(String(report.work_end_time).slice(0,5))+'</span>':'')+
@@ -697,7 +712,7 @@ function reportCardMarkup(report,owner){
   const tone=isPending?'amber':report.status==='changes_requested'?'red':'';
   const title=task?.title||getName(sites,report.site_id)||tr('Intervento');
   return '<article class="taskrow"><div style="flex:1;min-width:180px">'+
-    '<div class="task-title">'+esc(title)+'</div>'+
+    '<div class="task-title">'+esc(title)+'</div>'+ '<div class="eg-report-author">'+t('Dipendente')+': <strong>'+esc(getWorkerName(report.created_by))+'</strong></div>'+
     '<div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
     (owner?'<span>'+esc(getWorkerName(report.created_by))+'</span>':'')+
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
@@ -778,7 +793,7 @@ async function refresh() {
     const newTasks=requireSuccess(await client.from('eg_tasks').select('*').eq('company_id',org));
     tasks=newTasks||[];
   }
-  if(!owner&&!['home','eod','tasks','reports','report-detail','clock','calendar'].includes(currentView))currentView='home';
+  if(!owner&&!['home','eod','tasks','reports','report-detail','clock','calendar','monthly'].includes(currentView))currentView='home';
   render();
 }
 async function onAuth(form){
@@ -924,6 +939,8 @@ async function boot(){
       auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true},
       global:{headers:{'x-client-info':'easygarte-cloud-v1'}}
     });
+    monthly = window.createEasyGartMonthly({client,esc,
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,clients,tasks,locale})});
     endOfDay = window.createEasyGartEndOfDay({client,esc,
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
         members,sites,clients,tasks,reports:dailyReports,locale,
@@ -961,7 +978,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;endOfDay?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
+        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;endOfDay?.reset();monthly?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
@@ -1061,15 +1078,40 @@ document.addEventListener('click',e=>{
   }
   if(a==='view'){currentView=b.dataset.view;menuOpen=false;selectedReportId=null;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;endOfDay?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;endOfDay?.reset();monthly?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
+  if(a==='monthly-view'){
+    withBusy(async()=>{currentView='monthly';menuOpen=false;
+      await monthly?.refresh(selectedCompanyId);render();window.scrollTo?.({top:0,behavior:'instant'});
+    });return;
+  }
+  if(a==='monthly-month'){
+    withBusy(async()=>{await monthly?.monthStep(Number(b.dataset.step));render();});return;
+  }
+  if(a==='monthly-export'){monthly?.exportCSV();return}
+  if(a==='monthly-open-report'){
+    withBusy(async()=>{
+      const id=b.dataset.id;
+      let report=dailyReports.find(r=>r.id===id);
+      if(!report){
+        const response=await client.from('eg_daily_reports').select('*')
+          .eq('company_id',selectedCompanyId).eq('id',id).single();
+        if(response.error)throw response.error;
+        report=response.data;
+        dailyReports=[report,...dailyReports.filter(x=>x.id!==id)];
+      }
+      if(!report)return;
+      selectedReportId=report.id;reportReturnView='monthly';
+      currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
+    });return;
+  }
   if(a==='eod-new'||a==='report-new'){
     if(!reportsReady)return;
     endOfDay?.open();currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
-  if(a==='report-open'){const report=dailyReports.find(r=>r.id===b.dataset.id);if(!report)return;selectedReportId=report.id;currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return}
-  if(a==='report-back'){selectedReportId=null;currentView='reports';render();return}
+  if(a==='report-open'){const report=dailyReports.find(r=>r.id===b.dataset.id);if(!report)return;selectedReportId=report.id;reportReturnView='reports';currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='report-back'){selectedReportId=null;currentView=reportReturnView;render();return}
   if(a==='report-edit'){
     if(!reportsReady||!endOfDay?.open(b.dataset.id))return;
     currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
@@ -1103,10 +1145,11 @@ document.addEventListener('change',e=>{
     withBusy(()=>operations?.uploadPhotos(e.target));return
   }
   if(e.target.id==='eg-calendar-worker'){calendar?.handleChange(e.target);return}
+  if(e.target.id==='eg-month-worker'){monthly?.chooseWorker(e.target.value);render();return}
   if(['eod-site','eod-worker'].includes(e.target.id)){endOfDay?.handleChange(e.target);return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
-  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';endOfDay?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';endOfDay?.reset();monthly?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
   if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
