@@ -20,6 +20,7 @@ const app = $('app'), topRight = $('top-right');
 let client = null;
 let operations = null;
 let calendar = null;
+let hoursCalendar = null;
 let endOfDay = null;
 let reportMaterialRows = new Map();
 let monthly = null;
@@ -47,6 +48,7 @@ let selectedReportId = null;
 let pendingReportDeletionId = null;
 let reportReturnView = 'reports';
 let editingFromMonthly=false;
+let editingFromCalendar=null;
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
@@ -75,6 +77,10 @@ const german = {
   'Ultimi rapporti':'Letzte Berichte','Vedi tutti':'Alle anzeigen','Apri':'Öffnen','Dettaglio rapporto':'Berichtsdetails',
   'Visualizza ore e attività mensili':'Monatliche Stunden und Tätigkeiten ansehen',
   'Cantieri svolti':'Bearbeitete Einsatzorte','Apri lo storico dei cantieri':'Einsatzort-Verlauf öffnen',
+  'Calendario orari':'Stundenkalender',
+  'Calendario orari e rapporti':'Arbeitszeit- und Berichtskalender',
+  'Consulta gli orari senza i rapporti':'Arbeitszeiten ohne Berichte ansehen',
+  'Consulta orari, lavori e cantieri':'Zeiten, Arbeiten und Einsatzorte ansehen',
   "Password dimenticata?": "Passwort vergessen?",
   "Recupera password": "Passwort zurücksetzen",
   "Inserisci la tua email: riceverai un link per impostare una nuova password.": "Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Festlegen eines neuen Passworts.",
@@ -454,11 +460,12 @@ function render() {
       }
     },
     onNavigate(view){
-      const workerViews=['home','eod','tasks','clock','calendar','reports','monthly','sites-history'];
+      const workerViews=['home','eod','tasks','clock','calendar','calendar-hours','reports','monthly','sites-history'];
       const ownerViews=['clients','team','materials','maintenance','invoices','archive'];
       if(!workerViews.includes(view)&&!(memberIsOwner()&&ownerViews.includes(view)))return;
       endOfDay?.reset();currentView=view;menuOpen=false;editingTaskId=null;reportEditingId=null;
       if(view==='monthly')monthly?.refresh(selectedCompanyId).then(render).catch(fail);
+      if(view==='calendar-hours')hoursCalendar?.refresh(selectedCompanyId).then(render).catch(fail);
       if(view==='sites-history')siteHistory?.refresh(selectedCompanyId).then(render).catch(fail);
       render();
     }
@@ -482,12 +489,14 @@ function render() {
     '<nav class="eg-main-nav" aria-label="'+t('Sezioni')+'">'+
       '<button data-action="view" data-view="home" '+(currentView==='home'?'aria-current="page" ':'')+'class="'+(currentView==='home'?'active':'')+'">'+egNavIcon('home')+'<span>'+t('Home')+'</span></button>'+
       '<button data-action="eod-new" '+(currentView==='eod'?'aria-current="page" ':'')+'class="'+(currentView==='eod'?'active':'')+'">'+egNavIcon('leaf')+'<span>'+t('Fine giornata')+'</span></button>'+
-      '<button data-action="view" data-view="calendar" '+(currentView==='calendar'?'aria-current="page" ':'')+'class="'+(currentView==='calendar'?'active':'')+'">'+egNavIcon('calendar')+'<span>'+t('Calendario')+'</span></button>'+
+      '<button data-action="view" data-view="calendar-hours" '+(['calendar','calendar-hours'].includes(currentView)?'aria-current="page" ':'')+'class="'+(['calendar','calendar-hours'].includes(currentView)?'active':'')+'">'+egNavIcon('calendar')+'<span>'+t('Calendario')+'</span></button>'+
       '<button data-action="view" data-view="reports" '+(['reports','report-detail'].includes(currentView)?'aria-current="page" ':'')+'class="'+(['reports','report-detail'].includes(currentView)?'active':'')+'">'+egNavIcon('reports')+'<span>'+t('Rapporti')+'</span></button>'+
       '<button data-action="toggle-menu" aria-expanded="'+menuOpen+'" class="'+(menuOpen?'active':'')+'">'+egNavIcon('menu')+'<span>'+t('Menu')+'</span></button></nav>'+
     (menuOpen?'<nav class="eg-extra-nav" aria-label="'+t('Altre sezioni')+'">'+
       '<button data-action="view" data-view="tasks">'+t('Compiti')+'</button>'+
-      '<button data-action="view" data-view="clock">'+t('Timbrature')+'</button>'+
+      '<button data-action="view" data-view="clock">'+t('Timbrature')+'</button>'+ 
+      '<button data-action="view" data-view="calendar-hours">'+t('Calendario orari')+'</button>'+ 
+      '<button data-action="view" data-view="calendar">'+t('Calendario orari e rapporti')+'</button>'+
       (memberIsOwner()?'<button data-action="view" data-view="clients">'+t('Clienti e cantieri')+'</button>'+
       '<button data-action="view" data-view="team">'+t('La tua squadra')+'</button>'+
       '<button data-action="view" data-view="materials">'+t('Catalogo materiali')+'</button>'+
@@ -498,7 +507,7 @@ function render() {
       '<button data-action="site-history-view">'+t('Cantieri svolti')+'</button>'+
       '<div class="eg-menu-divider"><span>'+t('Impostazioni e account')+'</span></div>'+ '<button data-action="guide-open">'+t('Guida')+'</button>'+ '<button data-action="account-password">'+t('Sicurezza account')+'</button>'+ (!window.EASYGART_INSTALL?.isStandalone?.()?'<button data-action="install">'+t('Installa app')+'</button>':'')+ '<button data-action="signout">'+t('Esci')+'</button></nav>':'')+
     (currentView==='home'?homeMarkup():currentView==='eod'?(endOfDay?.markup()||''):
-      currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar'?(calendar?.markup()||''):
+      currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar-hours'?(hoursCalendar?.markup()||''):currentView==='calendar'?(calendar?.markup()||''):
       currentView==='reports'?reportsMarkup():currentView==='monthly'?(monthly?.markup()||''):currentView==='sites-history'?(siteHistory?.markup()||''):currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
       currentView==='team'&&memberIsOwner()?teamMarkup():
       ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
@@ -610,7 +619,8 @@ function homeMarkup(){
   const todo=tasks.filter(x=>owner||x.assignee_id===user.id).filter(x=>x.status!=='done');
   const actions=[
     ['eod-new','Fine giornata','Inserisci gli orari e il cantiere'],
-    ['view','Calendario','Consulta giornate e ore','calendar'],
+    ['view','Calendario orari','Consulta gli orari senza i rapporti','calendar-hours'],
+    ['view','Calendario orari e rapporti','Consulta orari, lavori e cantieri','calendar'],
     ['view','Rapporti giornalieri','Consulta e modifica i rapporti','reports'],
     ['monthly-view','Resoconto mensile','Visualizza ore e attività mensili'],
     ['site-history-view','Cantieri svolti','Apri lo storico dei cantieri'],
@@ -825,7 +835,7 @@ async function refresh() {
   if(!client||!user)return;
   const list=requireSuccess(await client.from('eg_members').select('company_id,user_id,full_name,role,active').eq('user_id',user.id).eq('active',true));
   memberships=list||[];
-  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();operations?.reset();calendar?.reset();business?.reset();render();return}
+  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();render();return}
   const cids=memberships.map(x=>x.company_id);
   companies=requireSuccess(await client.from('eg_companies').select('id,name').in('id',cids))||[];
   if(!cids.includes(selectedCompanyId))selectedCompanyId=cids[0];
@@ -859,12 +869,13 @@ async function refresh() {
   }
   await operations?.refresh(org);
   await calendar?.refresh(org);
+  if(currentView==='calendar-hours')await hoursCalendar?.refresh(org);
   const created=await business?.refresh(org);
   if(created>0){
     const newTasks=requireSuccess(await client.from('eg_tasks').select('*').eq('company_id',org));
     tasks=newTasks||[];
   }
-  if(!owner&&!['home','eod','tasks','reports','report-detail','clock','calendar','monthly','sites-history'].includes(currentView))currentView='home';
+  if(!owner&&!['home','eod','tasks','reports','report-detail','clock','calendar','calendar-hours','monthly','sites-history'].includes(currentView))currentView='home';
   render();
 }
 async function onAuth(form){
@@ -906,7 +917,7 @@ async function submitForm(form,formAction='draft'){
       requireSuccess(await client.auth.updateUser({password}));
       requireSuccess(await client.auth.signOut({scope:'global'}));
       user=null;memberships=[];companies=[];members=[];clients=[];sites=[];tasks=[];dailyReports=[];
-      reportsReady=false;operations?.reset();calendar?.reset();business?.reset();
+      reportsReady=false;operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();
       authMode='signin';recoveryLinkOpened=false;
       const print=$('eg-print-zone');if(print)print.textContent='';
       success('Password aggiornata. Accedi di nuovo con la nuova password.');
@@ -1018,12 +1029,13 @@ async function boot(){
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
         members,sites,clients,tasks,reports:dailyReports,locale,
         onSaved:async send=>{
-          const backToMonth=editingFromMonthly,backToSite=editingFromSite;
-          editingFromMonthly=false;editingFromSite=false;menuOpen=false;
-          currentView=backToSite?'sites-history':backToMonth?'monthly':'reports';
+          const backToMonth=editingFromMonthly,backToSite=editingFromSite,backToCalendar=editingFromCalendar;
+          editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;menuOpen=false;
+          currentView=backToCalendar|| (backToSite?'sites-history':backToMonth?'monthly':'reports');
           await refresh();
           if(backToMonth)await monthly?.refresh(selectedCompanyId);
           if(backToSite)await siteHistory?.refresh(selectedCompanyId);
+          if(backToCalendar==='calendar-hours')await hoursCalendar?.refresh(selectedCompanyId);
           notice=send?'Rapporto inviato al titolare.':'Modifiche salvate.';
           errorNotice=false;render();
         }})
@@ -1035,7 +1047,11 @@ async function boot(){
     });
     calendar = window.createEasyGartCalendar({client,
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,locale}),
-      esc,rerender:render
+      esc,rerender:render,mode:'work'
+    });
+    hoursCalendar = window.createEasyGartCalendar({client,
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,locale}),
+      esc,rerender:render,mode:'hours'
     });
     business = window.createEasyGartBusiness({
       client,
@@ -1059,7 +1075,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){pendingReportDeletionId=null;memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
+        if(!user){pendingReportDeletionId=null;memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
@@ -1127,16 +1143,42 @@ document.addEventListener('click',e=>{
   if(!b)return;
   const a=b.dataset.action;
   if(a.startsWith('cal-')){
+    const activeCalendar=currentView==='calendar-hours'?hoursCalendar:calendar;
+    if(a==='cal-switch'){
+      const target=b.dataset.target;
+      if(!['calendar','calendar-hours'].includes(target)||target===currentView)return;
+      withBusy(async()=>{
+        const next=target==='calendar-hours'?hoursCalendar:calendar;
+        next?.setSelection(activeCalendar?.getSelection());
+        await next?.refresh(selectedCompanyId);
+        currentView=target;menuOpen=false;render();
+      });return;
+    }
+    if(a==='cal-open-report'){
+      withBusy(async()=>{
+        const id=b.dataset.id;
+        let report=dailyReports.find(r=>r.id===id);
+        if(!report){
+          const response=await client.from('eg_daily_reports').select('*')
+            .eq('company_id',selectedCompanyId).eq('id',id).single();
+          if(response.error)throw response.error;
+          report=response.data;dailyReports=[report,...dailyReports.filter(r=>r.id!==id)];
+        }
+        await loadReportMaterialRows(id);
+        selectedReportId=id;reportReturnView='calendar';menuOpen=false;
+        currentView='report-detail';render();window.scrollTo?.({top:0,behavior:'instant'});
+      });return;
+    }
     if(a==='cal-reports'){currentView='reports';render();return}
     if(a==='cal-monthly'){
       withBusy(async()=>{
-        const selected=calendar?.getMonth();
+        const selected=activeCalendar?.getMonth();
         monthly?.setMonth(selected?.year,selected?.month);
         currentView='monthly';menuOpen=false;
         await monthly?.refresh(selectedCompanyId);render();
       });return;
     }
-    if(calendar)withBusy(()=>calendar.handleAction(b));return;
+    if(activeCalendar)withBusy(()=>activeCalendar.handleAction(b));return;
   }
   if(a.startsWith('ops-')){
     if(a==='ops-clock'&&typeof navigator!=='undefined'&&navigator.onLine===false){
@@ -1165,9 +1207,22 @@ document.addEventListener('click',e=>{
     if(!user)return;
     authMode='reset';notice='';render();return;
   }
-  if(a==='view'){currentView=b.dataset.view;menuOpen=false;selectedReportId=null;pendingReportDeletionId=null;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='view'){
+    const view=b.dataset.view;
+    if(view==='calendar-hours'){
+      withBusy(async()=>{
+        currentView=view;menuOpen=false;selectedReportId=null;pendingReportDeletionId=null;
+        endOfDay?.reset();editingTaskId=null;reportEditingId=null;
+        await hoursCalendar?.refresh(selectedCompanyId);render();
+        window.scrollTo?.({top:0,behavior:'instant'});
+      });return;
+    }
+    currentView=view;menuOpen=false;selectedReportId=null;pendingReportDeletionId=null;
+    endOfDay?.reset();editingTaskId=null;reportEditingId=null;
+    render();window.scrollTo?.({top:0,behavior:'instant'});return;
+  }
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';pendingReportDeletionId=null;memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';pendingReportDeletionId=null;memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
   if(a==='site-history-view'){
@@ -1226,7 +1281,7 @@ document.addEventListener('click',e=>{
     });return;
   }
   if(a==='eod-new'||a==='report-new'){
-    editingFromMonthly=false;editingFromSite=false;
+    editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;
     if(!reportsReady)return;
     withBusy(async()=>{
       await endOfDay?.prepareOpen(null);
@@ -1267,7 +1322,8 @@ document.addEventListener('click',e=>{
       await refresh();
       if(returnTo==='monthly')await monthly?.refresh(selectedCompanyId);
       if(returnTo==='sites-history')await siteHistory?.refresh(selectedCompanyId);
-      currentView=['monthly','sites-history'].includes(returnTo)?returnTo:'reports';
+      if(returnTo==='calendar-hours')await hoursCalendar?.refresh(selectedCompanyId);
+      currentView=['monthly','sites-history','calendar','calendar-hours'].includes(returnTo)?returnTo:'reports';
       notice='Rapporto eliminato.';errorNotice=false;render();
       window.scrollTo?.({top:0,behavior:'instant'});
     });return;
@@ -1278,6 +1334,7 @@ document.addEventListener('click',e=>{
       await endOfDay?.prepareOpen(b.dataset.id);
       editingFromMonthly=reportReturnView==='monthly';
     editingFromSite=reportReturnView==='sites-history';
+    editingFromCalendar=['calendar','calendar-hours'].includes(reportReturnView)?reportReturnView:null;
       currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
     });return;
   }
@@ -1291,7 +1348,7 @@ document.addEventListener('click',e=>{
     const form=b.closest('form[data-form="eod-report"]');if(!form)return;
     withBusy(async()=>{await endOfDay?.createMaterial(form);renderPreservingForms()});return;
   }
-  if(a==='eod-back'){endOfDay?.reset();currentView=editingFromSite?'sites-history':editingFromMonthly?'monthly':'reports';editingFromMonthly=false;editingFromSite=false;render();return}
+  if(a==='eod-back'){endOfDay?.reset();currentView=editingFromCalendar|| (editingFromSite?'sites-history':editingFromMonthly?'monthly':'reports');editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;render();return}
   if(a==='report-cancel'){reportEditingId=null;render();return}
   if(a==='new-task'){editingTaskId='new';render();document.querySelector?.('form[data-form="task"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
@@ -1319,7 +1376,7 @@ document.addEventListener('change',e=>{
     }
     withBusy(()=>operations?.uploadPhotos(e.target));return
   }
-  if(e.target.id==='eg-calendar-worker'){calendar?.handleChange(e.target);return}
+  if(e.target.id==='eg-calendar-worker'){(currentView==='calendar-hours'?hoursCalendar:calendar)?.handleChange(e.target);return}
   if(e.target.id==='eg-month-worker'){monthly?.chooseWorker(e.target.value);render();return}
   if(e.target.id==='eg-site-worker'){siteHistory?.choosePerson(e.target.value);render();return}
   if(['eod-site','eod-worker'].includes(e.target.id)){endOfDay?.handleChange(e.target);return}
