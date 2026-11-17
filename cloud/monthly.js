@@ -7,7 +7,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
   const ctx=()=>getContext(),two=v=>String(v).padStart(2,'0');
   const today=new Date();
   let year=today.getFullYear(),month=today.getMonth(),person='all';
-  let reports=[],shifts=[],tasks=[],ready=false,error='',partial=false,loadedCompany='';
+  let reports=[],shifts=[],tasks=[],materials=[],ready=false,error='',partial=false,loadedCompany='';
   const tr=(it,de)=>ctx().locale==='de'?de:it;
   const monthFirst=()=>new Date(year,month,1),monthEnd=()=>new Date(year,month+1,1);
   const monthKey=()=>year+'-'+two(month+1);
@@ -39,7 +39,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
     const after=new Date(year,month,-1).toISOString();
     const before=new Date(year,month+1,2).toISOString();
     try{
-      const [r,s,t]=await Promise.all([
+      const [r,s,t,m]=await Promise.all([
         fetchAll(client.from('eg_daily_reports')
           .select('id,company_id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status,invoice_locked')
           .eq('company_id',companyId).gte('work_date',from).lt('work_date',to)
@@ -51,18 +51,21 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
         fetchAll(client.from('eg_tasks')
           .select('id,assignee_id,site_id,client_id,title,instructions,due_date,status')
           .eq('company_id',companyId).gte('due_date',from).lt('due_date',to)
-          .order('due_date',{ascending:true}).order('id',{ascending:true}))
+          .order('due_date',{ascending:true}).order('id',{ascending:true})),
+        client.rpc('eg_list_month_materials',{p_company_id:companyId,p_begin:from,p_end:to})
       ]);
       if(loadedCompany!==companyId)return;
+      if(m.error)throw m.error;
+      materials=m.data||[];
       reports=r;tasks=t;shifts=s.filter(x=>{
         const d=new Date(x.started_at);
         return d.getFullYear()===year&&d.getMonth()===month;
       });
       ready=true;
-    }catch(e){reports=[];shifts=[];tasks=[];error=String(e?.message||e);ready=false}
+    }catch(e){reports=[];shifts=[];tasks=[];materials=[];error=String(e?.message||e);ready=false}
   }
   function reset(){const d=new Date();year=d.getFullYear();month=d.getMonth();person='all';
-    reports=[];shifts=[];tasks=[];ready=false;error='';partial=false;loadedCompany=''}
+    reports=[];shifts=[];tasks=[];materials=[];ready=false;error='';partial=false;loadedCompany=''}
   const visibleReports=()=>reports.filter(reportForPerson).sort((a,b)=>
     a.work_date.localeCompare(b.work_date)||a.id.localeCompare(b.id));
   const visibleShifts=()=>shifts.filter(shiftForPerson);
