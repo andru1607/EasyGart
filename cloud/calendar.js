@@ -94,7 +94,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
    c.members.map(m=>'<option value="'+esc(m.user_id)+'"'+(worker===m.user_id?' selected':'')+'>'+esc(m.full_name||'—')+'</option>').join('')+
    '</select></label>':'';
   return '<div class="view-head"><div><h2>'+tr('Calendario lavori e ore','Arbeits- und Stundenkalender')+'</h2><p class="muted">'+
-    tr('Ogni giorno mostra ore, cantiere e rapporto dei lavori.','Jeder Tag zeigt Stunden, Einsatzort und Arbeitsbericht.')+'</p></div></div>'+
+    tr('Ogni giorno mostra ore, cantiere e rapporto dei lavori.','Jeder Tag zeigt Stunden, Einsatzort und Arbeitsbericht.')+'</p></div>'+ '<button type="button" class="secondary" data-action="cal-monthly">'+tr('Resoconto mensile','Monatsübersicht')+'</button></div>'+
    '<section class="card eg-calendar-controls"><div class="eg-calendar-toolbar"><div class="actions">'+
     '<button type="button" class="ghost small" data-action="cal-month" data-step="-1">‹</button>'+
     '<h3>'+esc(monthTitle)+'</h3><button type="button" class="ghost small" data-action="cal-month" data-step="1">›</button>'+
@@ -126,5 +126,5 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
   worker=c.isOwner&&(select.value==='all'||c.members.some(m=>m.user_id===select.value))?select.value:'all';
   rerender();return true;
  }
- return {refresh,markup,reset,handleAction,handleChange};
+ return {refresh,markup,reset,handleAction,handleChange,getMonth:()=>({year,month})};
 };
