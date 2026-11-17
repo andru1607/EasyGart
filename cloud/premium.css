@@ -1,0 +1,160 @@
+/* EasyGart UI 2026-11-17: visual system based on the approved mobile concept.
+ * Pure CSS, no personal or business imagery loaded from external services.
+ */
+:root{
+  --green:#14543b;--dark:#103a2b;--leaf:#ddefc7;
+  --canvas:#f3f7f1;--white:#fff;--line:#dce7dc;--muted:#657c70;
+  --radius:20px;
+  --eg-surface:#ffffff;--eg-forest:#10553c;--eg-ink:#12392d;
+  --eg-mist:#e8f2e0;--eg-shadow:0 10px 30px rgba(25,74,43,.085);
+}
+body{background:var(--canvas);color:var(--eg-ink);letter-spacing:-.01em}
+.card{border:1px solid #e2eadf;border-radius:20px;box-shadow:var(--eg-shadow);background:#fff}
+button,.card,.eg-main-nav,.eg-extra-nav{font-family:inherit}
+button.primary{background:#14583e;border-radius:13px}
+button.primary:hover{background:#0b432f}
+button.secondary{background:#e7f3de;color:#174b36;border-radius:13px}
+button.ghost{border-radius:13px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid #80b87b;outline-offset:3px
+}
+input,select,textarea{border-radius:13px;border:1px solid #c9d9c9;background:#fff;color:#133d2e;min-height:49px}
+input[type="date"],input[type="time"]{color-scheme:light}
+textarea{min-height:116px;line-height:1.6;padding:15px}
+select{background-color:#fff}
+.top{background:linear-gradient(110deg,#0e4733,#185f40);border-bottom:1px solid #255d45;padding-top:17px;padding-bottom:17px}
+.top .brand{font-size:22px;font-weight:820}
+.top-sub{letter-spacing:.02em}
+.container{max-width:1190px}
+.eg-app-intro{border:1px solid var(--line);border-radius:17px;padding:15px 19px;background:#fff;
+  box-shadow:0 5px 16px #1f50300c;align-items:center;margin-bottom:19px}
+.eg-app-intro h1{font-size:19px;line-height:1.25;letter-spacing:-.4px}
+.eg-app-intro .eyebrow{font-size:10px;margin:0 0 5px}
+.eg-app-intro p{font-size:12px;color:var(--muted)}
+.eg-app-intro .toolbar{margin:0}
+.eg-main-nav{gap:10px}
+.eg-main-nav button{display:flex;align-items:center;justify-content:center;gap:9px;
+  border:1px solid #dfebda;border-radius:14px;background:#fff;color:#244c3a;
+  min-width:0;min-height:58px;font-size:13px;font-weight:750;padding:10px 12px;
+  transition:background .18s,border-color .18s}
+.eg-main-nav button svg{width:21px;height:21px;flex:0 0 21px}
+.eg-main-nav button span{display:block;min-width:0}
+.eg-main-nav button.active{background:#dff0d0;color:#145439;border-color:#c4dfb8}
+.eg-main-nav button:hover{background:#e6f4dd}
+.eg-extra-nav{padding:16px;gap:9px;border-radius:17px;background:#f9fcf7}
+.eg-extra-nav button{border-radius:12px;min-height:49px}
+.eg-menu-divider{grid-column:1/-1;padding:8px 5px 3px;border-top:1px solid #d9e7d3;
+  font-size:12px;color:#637b68;font-weight:800;letter-spacing:.04em}
+.eg-home-action{box-shadow:var(--eg-shadow);border-radius:18px}
+.eg-home-action:first-child{background:linear-gradient(130deg,#14563c,#1b754d);border:0}
+.eg-home-action:first-child strong,.eg-home-action:first-child span,.eg-home-action:first-child b{color:#fff}
+.eg-home-page>.view-head h2{font-size:26px}
+.eg-home-summary .card{box-shadow:var(--eg-shadow)}
+.eg-work-page{max-width:900px;margin:0 auto}
+.eg-work-page>.view-head{position:relative;display:flex;overflow:hidden;align-items:center;
+  background:radial-gradient(ellipse at 84% 6%,rgba(147,196,80,.43),transparent 36%),
+    radial-gradient(ellipse at 98% 90%,rgba(58,136,81,.36),transparent 40%),
+    linear-gradient(112deg,#0b4934 5%,#1b6842 62%,#124b32 100%);
+  border-radius:23px;padding:30px 28px;min-height:167px;
+  margin-bottom:18px;color:#fff;box-shadow:0 13px 28px #1b533324}
+.eg-work-page>.view-head:after{content:'';position:absolute;right:32px;top:23px;
+  width:90px;height:95px;border:2px solid rgba(203,235,162,.27);border-radius:1% 90% 3% 90%;
+  transform:rotate(-22deg);pointer-events:none}
+.eg-work-page>.view-head h1{font-size:clamp(29px,5vw,39px);letter-spacing:-1.2px;color:#fff;position:relative;z-index:1}
+.eg-work-page>.view-head .eyebrow{color:#d3e9b1;font-size:11px;position:relative;z-index:1}
+.eg-work-page>.view-head .muted{color:#edf7e9;font-size:14px;max-width:470px;position:relative;z-index:1}
+.eg-work-page>.view-head .ghost{background:#ffffff18;color:#fff;border-color:#ffffff60;position:relative;z-index:1}
+.eg-eod-form{display:flex;flex-direction:column;gap:16px;padding:0!important}
+.eg-eod-step.card{display:grid;grid-template-columns:50px minmax(0,1fr);gap:14px;
+  padding:24px 25px!important;border:1px solid #e0ebda!important;
+  border-radius:24px;background:#fff;box-shadow:var(--eg-shadow);min-width:0}
+.eg-eod-step:first-child{padding-top:24px!important}
+.eg-step-label{width:45px;height:45px;border-radius:14px;background:linear-gradient(145deg,#edf7e4,#d7edc2);
+  display:grid;place-items:center;color:#19573c}
+.eg-step-label svg{height:23px;width:23px;fill:none;stroke:currentColor;stroke-width:1.8;
+ stroke-linecap:round;stroke-linejoin:round}
+.eg-eod-fields{display:grid;gap:13px}
+.eg-eod-fields h2{font-size:20px;line-height:1.3;letter-spacing:-.45px;margin:4px 0 5px}
+.eg-eod-fields label.field{font-size:13px;font-weight:760;gap:8px;min-width:0}
+.eg-eod-fields .field>span{font-size:13px}
+.eg-eod-fields input,.eg-eod-fields select,.eg-eod-fields textarea{
+  border:1px solid #bfd2c0;border-radius:13px;background:#fff;color:#103b29;
+  font-size:16px;min-width:0;max-width:100%}
+.eg-eod-fields input[type="time"]{font-size:21px;font-weight:780;padding:11px 12px;
+  min-height:60px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.eg-eod-fields input[type="number"]{font-size:16px;text-align:left;min-height:52px}
+.eg-eod-fields textarea{background:#fdfefd;resize:vertical}
+.eg-eod-fields .muted.eg-small{color:#6c8273;font-size:12px;line-height:1.5}
+.eg-eod-time{gap:12px}
+.eg-eod-submit{display:grid;grid-template-columns:1fr 1.2fr;gap:12px;padding:2px 0 3px}
+.eg-eod-submit button{height:55px;font-size:16px;border-radius:17px;box-shadow:0 6px 14px #174b2a12}
+.eg-eod-submit button.primary{background:linear-gradient(110deg,#0c573e,#0b6845);font-weight:850}
+.eg-eod-submit button.primary:hover{background:linear-gradient(110deg,#0b4533,#0b523a)}
+.eg-eod-form>.eg-small{padding:0 8px 9px;line-height:1.55}
+.eg-report-list-item{display:flex;justify-content:space-between;align-items:center;gap:15px;
+  padding:18px 8px;border-bottom:1px solid #e4ece2}
+.eg-report-list-item:last-child{border-bottom:0}
+.eg-report-list-content{min-width:0;flex:1}
+.eg-report-list-content strong{font-size:15px}
+.eg-report-preview{font-size:12px;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eg-report-list-item .actions{flex:none}
+@media(max-width:760px){
+  .top{padding:12px 16px;display:flex;flex-direction:row;align-items:center;gap:8px;flex-wrap:nowrap}
+  .top>div:first-child{min-width:0;flex:1}
+  .top .brand{font-size:20px;white-space:nowrap}
+  .top .brand img{width:35px;height:35px}
+  .top-sub{display:none}
+  #top-right{display:flex;justify-content:flex-end;width:auto;gap:6px;min-width:0}
+  #top-right button,#top-right>span{display:none}
+  #top-right select{width:auto!important;max-width:72px;min-width:64px;font-size:12px;
+    padding:8px 9px;color:#fff!important;background:#246146!important;border-color:#6b9177!important}
+  .container{padding:16px 13px calc(106px + env(safe-area-inset-bottom))}
+  .eg-app-intro{padding:11px 14px;margin-bottom:15px}
+  .eg-app-intro h1{font-size:16px}
+  .eg-app-intro p{display:none}
+  .eg-app-intro .toolbar .ghost{min-height:36px;padding:8px 10px;font-size:12px}
+  .eg-main-nav{position:fixed;z-index:30;left:0;right:0;bottom:0;margin:0;
+    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;
+    border-top:1px solid #e0e9d9;background:rgba(255,255,255,.97);
+    padding:8px 5px calc(9px + env(safe-area-inset-bottom));
+    box-shadow:0 -7px 25px #0e40281a;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+  .eg-main-nav button{min-height:64px;padding:5px 1px;display:flex;flex-direction:column;gap:4px;
+    line-height:1.15;border-color:transparent;border-radius:15px;overflow:visible;
+    background:transparent;font-size:10.5px;font-weight:780;white-space:normal}
+  .eg-main-nav button svg{width:23px;height:23px;flex:0 0 23px}
+  .eg-main-nav button span{max-width:100%;white-space:normal;line-height:1.16;text-align:center}
+  .eg-main-nav button.active{background:#e1f1d1;border-color:transparent;color:#135637}
+  .eg-extra-nav{position:fixed;z-index:29;left:11px;right:11px;bottom:calc(84px + env(safe-area-inset-bottom));
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:62dvh;
+    padding:13px;margin:0;overflow:auto;border:1px solid #d9e6d5;
+    box-shadow:0 -15px 40px #12412c32}
+  .eg-extra-nav button{font-size:12px;padding:12px 8px}
+  .eg-work-page>.view-head{padding:24px 20px;min-height:156px;border-radius:20px;gap:6px;flex-wrap:wrap}
+  .eg-work-page>.view-head:after{width:63px;height:75px;right:12px;top:20px}
+  .eg-work-page>.view-head h1{font-size:31px}
+  .eg-work-page>.view-head .muted{font-size:13px}
+  .eg-work-page>.view-head .ghost{margin-top:6px;font-size:11px;min-height:35px;padding:7px 10px}
+  .eg-eod-form{gap:13px}
+  .eg-eod-step.card{grid-template-columns:38px minmax(0,1fr);gap:11px;
+    padding:19px 15px!important;border-radius:22px}
+  .eg-step-label{width:36px;height:36px;border-radius:11px}
+  .eg-step-label svg{width:20px;height:20px}
+  .eg-eod-fields h2{font-size:18px;line-height:1.3;letter-spacing:-.3px;margin:3px 0}
+  .eg-eod-fields{gap:12px}
+  .eg-eod-fields input[type="time"]{font-size:18px;padding:10px 6px}
+  .eg-eod-time{gap:8px}
+  .eg-eod-submit{grid-template-columns:1fr 1.13fr;gap:8px}
+  .eg-eod-submit button{min-width:0!important;font-size:14px;padding:10px 4px;height:52px}
+  .eg-home-action{box-shadow:0 7px 18px #16502f12}
+  .eg-report-list-item{align-items:flex-start;gap:10px}
+  .eg-report-list-item .actions button{padding:8px 10px}
+}
+@media(max-width:365px){
+ .eg-main-nav button{font-size:9.5px}
+ .eg-main-nav button svg{width:21px;height:21px}
+ .eg-work-page>.view-head{padding:22px 17px}
+ .eg-eod-step.card{grid-template-columns:32px minmax(0,1fr);gap:8px;padding:17px 11px!important}
+ .eg-step-label{width:30px;height:30px}
+ .eg-eod-fields input[type="time"]{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){.eg-main-nav button{transition:none}}
