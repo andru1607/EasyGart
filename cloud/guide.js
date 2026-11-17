@@ -114,7 +114,7 @@
         pair('Il rapporto descrive ciò che hai eseguito, non soltanto ciò che era previsto.','Der Bericht beschreibt, was du ausgeführt hast, nicht nur, was geplant war.'),
         [pair('Apri Fine giornata, seleziona il cantiere e indica la data. Non occorre un compito assegnato.','Öffne Feierabend, wähle den Einsatzort und das Datum. Eine zugewiesene Aufgabe ist nicht erforderlich.'),
          pair('Inserisci ore e minuti effettivi, interventi, materiali e imprevisti.','Erfasse Arbeitsstunden und -minuten, Tätigkeiten, Materialien und Probleme.'),
-         pair('Salva la bozza o inviala. Puoi correggere i tuoi rapporti fino all'approvazione.','Speichere einen Entwurf oder sende ihn ab. Berichte bleiben bis zur Freigabe bearbeitbar.')]),
+         pair('Salva la bozza o inviala. Puoi correggere i tuoi rapporti fino alla loro approvazione.','Speichere einen Entwurf oder sende ihn ab. Berichte bleiben bis zur Freigabe bearbeitbar.')]),
       step('worker-photos','reports',pair('Allegare foto prima e dopo','Vorher- und Nachher-Fotos hinzufügen'),
         pair('Le fotografie rendono verificabile lo stato del cantiere.','Fotos machen den Zustand des Einsatzorts nachvollziehbar.'),
         [pair('Salva prima il rapporto come bozza.','Speichere zuerst den Bericht als Entwurf.'),
