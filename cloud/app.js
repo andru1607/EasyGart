@@ -1062,6 +1062,14 @@ document.addEventListener('click',e=>{
   const a=b.dataset.action;
   if(a.startsWith('cal-')){
     if(a==='cal-reports'){currentView='reports';render();return}
+    if(a==='cal-monthly'){
+      withBusy(async()=>{
+        const selected=calendar?.getMonth();
+        monthly?.setMonth(selected?.year,selected?.month);
+        currentView='monthly';menuOpen=false;
+        await monthly?.refresh(selectedCompanyId);render();
+      });return;
+    }
     if(calendar)withBusy(()=>calendar.handleAction(b));return;
   }
   if(a.startsWith('ops-')){
