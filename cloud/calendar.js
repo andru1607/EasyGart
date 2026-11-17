@@ -27,7 +27,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
   const begin=key(new Date(year,month,1)),end=key(new Date(year,month+1,1));
   try{
    const [r,s]=await Promise.all([
-    pages(client.from('eg_daily_reports').select('id,task_id,created_by,work_date,minutes_worked,work_summary,materials_used,issues,status')
+    pages(client.from('eg_daily_reports').select('id,task_id,site_id,created_by,work_date,minutes_worked,work_summary,materials_used,issues,status')
      .eq('company_id',id).gte('work_date',begin).lt('work_date',end).order('work_date')),
     pages(client.from('eg_shifts').select('id,user_id,site_id,started_at,ended_at,break_seconds,status')
      .eq('company_id',id).gte('started_at',new Date(year,month,-1).toISOString())
@@ -83,7 +83,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
    const task=c.tasks.find(x=>x.id===r.task_id);
    const stat={draft:tr('Bozza','Entwurf'),submitted:tr('Inviato','Eingereicht'),approved:tr('Approvato','Freigegeben'),changes_requested:tr('Da correggere','Korrektur nötig')}[r.status]||r.status;
    details.push('<article class="eg-calendar-record"><strong>'+esc(task?.title||tr('Attività','Auftrag'))+' · '+esc(who(r.created_by))+'</strong>'+
-    '<p class="muted">'+esc(where(task?.site_id))+' · '+hm(Number(r.minutes_worked)||0)+' · '+esc(stat)+'</p>'+
+    '<p class="muted">'+esc(where(r.site_id||task?.site_id))+' · '+hm(Number(r.minutes_worked)||0)+' · '+esc(stat)+'</p>'+
     '<p class="eg-calendar-note">'+esc(r.work_summary||tr('Nessuna descrizione','Keine Beschreibung'))+'</p>'+
     (r.materials_used?'<p class="eg-calendar-note"><b>'+tr('Materiali','Materialien')+':</b> '+esc(r.materials_used)+'</p>':'')+
     (r.issues?'<p class="eg-calendar-note"><b>'+tr('Osservazioni','Bemerkungen')+':</b> '+esc(r.issues)+'</p>':'')+'</article>');
