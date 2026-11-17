@@ -1,6 +1,7 @@
 /* EasyGart Cloud: calendario IT/DE. Le autorizzazioni sono gestite da Supabase RLS. */
 'use strict';
-window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
+window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='work'}){
+ const hoursOnly=mode==='hours';
  const ctx=()=>getContext(),p=n=>String(n).padStart(2,'0');
  const key=d=>d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
  const now=new Date();let year=now.getFullYear(),month=now.getMonth(),chosen=key(now);
@@ -59,7 +60,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
  const kind=v=>v?.shifts.some(s=>s.status==='closed')?tr('timbrate','erfasst'):tr('dichiarate','gemeldet');
  function markup(){
   const c=ctx();
-  if(!ready)return '<div class="view-head"><h2>'+tr('Calendario','Kalender')+'</h2></div><div class="alert warn">'+
+  if(!ready)return '<div class="view-head"><h2>'+tr(hoursOnly?'Calendario orari':'Calendario orari e rapporti',hoursOnly?'Stundenkalender':'Arbeitszeit- und Berichtskalender')+'</h2></div><div class="alert warn">'+
    esc(error||tr('Premi Ricarica per consultare il calendario.','Bitte Kalender neu laden.'))+'</div>';
   const data=aggregate(),first=new Date(year,month,1),nDays=new Date(year,month+1,0).getDate();
   const start=(first.getDay()+6)%7;
@@ -69,8 +70,13 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
   for(let i=0;i<start;i++)grid+='<div aria-hidden="true"></div>';
   for(let i=1;i<=nDays;i++){
    const d=key(new Date(year,month,i)),v=data.get(d);
-   grid+='<button type="button" data-action="cal-day" data-day="'+d+'" aria-pressed="'+(chosen===d)+'" class="eg-calendar-day'+(chosen===d?' selected':'')+(v?' filled':'')+'">'+
-    '<strong>'+i+'</strong>'+(v?'<span>'+hm(dayHours(v))+'</span><small>'+kind(v)+'</small>':'<small>·</small>')+'</button>';
+   const hasHours=!!v && (v.shifts.length>0 || v.reports.length>0);
+   const reportCount=v?.reports.length||0;
+   grid+='<button type="button" data-action="cal-day" data-day="'+d+'" aria-pressed="'+(chosen===d)+'" class="eg-calendar-day'+
+      (chosen===d?' selected':'')+(hasHours?' filled':'')+(reportCount&&!hoursOnly?' has-reports':'')+'">'+
+      '<strong>'+i+'</strong>'+(hasHours?'<span>'+hm(dayHours(v))+'</span><small>'+kind(v)+'</small>'+
+      (!hoursOnly&&reportCount?'<em class="eg-cal-report-count">'+reportCount+' '+tr(reportCount===1?'rapporto':'rapporti',reportCount===1?'Bericht':'Berichte')+'</em>':''):
+      '<small>·</small>')+'</button>';
   }
   grid+='</div>';
   const selected=data.get(chosen),details=[];
@@ -81,9 +87,25 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
   }
   for(const r of selected?.reports||[]){
    const task=c.tasks.find(x=>x.id===r.task_id);
-   const stat={draft:tr('Bozza','Entwurf'),submitted:tr('Inviato','Eingereicht'),approved:tr('Approvato','Freigegeben'),changes_requested:tr('Da correggere','Korrektur nötig')}[r.status]||r.status;
-   details.push('<article class="eg-calendar-record"><strong>'+esc(task?.title||tr('Attività','Auftrag'))+' · '+esc(who(r.created_by))+'</strong>'+
-    '<p class="muted">'+esc(where(r.site_id||task?.site_id))+' · '+(r.work_start_time&&r.work_end_time?esc(String(r.work_start_time).slice(0,5))+' – '+esc(String(r.work_end_time).slice(0,5))+' · ':'')+hm(Number(r.minutes_worked)||0)+' · '+esc(stat)+'</p>'+
+   const location=where(r.site_id||task?.site_id);
+   const times=r.work_start_time&&r.work_end_time?
+     esc(String(r.work_start_time).slice(0,5))+' – '+esc(String(r.work_end_time).slice(0,5)):'—';
+   const timeText=times+' · '+hm(Number(r.minutes_worked)||0)+
+     ' · '+tr('Pausa','Pause')+': '+hm(Number(r.break_minutes)||0);
+   if(hoursOnly){
+     details.push('<article class="eg-calendar-record eg-calendar-time-row">'+
+       '<strong>'+tr('Orario dichiarato','Gemeldete Arbeitszeit')+' · '+esc(who(r.created_by))+'</strong>'+
+       '<p class="muted">'+timeText+' · '+esc(location)+'</p></article>');
+     continue;
+   }
+   const stat={draft:tr('Bozza','Entwurf'),submitted:tr('Inviato','Eingereicht'),
+     approved:tr('Approvato','Freigegeben'),changes_requested:tr('Da correggere','Korrektur nötig')}[r.status]||r.status;
+   details.push('<article class="eg-calendar-record eg-calendar-work-row">'+
+     '<div class="eg-cal-work-head"><div><strong>'+esc(task?.title||location||tr('Attività','Auftrag'))+
+      ' · '+esc(who(r.created_by))+'</strong>'+
+      '<p class="muted">'+esc(location)+' · '+timeText+' · '+esc(stat)+'</p></div>'+
+      '<button type="button" class="secondary small" data-action="cal-open-report" data-id="'+esc(r.id)+'">'+
+       tr('Apri rapporto','Bericht öffnen')+'</button></div>'+
     '<p class="eg-calendar-note">'+esc(r.work_summary||tr('Nessuna descrizione','Keine Beschreibung'))+'</p>'+
     (r.materials_used?'<p class="eg-calendar-note"><b>'+tr('Materiali','Materialien')+':</b> '+esc(r.materials_used)+'</p>':'')+
     (r.issues?'<p class="eg-calendar-note"><b>'+tr('Osservazioni','Bemerkungen')+':</b> '+esc(r.issues)+'</p>':'')+'</article>');
@@ -93,22 +115,39 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
    '<option value="all">'+tr('Tutta la squadra','Gesamtes Team')+'</option>'+
    c.members.map(m=>'<option value="'+esc(m.user_id)+'"'+(worker===m.user_id?' selected':'')+'>'+esc(m.full_name||'—')+'</option>').join('')+
    '</select></label>':'';
-  return '<div class="view-head"><div><h2>'+tr('Calendario lavori e ore','Arbeits- und Stundenkalender')+'</h2><p class="muted">'+
-    tr('Ogni giorno mostra ore, cantiere e rapporto dei lavori.','Jeder Tag zeigt Stunden, Einsatzort und Arbeitsbericht.')+'</p></div>'+ '<button type="button" class="secondary" data-action="cal-monthly">'+tr('Resoconto mensile','Monatsübersicht')+'</button></div>'+
+  return '<div class="eg-calendar-page '+(hoursOnly?'eg-cal-hours-page':'eg-cal-work-page')+'">'+
+   '<div class="view-head eg-cal-head"><div><div class="eyebrow">'+tr('Organizzazione giornaliera','Tagesübersicht')+'</div>'+
+   '<h2>'+tr(hoursOnly?'Calendario orari':'Calendario orari e rapporti',hoursOnly?'Stundenkalender':'Arbeitszeit- und Berichtskalender')+'</h2>'+
+   '<p class="muted">'+tr(
+    hoursOnly?'Solo ore, inizio, fine, pause e cantieri. Nessun testo dei rapporti.':
+      'Orari, cantieri e rapporti dettagliati dei lavori di ogni giornata.',
+    hoursOnly?'Nur Arbeitszeiten, Beginn, Ende, Pausen und Einsatzorte. Keine Berichtstexte.':
+      'Arbeitszeiten, Einsatzorte und vollständige Tagesberichte.'
+   )+'</p></div></div>'+
+   '<div class="eg-cal-switch" role="group" aria-label="'+tr('Scegli calendario','Kalender auswählen')+'">'+
+   '<button type="button" data-action="cal-switch" data-target="calendar-hours" class="'+(hoursOnly?'active':'')+
+     '" aria-pressed="'+hoursOnly+'">'+
+     '<span class="eg-cal-switch-icon" aria-hidden="true">◷</span><span>'+
+       tr('Solo orari','Nur Arbeitszeiten')+'</span></button>'+
+   '<button type="button" data-action="cal-switch" data-target="calendar" class="'+(!hoursOnly?'active':'')+
+     '" aria-pressed="'+(!hoursOnly)+'">'+
+     '<span class="eg-cal-switch-icon" aria-hidden="true">▤</span><span>'+
+       tr('Orari e rapporti','Zeiten und Berichte')+'</span></button></div>'+
    '<section class="card eg-calendar-controls"><div class="eg-calendar-toolbar"><div class="actions">'+
     '<button type="button" class="ghost small" data-action="cal-month" data-step="-1">‹</button>'+
     '<h3>'+esc(monthTitle)+'</h3><button type="button" class="ghost small" data-action="cal-month" data-step="1">›</button>'+
     '</div>'+staffFilter+'</div></section>'+
-   '<div class="grid eg-calendar-totals">'+
+   '<div class="eg-calendar-totals">'+
     '<div class="card metric"><span>'+tr('Ore timbrate','Erfasste Stunden')+'</span><strong>'+hm([...data.values()].reduce((v,x)=>v+x.s,0))+'</strong></div>'+
     '<div class="card metric"><span>'+tr('Ore dichiarate nei rapporti','Gemeldete Stunden')+'</span><strong>'+hm([...data.values()].reduce((v,x)=>v+x.r,0))+'</strong></div>'+
     '<div class="card metric"><span>'+tr('Giornate con attività','Tage mit Einträgen')+'</span><strong>'+data.size+'</strong></div></div>'+
    '<section class="card eg-calendar-card"><div class="eg-calendar-grid">'+grid+'</div></section>'+
    '<section class="card eg-calendar-detail"><div class="cardhead"><div><h2>'+esc(selectedTitle)+'</h2><p class="muted">'+hm(dayHours(selected))+
-    (selected?' · '+kind(selected):'')+'</p></div><button type="button" class="secondary small" data-action="cal-reports">'+tr('Apri rapporti','Berichte öffnen')+'</button></div>'+
+    (selected?' · '+kind(selected):'')+'</p></div>'+
+    (!hoursOnly?'<button type="button" class="secondary small" data-action="cal-reports">'+tr('Apri rapporti','Berichte öffnen')+'</button>':'')+'</div>'+
     (details.length?details.join(''):'<p class="muted">'+tr('Nessuna attività registrata.','Keine Einträge vorhanden.')+'</p>')+'</section>'+
    '<p class="muted eg-calendar-foot">'+tr('Ore timbrate e ore dichiarate restano separate per evitare doppi conteggi.','Erfasste und gemeldete Stunden bleiben getrennt, damit sie nicht doppelt gezählt werden.')+'</p>'+
-   (overflow?'<div class="alert warn">'+tr('Troppi dati: mese non completo.','Zu viele Einträge: Monatsübersicht unvollständig.')+'</div>':'');
+   (overflow?'<div class="alert warn">'+tr('Troppi dati: mese non completo.','Zu viele Einträge: Monatsübersicht unvollständig.')+'</div>':'')+'</div>';
  }
  async function handleAction(button){
   if(button.dataset.action==='cal-day'){
@@ -120,11 +159,23 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender}){
    await refresh(ctx().companyId);rerender();
   }
  }
+ function getSelection(){return {year,month,chosen,worker}}
+ function setSelection(data){
+  if(!data)return;
+  if(Number.isInteger(data.year)&&data.year>=2020&&data.year<=2100&&
+     Number.isInteger(data.month)&&data.month>=0&&data.month<=11){
+    year=data.year;month=data.month;
+    const m=key(new Date(year,month,1)).slice(0,7);
+    chosen=typeof data.chosen==='string'&&data.chosen.startsWith(m)?data.chosen:key(new Date(year,month,1));
+  }
+  const c=ctx();
+  worker=c.isOwner&&(data.worker==='all'||c.members.some(m=>m.user_id===data.worker))?data.worker:'all';
+ }
  function handleChange(select){
   if(select.id!=='eg-calendar-worker')return false;
   const c=ctx();
   worker=c.isOwner&&(select.value==='all'||c.members.some(m=>m.user_id===select.value))?select.value:'all';
   rerender();return true;
  }
- return {refresh,markup,reset,handleAction,handleChange,getMonth:()=>({year,month})};
+ return {refresh,markup,reset,handleAction,handleChange,getMonth:()=>({year,month}),getSelection,setSelection};
 };
