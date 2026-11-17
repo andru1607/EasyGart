@@ -11,7 +11,7 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
   const canEdit=r=>{
     const c=ctx();
     return !!r && (c.isOwner || r.created_by===c.user?.id) &&
-      (r.status!=='approved'||(c.isOwner&&!r.has_invoice));
+      !r.invoice_locked;
   };
   function open(id=null){
     if(id&& !canEdit(ctx().reports.find(r=>r.id===id)))return false;
@@ -40,14 +40,14 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
     return '<div class="eg-work-page">'+
       '<div class="view-head"><div><div class="eyebrow">'+tr('Registrazione giornaliera','Tägliche Erfassung')+'</div>'+
       '<h1>'+tr(r?'Modifica rapporto':'Fine giornata',r?'Bericht bearbeiten':'Feierabend')+'</h1>'+
-      '<p class="muted">'+tr('Registra i lavori svolti oggi. Inserisci manualmente gli orari, non le ore totali.',
-        'Erledigte Arbeiten erfassen. Anfangs- und Endzeit manuell eingeben, nicht die Gesamtstunden.')+'</p></div>'+
+      '<p class="muted">'+tr('Registra o correggi un rapporto, anche di una giornata passata. Indica gli orari manualmente.',
+        'Einen Bericht erfassen oder nachträglich ändern. Beginn und Ende manuell eingeben.')+'</p></div>'+
       '<button class="ghost small" data-action="eod-back">'+tr('Torna ai rapporti','Zurück zu Berichten')+'</button></div>'+
       (r?.manager_feedback?'<div class="alert warn">'+esc(r.manager_feedback)+'</div>':'')+
       (!hasSites?'<div class="alert warn">'+tr('Non ci sono cantieri: il titolare deve crearne uno nella sezione Clienti e cantieri.',
         'Keine Einsatzorte vorhanden: Die Betriebsleitung muss zuerst einen Einsatzort anlegen.')+'</div>':'')+
-      (r&&!editable?'<div class="alert warn">'+tr('Questo rapporto è approvato e non è più modificabile.',
-        'Dieser Bericht wurde freigegeben und kann nicht mehr bearbeitet werden.')+'</div>':'')+
+      (r&&!editable?'<div class="alert warn">'+tr('Questo rapporto è collegato a una proforma: non può essere modificato.',
+        'Dieser Bericht ist einer Proforma zugeordnet und kann nicht bearbeitet werden.')+'</div>':'')+
       '<form data-form="eod-report" class="eg-eod-form stacked">'+
       '<div class="eg-eod-step card"><span class="eg-step-label">'+icons.calendar+'</span><div class="eg-eod-fields">'+
       '<h2>'+tr('1. Data e cantiere','1. Datum und Einsatzort')+'</h2>'+
@@ -87,10 +87,10 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
       '<textarea name="issues" maxlength="4000" rows="2">'+esc(r?.issues||'')+'</textarea></label>'+
       '</div></div>'+
       '<div class="eg-eod-submit">'+
-      '<button type="submit" class="ghost" value="draft" '+(!editable||!hasSites?'disabled':'')+'>'+tr('Salva bozza','Entwurf speichern')+'</button>'+
-      '<button type="submit" class="primary" value="send" '+(!editable||!hasSites?'disabled':'')+'>'+tr('Invia rapporto','Bericht senden')+'</button>'+
-      '</div><p class="muted eg-small">'+tr('Puoi correggere i tuoi rapporti anche dopo l’invio, finché non sono approvati. Il titolare vede lo storico delle modifiche.',
-        'Berichte bleiben bis zur Freigabe bearbeitbar. Die Betriebsleitung sieht das Änderungsprotokoll.')+'</p>'+
+      '<button type="submit" class="ghost" value="draft" '+(!editable||!hasSites?'disabled':'')+'>'+tr(r?'Salva modifica':'Salva bozza',r?'Änderung speichern':'Entwurf speichern')+'</button>'+
+      '<button type="submit" class="primary" value="send" '+(!editable||!hasSites?'disabled':'')+'>'+tr(r?'Salva e invia':'Invia rapporto',r?'Speichern und senden':'Bericht senden')+'</button>'+
+      '</div><p class="muted eg-small">'+tr('Puoi correggere anche i rapporti approvati delle giornate passate. Ogni modifica richiede una nuova verifica. I rapporti collegati a proforma sono bloccati.',
+        'Auch ältere freigegebene Berichte können geändert werden und müssen erneut geprüft werden. Mit Proforma verknüpfte Berichte sind gesperrt.')+'</p>'+
       '</form></div>';
   }
   function handleChange(el){
@@ -127,7 +127,7 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
     if(send&&(total<1||String(v.work_summary||'').trim().length<10))
       throw Error(tr('Per inviare inserisci le ore e descrivi il lavoro (almeno 10 caratteri).',
         'Zum Senden Arbeitszeit und Tätigkeitsbeschreibung (mindestens 10 Zeichen) eingeben.'));
-    const {error}=await client.rpc('eg_save_daily_report_v3',{
+    const {error}=await client.rpc('eg_save_daily_report_v4',{
       p_report_id:r?.id||null,p_company_id:c.companyId,p_worker_id:worker,
       p_site_id:site.id,p_task_id:task?.id||null,p_work_date:v.work_date,
       p_start_time:v.start_time,p_end_time:v.end_time,p_break_minutes:pause,
