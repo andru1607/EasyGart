@@ -28,7 +28,9 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
   const begin=key(new Date(year,month,1)),end=key(new Date(year,month+1,1));
   try{
    const [r,s]=await Promise.all([
-    pages(client.from('eg_daily_reports').select('id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status')
+    pages(client.from('eg_daily_reports').select(hoursOnly?
+      'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,status':
+      'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status')
      .eq('company_id',id).gte('work_date',begin).lt('work_date',end).order('work_date')),
     pages(client.from('eg_shifts').select('id,user_id,site_id,started_at,ended_at,break_seconds,status')
      .eq('company_id',id).gte('started_at',new Date(year,month,-1).toISOString())
@@ -61,7 +63,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
  function markup(){
   const c=ctx();
   if(!ready)return '<div class="view-head"><h2>'+tr(hoursOnly?'Calendario orari':'Calendario orari e rapporti',hoursOnly?'Stundenkalender':'Arbeitszeit- und Berichtskalender')+'</h2></div><div class="alert warn">'+
-   esc(error||tr('Premi Ricarica per consultare il calendario.','Bitte Kalender neu laden.'))+'</div>';
+   esc(error||tr('Caricamento calendario…','Kalender wird geladen…'))+'</div>';
   const data=aggregate(),first=new Date(year,month,1),nDays=new Date(year,month+1,0).getDate();
   const start=(first.getDay()+6)%7;
   const monthTitle=new Intl.DateTimeFormat(c.locale==='de'?'de-DE':'it-IT',{month:'long',year:'numeric'}).format(first);
@@ -146,7 +148,8 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
     (selected?' · '+kind(selected):'')+'</p></div>'+
     (!hoursOnly?'<button type="button" class="secondary small" data-action="cal-reports">'+tr('Apri rapporti','Berichte öffnen')+'</button>':'')+'</div>'+
     (details.length?details.join(''):'<p class="muted">'+tr('Nessuna attività registrata.','Keine Einträge vorhanden.')+'</p>')+'</section>'+
-   '<p class="muted eg-calendar-foot">'+tr('Ore timbrate e ore dichiarate restano separate per evitare doppi conteggi.','Erfasste und gemeldete Stunden bleiben getrennt, damit sie nicht doppelt gezählt werden.')+'</p>'+
+   '<p class="muted eg-calendar-foot">'+tr('Ore timbrate e ore dichiarate restano separate per evitare doppi conteggi.','Erfasste und gemeldete Stunden bleiben getrennt, damit sie nicht doppelt gezählt werden.')+'</p>'+ 
+   '<div class="eg-cal-footer-actions"><button type="button" class="ghost small" data-action="cal-monthly">'+tr('Apri il riepilogo del mese','Monatsübersicht öffnen')+'</button></div>'+
    (overflow?'<div class="alert warn">'+tr('Troppi dati: mese non completo.','Zu viele Einträge: Monatsübersicht unvollständig.')+'</div>':'')+'</div>';
  }
  async function handleAction(button){
