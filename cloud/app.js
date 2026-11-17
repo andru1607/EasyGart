@@ -21,6 +21,7 @@ let client = null;
 let operations = null;
 let calendar = null;
 let endOfDay = null;
+let reportMaterialRows = new Map();
 let monthly = null;
 let menuOpen = false;
 let business = null;
@@ -53,6 +54,7 @@ const german = {
   'Resoconto mensile':'Monatsübersicht','Apri resoconto mensile':'Monatsübersicht öffnen',
   'Tutti i dipendenti':'Alle Mitarbeitenden','Rapporti per dipendente':'Berichte nach Mitarbeitenden',
   'Modifiche storiche consentite finché il rapporto non è collegato a una proforma.':'Historische Korrekturen sind erlaubt, solange der Bericht keiner Proforma zugeordnet ist.',
+  'Caricamento materiali…':'Materialien werden geladen…','Nessun materiale registrato':'Keine Materialien erfasst',
   'Panoramica azienda':'Betriebsübersicht','La tua giornata':'Dein Arbeitstag',
   'Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.':'Jede Funktion hat eine eigene Seite. Beginne mit dem Feierabendbericht.',
   'Inserisci le ore e il cantiere':'Stunden und Einsatzort erfassen',
@@ -702,6 +704,20 @@ function reportSummaryMarkup(report,owner){
     '<p class="muted eg-report-preview">'+esc((report.work_summary||'').slice(0,130))+'</p></div>'+
     '<div class="actions"><button class="secondary small" data-action="report-open" data-id="'+esc(report.id)+'">'+t('Apri')+'</button></div></div>';
 }
+async function loadReportMaterialRows(id){
+  const r=await client.rpc('eg_list_report_materials',{p_report_id:id});
+  if(r.error)throw r.error;
+  reportMaterialRows.set(id,r.data||[]);
+}
+function reportMaterialDetailMarkup(report){
+  const materials=reportMaterialRows.get(report.id);
+  return '<div class="eg-report-material-details"><h3>'+t('Materiali utilizzati')+'</h3>'+
+    (materials===undefined?'<p class="muted">'+t('Caricamento materiali…')+'</p>':
+      materials.length?materials.map(m=>'<div class="eg-detail-material-row"><strong>'+esc(m.material_name)+'</strong>'+
+        '<span>'+esc(m.quantity)+' '+esc(m.unit)+'</span></div>').join(''):
+      '<p class="muted">'+t('Nessun materiale registrato')+'</p>')+
+    '</div>';
+}
 function reportDetailMarkup(){
   const report=dailyReports.find(r=>r.id===selectedReportId);
   if(!report)return '<div class="alert warn">'+t('Rapporto non trovato')+'</div>';
@@ -729,7 +745,7 @@ function reportCardMarkup(report,owner){
     (report.issues?'<p class="task-note"><strong>'+t('Problemi e imprevisti')+': </strong>'+esc(report.issues)+'</p>':'')+
     (report.manager_feedback?'<div class="alert warn" style="margin-top:12px"><strong>'+t('Feedback del titolare')+': </strong>'+esc(report.manager_feedback)+'</div>':'')+
     (operations?operations.mediaMarkup(report):'')+
-    (business?business.reportMaterialsMarkup(report):'')+
+    reportMaterialDetailMarkup(report)+
     (owner&&isPending?'<form data-form="daily-review" class="stacked" style="margin-top:16px">'+
       '<input type="hidden" name="report_id" value="'+esc(report.id)+'">'+
       '<label class="field"><span>'+t('Feedback del titolare')+'</span><textarea name="feedback" rows="2" maxlength="4000" placeholder="'+t("Motivo di eventuali correzioni o indicazioni operative")+'"></textarea></label>'+
@@ -765,7 +781,7 @@ async function refresh() {
   if(!client||!user)return;
   const list=requireSuccess(await client.from('eg_members').select('company_id,user_id,full_name,role,active').eq('user_id',user.id).eq('active',true));
   memberships=list||[];
-  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;operations?.reset();calendar?.reset();business?.reset();render();return}
+  if(!memberships.length) {companies=[];members=[];clients=[];sites=[];tasks=[];invites=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();operations?.reset();calendar?.reset();business?.reset();render();return}
   const cids=memberships.map(x=>x.company_id);
   companies=requireSuccess(await client.from('eg_companies').select('id,name').in('id',cids))||[];
   if(!cids.includes(selectedCompanyId))selectedCompanyId=cids[0];
@@ -996,7 +1012,7 @@ async function boot(){
       if(!['SIGNED_IN','SIGNED_OUT'].includes(ev))return;
       setTimeout(async()=>{ try{
         user=session?.user||null;
-        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;endOfDay?.reset();monthly?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
+        if(!user){memberships=[];companies=[];tasks=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()}else await refresh();
       }catch(e){fail(e)} },0);
     });
     setInterval(()=>{
@@ -1104,7 +1120,7 @@ document.addEventListener('click',e=>{
   }
   if(a==='view'){currentView=b.dataset.view;menuOpen=false;selectedReportId=null;endOfDay?.reset();editingTaskId=null;reportEditingId=null;render();window.scrollTo?.({top:0,behavior:'instant'});return}
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;endOfDay?.reset();monthly?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();operations?.reset();calendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
   if(a==='monthly-view'){
@@ -1128,6 +1144,7 @@ document.addEventListener('click',e=>{
         dailyReports=[report,...dailyReports.filter(x=>x.id!==id)];
       }
       if(!report)return;
+      await loadReportMaterialRows(report.id);
       selectedReportId=report.id;reportReturnView='monthly';
       currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
     });return;
@@ -1135,14 +1152,38 @@ document.addEventListener('click',e=>{
   if(a==='eod-new'||a==='report-new'){
     editingFromMonthly=false;
     if(!reportsReady)return;
-    endOfDay?.open();currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
+    withBusy(async()=>{
+      await endOfDay?.prepareOpen(null);
+      currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
+    });return;
   }
-  if(a==='report-open'){const report=dailyReports.find(r=>r.id===b.dataset.id);if(!report)return;selectedReportId=report.id;reportReturnView='reports';currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='report-open'){
+    const report=dailyReports.find(r=>r.id===b.dataset.id);
+    if(!report)return;
+    withBusy(async()=>{
+      await loadReportMaterialRows(report.id);
+      selectedReportId=report.id;reportReturnView='reports';
+      currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
+    });return;
+  }
   if(a==='report-back'){selectedReportId=null;currentView=reportReturnView;render();return}
   if(a==='report-edit'){
-    if(!reportsReady||!endOfDay?.open(b.dataset.id))return;
-    editingFromMonthly=reportReturnView==='monthly';
-    currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});return;
+    if(!reportsReady||!endOfDay?.canEdit(dailyReports.find(r=>r.id===b.dataset.id)))return;
+    withBusy(async()=>{
+      await endOfDay?.prepareOpen(b.dataset.id);
+      editingFromMonthly=reportReturnView==='monthly';
+      currentView='eod';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
+    });return;
+  }
+  if(a==='eod-add-material'){
+    const form=b.closest('form[data-form="eod-report"]');if(!form)return;
+    try{endOfDay?.addSelected(form);renderPreservingForms()}catch(err){fail(err)}return;
+  }
+  if(a==='eod-remove-material'){endOfDay?.removeSelected(b.dataset.id);renderPreservingForms();return}
+  if(a==='eod-toggle-material'){endOfDay?.toggleNewMaterial();renderPreservingForms();return}
+  if(a==='eod-create-material'){
+    const form=b.closest('form[data-form="eod-report"]');if(!form)return;
+    withBusy(async()=>{await endOfDay?.createMaterial(form);renderPreservingForms()});return;
   }
   if(a==='eod-back'){endOfDay?.reset();currentView=editingFromMonthly?'monthly':'reports';editingFromMonthly=false;render();return}
   if(a==='report-cancel'){reportEditingId=null;render();return}
@@ -1177,7 +1218,7 @@ document.addEventListener('change',e=>{
   if(['eod-site','eod-worker'].includes(e.target.id)){endOfDay?.handleChange(e.target);return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
-  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';endOfDay?.reset();monthly?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
   if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
