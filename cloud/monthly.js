@@ -69,6 +69,27 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
   const visibleReports=()=>reports.filter(reportForPerson).sort((a,b)=>
     a.work_date.localeCompare(b.work_date)||a.id.localeCompare(b.id));
   const visibleShifts=()=>shifts.filter(shiftForPerson);
+  const usedForReport=id=>materials.filter(m=>m.report_id===id);
+  const materialAggregate=rs=>{
+    const map=new Map();
+    for(const r of rs)for(const m of usedForReport(r.id)){
+      const key=m.material_id+':'+m.unit;
+      if(!map.has(key))map.set(key,{name:m.material_name,unit:m.unit,quantity:0});
+      map.get(key).quantity+=Number(m.quantity)||0;
+    }
+    return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,ctx().locale||'it'));
+  };
+  const materialsMarkup=rs=>{
+    const items=materialAggregate(rs);
+    return items.length?items.map(m=>'<div class="eg-month-material-total"><strong>'+safe(m.name)+'</strong>'+
+      '<span>'+safe(Number(m.quantity).toLocaleString(ctx().locale==='de'?'de-DE':'it-IT'))+' '+safe(m.unit)+'</span></div>').join(''):
+      '<p class="muted">'+tr('Nessun materiale registrato','Keine Materialien erfasst')+'</p>';
+  };
+  const materialListForReport=r=>{
+    const ms=usedForReport(r.id);
+    return ms.length?'<div class="eg-month-used-materials">'+ms.map(m=>'<span>'+safe(m.material_name)+
+      ': <b>'+safe(m.quantity)+' '+safe(m.unit)+'</b></span>').join('')+'</div>':'';
+  };
   const visibleTasks=()=>tasks.filter(t=>isVisible(t.assignee_id)&&(person==='all'||t.assignee_id===person));
   function peopleList(){
     const c=ctx(),ids=new Set([...reports.map(r=>r.created_by),...shifts.map(s=>s.user_id),...tasks.map(t=>t.assignee_id)]);
@@ -97,7 +118,8 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
       (r.break_minutes?' · '+tr('Pausa','Pause')+' '+r.break_minutes+' min':'')+'</p>'+
       (task?'<p class="eg-month-note"><b>'+tr('Compito','Aufgabe')+':</b> '+safe(task.title)+'</p>':'')+
       '<p class="eg-month-note">'+safe(r.work_summary||tr('Nessuna descrizione','Keine Beschreibung'))+'</p>'+
-      (r.materials_used?'<p class="eg-month-note"><b>'+tr('Materiali','Materialien')+':</b> '+safe(r.materials_used)+'</p>':'')+
+      materialListForReport(r)+
+      (r.materials_used?'<p class="eg-month-note"><b>'+tr('Note materiali','Materialnotizen')+':</b> '+safe(r.materials_used)+'</p>':'')+
       (r.issues?'<p class="eg-month-note"><b>'+tr('Note','Hinweise')+':</b> '+safe(r.issues)+'</p>':'')+
       '</div></div><div class="eg-month-row-actions"><span class="pill">'+safe(statusLabel(r.status))+'</span>'+
       '<button type="button" class="secondary small" data-action="monthly-open-report" data-id="'+safe(r.id)+'">'+
@@ -130,7 +152,8 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
       '<details class="eg-month-shifts"><summary>'+tr('Timbrature del mese','Zeiterfassung des Monats')+
         ' · '+duration(sum.stamped)+'</summary>'+
       (ss.length?ss.map(shiftRow).join(''):'<p class="muted">'+tr('Nessuna timbratura.','Keine Zeitbuchungen.')+'</p>')+
-      '</details><details class="eg-month-shifts"><summary>'+tr('Compiti previsti nel mese','Aufgaben dieses Monats')+' · '+assigned.length+'</summary>'+ (assigned.length?taskRows:'<p class="muted">'+tr('Nessun compito previsto.','Keine Aufgaben geplant.')+'</p>')+'</details></div></section>';
+      '</details><details class="eg-month-shifts"><summary>'+tr('Materiali utilizzati nel mese','Im Monat verwendete Materialien')+'</summary>'+materialsMarkup(rs)+'</details>'+
+      '<details class="eg-month-shifts"><summary>'+tr('Compiti previsti nel mese','Aufgaben dieses Monats')+' · '+assigned.length+'</summary>'+ (assigned.length?taskRows:'<p class="muted">'+tr('Nessun compito previsto.','Keine Aufgaben geplant.')+'</p>')+'</details></div></section>';
   }
   function markup(){
     const c=ctx(),locale=c.locale==='de'?'de-DE':'it-IT',
@@ -203,5 +226,5 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1200);
   }
-  return {refresh,markup,reset,setMonth,monthStep,chooseWorker,exportCSV,getReport:id=>reports.find(r=>r.id===id)||null};
+  return {refresh,markup,reset,setMonth,monthStep,chooseWorker,exportCSV,getPerson:()=>person,getReport:id=>reports.find(r=>r.id===id)||null};
 };
