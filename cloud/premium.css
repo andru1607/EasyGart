@@ -359,3 +359,55 @@ select{background-color:#fff}
  .eg-delete-actions{grid-template-columns:1fr 1fr;gap:8px}
  .eg-delete-actions button{font-size:12px;padding:10px 7px}
 }
+
+
+/* Due calendari autonomi: orari / orari e rapporti */
+.eg-calendar-page{max-width:1080px;margin:0 auto}
+.eg-cal-head{margin-bottom:13px}
+.eg-cal-head h2{font-size:clamp(23px,4vw,30px);letter-spacing:-.65px}
+.eg-cal-head .eyebrow{color:#51795d;font-size:11px;letter-spacing:.06em;font-weight:800}
+.eg-cal-head .muted{font-size:13px;line-height:1.5;max-width:620px}
+.eg-cal-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:6px;background:#e7f0e3;
+  border:1px solid #cfdfc7;border-radius:18px;margin:0 0 18px}
+.eg-cal-switch button{display:flex;gap:10px;justify-content:center;align-items:center;min-height:54px;
+  font-size:14px;font-weight:800;color:#45654d;background:transparent;border:1px solid transparent;
+  border-radius:13px;padding:9px 11px;text-align:center;white-space:normal;transition:background .16s,box-shadow .16s}
+.eg-cal-switch button.active{color:#124a33;background:#fff;border-color:#d4e7d0;box-shadow:0 5px 17px #1745271c}
+.eg-cal-switch button:hover:not(.active){background:#f5faef}
+.eg-cal-switch-icon{font-size:24px;line-height:1;color:inherit;font-weight:400}
+.eg-calendar-page>.eg-calendar-controls{border-radius:18px;margin-bottom:15px}
+.eg-calendar-page>.eg-calendar-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 17px}
+.eg-calendar-page>.eg-calendar-totals>.card{padding:17px 14px}
+.eg-calendar-page>.eg-calendar-totals>.card strong{font-size:24px;letter-spacing:-.5px}
+.eg-cal-hours-page .eg-calendar-day.filled{background:#eaf6e4}
+.eg-cal-work-page .eg-calendar-day.has-reports{background:#e2f0d8}
+.eg-calendar-day .eg-cal-report-count{display:block;margin-top:auto;font-size:9px;line-height:1.2;
+  padding:4px 3px;border-radius:7px;background:#d1e6c4;color:#295b3c;font-weight:850;
+  text-align:center;font-style:normal;white-space:normal;overflow-wrap:anywhere}
+.eg-calendar-record.eg-calendar-time-row{border-left:3px solid #87b67b;padding-left:14px}
+.eg-calendar-record.eg-calendar-work-row{border-left:3px solid #2b7552;padding-left:14px}
+.eg-cal-work-head{display:flex;gap:13px;align-items:flex-start;justify-content:space-between}
+.eg-cal-work-head>div{min-width:0;flex:1}
+.eg-cal-work-head strong{font-size:14px}
+.eg-cal-work-head .muted{font-size:12px;line-height:1.65;margin:6px 0}
+.eg-cal-work-head button{flex:none;min-height:38px}
+.eg-cal-hours-page .eg-calendar-detail .cardhead button{display:none}
+.eg-calendar-page .eg-calendar-foot{font-size:12px;padding:3px 4px 14px;line-height:1.5}
+@media(max-width:760px){
+ .eg-cal-head h2{font-size:24px}
+ .eg-cal-switch{gap:5px;padding:5px;border-radius:15px}
+ .eg-cal-switch button{font-size:12px;gap:6px;min-height:51px;padding:8px 6px}
+ .eg-cal-switch-icon{font-size:20px}
+ .eg-calendar-page>.eg-calendar-totals{gap:8px}
+ .eg-calendar-page>.eg-calendar-totals>.card{padding:12px 9px}
+ .eg-calendar-page>.eg-calendar-totals>.card strong{font-size:17px}
+ .eg-calendar-page>.eg-calendar-totals>.card span{font-size:11px}
+ .eg-calendar-day .eg-cal-report-count{font-size:8px;line-height:1.1;padding:4px 1px}
+ .eg-cal-work-head{flex-direction:column;gap:3px}
+ .eg-cal-work-head button{align-self:flex-start;margin-top:7px}
+}
+@media(max-width:360px){
+ .eg-cal-switch button{font-size:11px;gap:4px}
+ .eg-cal-switch-icon{font-size:17px}
+ .eg-calendar-page>.eg-calendar-totals>.card strong{font-size:15px}
+}
