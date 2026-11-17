@@ -146,7 +146,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   const memberName=id=>ctx().members.find(x=>x.user_id===id)?.full_name||tr('Dipendente');
   const clientName=id=>ctx().clients.find(x=>x.id===id)?.name||'—';
   const siteName=id=>ctx().sites.find(x=>x.id===id)?.name||'—';
-  const taskName=report=>ctx().tasks.find(x=>x.id===report?.task_id)?.title||tr('Intervento');
+  const taskName=report=>ctx().tasks.find(x=>x.id===report?.task_id)?.title||ctx().sites.find(x=>x.id===report?.site_id)?.name||tr('Intervento');
   const reportUsages=id=>usage.filter(x=>x.report_id===id);
   const totalLine=l=>{
     const base=Math.round((num(l.quantity)*num(l.unit_price)+Number.EPSILON)*100)/100;
@@ -306,7 +306,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       '<p class="muted">'+b('I materiali e le ore del rapporto vengono copiati in una bozza modificabile. Non viene emessa alcuna fattura fiscale.')+'</p>'+
       '<form data-form="biz-invoice" class="formgrid">'+
       '<label class="field span2"><span>'+b('Rapporto approvato')+'</span><select name="report_id" required>'+
-        available.map(r=>opt(r.id,date(r.work_date)+' · '+taskName(r)+' · '+clientName(ctx().tasks.find(x=>x.id===r.task_id)?.client_id))).join('')+'</select></label>'+
+        available.map(r=>opt(r.id,date(r.work_date)+' · '+taskName(r)+' · '+clientName(ctx().tasks.find(x=>x.id===r.task_id)?.client_id||ctx().sites.find(x=>x.id===r.site_id)?.client_id))).join('')+'</select></label>'+
       '<label class="field"><span>'+b('Tariffa oraria (€)')+'</span><input name="labor_rate" type="number" min="0" max="10000" step=".01" value="0" required></label>'+
       '<label class="field"><span>'+b('IVA manodopera (%)')+'</span><input name="labor_vat" type="number" min="0" max="30" step=".01" value="22" required></label>'+
       '<div class="span2"><button class="primary" type="submit" '+(!available.length?'disabled':'')+'>'+b('Crea bozza')+'</button></div></form></section>';
