@@ -170,6 +170,9 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
     const next=new Date(year,month+step,1);
     year=next.getFullYear();month=next.getMonth();await refresh(ctx().companyId);
   }
+  function setMonth(nextYear,nextMonth){
+    if(Number.isInteger(nextYear)&&nextYear>=2020&&nextYear<=2100&&Number.isInteger(nextMonth)&&nextMonth>=0&&nextMonth<=11){year=nextYear;month=nextMonth}
+  }
   function chooseWorker(value){
     const people=peopleList();
     person=ctx().isOwner&&(value==='all'||people.includes(value))?value:'all';
@@ -197,5 +200,5 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1200);
   }
-  return {refresh,markup,reset,monthStep,chooseWorker,exportCSV,getReport:id=>reports.find(r=>r.id===id)||null};
+  return {refresh,markup,reset,setMonth,monthStep,chooseWorker,exportCSV,getReport:id=>reports.find(r=>r.id===id)||null};
 };
