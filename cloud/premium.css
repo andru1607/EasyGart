@@ -376,7 +376,7 @@ select{background-color:#fff}
 .eg-cal-switch button:hover:not(.active){background:#f5faef}
 .eg-cal-switch-icon{font-size:24px;line-height:1;color:inherit;font-weight:400}
 .eg-calendar-page>.eg-calendar-controls{border-radius:18px;margin-bottom:15px}
-.eg-calendar-page>.eg-calendar-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 17px}
+.eg-calendar-page>.eg-calendar-totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 17px}
 .eg-calendar-page>.eg-calendar-totals>.card{padding:17px 14px}
 .eg-calendar-page>.eg-calendar-totals>.card strong{font-size:24px;letter-spacing:-.5px}
 .eg-cal-hours-page .eg-calendar-day.filled{background:#eaf6e4}
@@ -398,7 +398,7 @@ select{background-color:#fff}
  .eg-cal-switch{gap:5px;padding:5px;border-radius:15px}
  .eg-cal-switch button{font-size:12px;gap:6px;min-height:51px;padding:8px 6px}
  .eg-cal-switch-icon{font-size:20px}
- .eg-calendar-page>.eg-calendar-totals{gap:8px}
+ .eg-calendar-page>.eg-calendar-totals{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
  .eg-calendar-page>.eg-calendar-totals>.card{padding:12px 9px}
  .eg-calendar-page>.eg-calendar-totals>.card strong{font-size:17px}
  .eg-calendar-page>.eg-calendar-totals>.card span{font-size:11px}
