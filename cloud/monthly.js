@@ -7,7 +7,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
   const ctx=()=>getContext(),two=v=>String(v).padStart(2,'0');
   const today=new Date();
   let year=today.getFullYear(),month=today.getMonth(),person='all';
-  let reports=[],shifts=[],ready=false,error='',partial=false,loadedCompany='';
+  let reports=[],shifts=[],tasks=[],ready=false,error='',partial=false,loadedCompany='';
   const tr=(it,de)=>ctx().locale==='de'?de:it;
   const monthFirst=()=>new Date(year,month,1),monthEnd=()=>new Date(year,month+1,1);
   const monthKey=()=>year+'-'+two(month+1);
@@ -39,7 +39,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
     const after=new Date(year,month,-1).toISOString();
     const before=new Date(year,month+1,2).toISOString();
     try{
-      const [r,s]=await Promise.all([
+      const [r,s,t]=await Promise.all([
         fetchAll(client.from('eg_daily_reports')
           .select('id,company_id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status,invoice_locked')
           .eq('company_id',companyId).gte('work_date',from).lt('work_date',to)
@@ -47,23 +47,28 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
         fetchAll(client.from('eg_shifts')
           .select('id,user_id,site_id,started_at,ended_at,break_seconds,status')
           .eq('company_id',companyId).gte('started_at',after).lt('started_at',before)
-          .order('started_at',{ascending:true}).order('id',{ascending:true}))
+          .order('started_at',{ascending:true}).order('id',{ascending:true})),
+        fetchAll(client.from('eg_tasks')
+          .select('id,assignee_id,site_id,client_id,title,instructions,due_date,status')
+          .eq('company_id',companyId).gte('due_date',from).lt('due_date',to)
+          .order('due_date',{ascending:true}).order('id',{ascending:true}))
       ]);
       if(loadedCompany!==companyId)return;
-      reports=r;shifts=s.filter(x=>{
+      reports=r;tasks=t;shifts=s.filter(x=>{
         const d=new Date(x.started_at);
         return d.getFullYear()===year&&d.getMonth()===month;
       });
       ready=true;
-    }catch(e){reports=[];shifts=[];error=String(e?.message||e);ready=false}
+    }catch(e){reports=[];shifts=[];tasks=[];error=String(e?.message||e);ready=false}
   }
   function reset(){const d=new Date();year=d.getFullYear();month=d.getMonth();person='all';
-    reports=[];shifts=[];ready=false;error='';partial=false;loadedCompany=''}
+    reports=[];shifts=[];tasks=[];ready=false;error='';partial=false;loadedCompany=''}
   const visibleReports=()=>reports.filter(reportForPerson).sort((a,b)=>
     a.work_date.localeCompare(b.work_date)||a.id.localeCompare(b.id));
   const visibleShifts=()=>shifts.filter(shiftForPerson);
+  const visibleTasks=()=>tasks.filter(t=>isVisible(t.assignee_id)&&(person==='all'||t.assignee_id===person));
   function peopleList(){
-    const c=ctx(),ids=new Set([...reports.map(r=>r.created_by),...shifts.map(s=>s.user_id)]);
+    const c=ctx(),ids=new Set([...reports.map(r=>r.created_by),...shifts.map(s=>s.user_id),...tasks.map(t=>t.assignee_id)]);
     if(c.isOwner)for(const m of c.members)ids.add(m.user_id);
     else ids.add(c.user?.id);
     return [...ids].filter(Boolean).filter(isVisible).sort((a,b)=>worker(a).localeCompare(worker(b),c.locale||'it'));
@@ -105,7 +110,13 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
       '<small>'+safe(s.status==='closed'?tr('Conclusa','Abgeschlossen'):tr('In corso','Laufend'))+'</small></article>';
   }
   function personCard(uid,rs,ss){
-    const sum=summary(rs,ss);
+    const sum=summary(rs,ss),assigned=visibleTasks().filter(t=>t.assignee_id===uid);
+    const taskRows=assigned.map(t=>
+      '<div class="eg-month-task"><strong>'+safe(t.due_date.split('-').reverse().join('/'))+'</strong>'+
+      '<div><b>'+safe(t.title)+'</b><p class="muted">'+safe(site(t.site_id))+
+      (t.instructions?' · '+safe(t.instructions):'')+'</p></div>'+
+      '<span class="pill">'+tr(t.status==='done'?'Fatto':'Da fare',
+        t.status==='done'?'Erledigt':'Offen')+'</span></div>').join('');
     return '<section class="card eg-month-person"><div class="eg-month-person-head">'+
       '<div><div class="eyebrow">'+tr('Rapporti di','Berichte von')+'</div><h3>'+safe(worker(uid))+'</h3>'+
       '<p class="muted">'+sum.reports+' '+tr('rapporti','Berichte')+' · '+sum.days+' '+tr('giorni con attività','Arbeitstage')+'</p></div>'+
@@ -116,7 +127,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
       '<details class="eg-month-shifts"><summary>'+tr('Timbrature del mese','Zeiterfassung des Monats')+
         ' · '+duration(sum.stamped)+'</summary>'+
       (ss.length?ss.map(shiftRow).join(''):'<p class="muted">'+tr('Nessuna timbratura.','Keine Zeitbuchungen.')+'</p>')+
-      '</details></div></section>';
+      '</details><details class="eg-month-shifts"><summary>'+tr('Compiti previsti nel mese','Aufgaben dieses Monats')+' · '+assigned.length+'</summary>'+ (assigned.length?taskRows:'<p class="muted">'+tr('Nessun compito previsto.','Keine Aufgaben geplant.')+'</p>')+'</details></div></section>';
   }
   function markup(){
     const c=ctx(),locale=c.locale==='de'?'de-DE':'it-IT',
@@ -168,9 +179,15 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
     for(const r of visibleReports())data.push(['Rapporto',worker(r.created_by),r.work_date,site(r.site_id),
       String(r.work_start_time||'').slice(0,5),String(r.work_end_time||'').slice(0,5),r.break_minutes||0,
       r.minutes_worked||0,statusLabel(r.status),r.work_summary||'',r.materials_used||'',r.issues||'']);
+    for(const t of visibleTasks())data.push(['Compito',worker(t.assignee_id),t.due_date,site(t.site_id),      '','','','',t.status,t.title,'',t.instructions||'']);
     for(const s of visibleShifts())data.push(['Timbratura',worker(s.user_id),ymd(new Date(s.started_at)),site(s.site_id),
       s.started_at||'',s.ended_at||'',Math.round((s.break_seconds||0)/60),shiftMinutes(s),s.status,'','','']);
-    const cell=v=>'"'+String(v??'').replaceAll('"','""')+'"';
+    const cell=v=>{
+      const raw=String(v??'');
+      // Spreadsheet exports must not evaluate user-entered text as formulas.
+      const safeValue=/^[\s]*[=+@\-]/.test(raw)?"'"+raw:raw;
+      return '"'+safeValue.replaceAll('"','""')+'"';
+    };
     return '\uFEFF'+data.map(row=>row.map(cell).join(';')).join('\r\n');
   }
   function exportCSV(){
