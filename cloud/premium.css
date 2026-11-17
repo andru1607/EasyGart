@@ -326,3 +326,36 @@ select{background-color:#fff}
  .eg-site-visit-top button{font-size:11px;padding:8px 9px}
  .eg-site-shift{grid-template-columns:1fr 1fr;gap:8px}
 }
+
+
+/* Report removal confirmation: compact, clear and safe on mobile. */
+.eg-report-detail-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 4px}
+.eg-report-detail-actions button{min-height:42px}
+.eg-danger-outline{border:1px solid #c87267;background:#fff;color:#a4392d;
+ border-radius:12px;font-weight:750;padding:10px 14px}
+.eg-danger-outline:hover,.eg-danger-outline:focus-visible{background:#fff0ee;border-color:#aa4037}
+.eg-delete-overlay{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+ padding:calc(16px + env(safe-area-inset-top)) 18px calc(16px + env(safe-area-inset-bottom));
+ background:rgba(8,32,21,.64);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.eg-delete-dialog{background:#fff;border:1px solid #e6ede4;border-radius:23px;
+ box-shadow:0 27px 75px #0c281b55;padding:26px;max-width:460px;max-height:92dvh;overflow:auto;width:100%}
+.eg-delete-icon{display:grid;place-items:center;background:#ffebe8;color:#a43b30;
+ width:46px;height:46px;border-radius:15px;margin-bottom:18px}
+.eg-delete-icon svg{width:25px;height:25px}
+.eg-delete-dialog h2{font-size:22px;letter-spacing:-.4px;margin:0 0 10px;color:#213b2b}
+.eg-delete-dialog p{line-height:1.5;font-size:14px}
+.eg-delete-report-summary{display:grid;gap:5px;background:#f5f8f3;border:1px solid #e5ece2;
+ border-radius:12px;padding:14px;margin:17px 0}
+.eg-delete-report-summary strong{font-size:15px}
+.eg-delete-report-summary span{color:#607e69;font-size:12px}
+.eg-delete-explanation{color:#6c7e70;font-size:12px!important}
+.eg-delete-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:22px}
+.eg-delete-actions button{min-height:48px;font-size:13px;border-radius:12px}
+.eg-danger-solid{background:#b43c32;color:#fff;border:1px solid #b43c32;font-weight:850;padding:11px 13px}
+.eg-danger-solid:hover,.eg-danger-solid:focus-visible{background:#9b2f26}
+@media(max-width:560px){
+ .eg-delete-overlay{align-items:flex-end;padding:0 0 env(safe-area-inset-bottom)}
+ .eg-delete-dialog{border-radius:22px 22px 0 0;padding:24px 19px max(25px,env(safe-area-inset-bottom));max-height:87dvh}
+ .eg-delete-actions{grid-template-columns:1fr 1fr;gap:8px}
+ .eg-delete-actions button{font-size:12px;padding:10px 7px}
+}
