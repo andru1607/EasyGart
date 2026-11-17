@@ -105,7 +105,7 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
   async function submit(form,send){
     const c=ctx(),r=report(),v=Object.fromEntries(new FormData(form));
     const toMinutes=value=>{
-      if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(String(value||'')))return null;
+      if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||'')))return null;
       const [h,m]=value.split(':').map(Number);
       return h*60+m;
     };
