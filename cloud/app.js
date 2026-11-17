@@ -419,8 +419,11 @@ function render() {
       }
     },
     onNavigate(view){
-      const button=document.querySelector?.('[data-action="view"][data-view="'+view+'"]');
-      button?.click?.();
+      const workerViews=['home','eod','tasks','clock','calendar','reports'];
+      const ownerViews=['clients','team','materials','maintenance','invoices','archive'];
+      if(!workerViews.includes(view)&&!(memberIsOwner()&&ownerViews.includes(view)))return;
+      endOfDay?.reset();currentView=view;menuOpen=false;editingTaskId=null;reportEditingId=null;
+      render();
     }
   });
   if (!ready) {
