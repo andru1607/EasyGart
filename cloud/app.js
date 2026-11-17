@@ -2,6 +2,19 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+
+const egNavIcon=name=>{
+  const paths={
+    home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+    leaf:'<path d="M20 4C12 4 5 7 5 15a5 5 0 0 0 5 5c8 0 11-7 10-16Z"/><path d="M6 20c3-6 7-8 13-11"/>',
+    calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/>',
+    reports:'<path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/>',
+    menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
+  };
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'+
+   ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+(paths[name]||'')+'</svg>';
+};
+
 const cfg = window.EASYGART_SUPABASE_CONFIG || {};
 const app = $('app'), topRight = $('top-right');
 let client = null;
@@ -32,6 +45,8 @@ const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
   'Home':'Startseite','Fine giornata':'Feierabend','Menu':'Menü','Altre sezioni':'Weitere Bereiche',
+  'Impostazioni e account':'Einstellungen und Konto','Seleziona una sezione':'Bereich auswählen',
+  'Inserisci gli orari e il cantiere':'Arbeitszeiten und Einsatzort erfassen','Rapporti':'Berichte',
   'Panoramica azienda':'Betriebsübersicht','La tua giornata':'Dein Arbeitstag',
   'Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.':'Jede Funktion hat eine eigene Seite. Beginne mit dem Feierabendbericht.',
   'Inserisci le ore e il cantiere':'Stunden und Einsatzort erfassen',
@@ -438,16 +453,16 @@ function render() {
   if (!memberships.length) {app.innerHTML = alert + onboardMarkup();return}
   const org = company();
   app.innerHTML = alert +
-    '<div class="view-head"><div><div class="eyebrow">EasyGart Cloud</div><h1>'+esc(org?.name||'EasyGart')+'</h1>'+
+    '<div class="view-head eg-app-intro"><div><div class="eyebrow">'+t('Azienda')+'</div><h1>'+esc(org?.name||'EasyGart')+'</h1>'+
     '<p>'+t('Solo i dati autorizzati dal server vengono mostrati.')+'</p></div>'+
     '<div class="toolbar">'+(companies.length>1?'<select id="company-select" aria-label="'+t('Azienda')+'" style="max-width:190px">'+companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select>':'')+
     '<button class="ghost" data-action="refresh">'+t('Ricarica')+'</button></div></div>'+
     '<nav class="eg-main-nav" aria-label="'+t('Sezioni')+'">'+
-      '<button data-action="view" data-view="home" class="'+(currentView==='home'?'active':'')+'">'+t('Home')+'</button>'+
-      '<button data-action="eod-new" class="'+(currentView==='eod'?'active':'')+'">'+t('Fine giornata')+'</button>'+
-      '<button data-action="view" data-view="calendar" class="'+(currentView==='calendar'?'active':'')+'">'+t('Calendario')+'</button>'+
-      '<button data-action="view" data-view="reports" class="'+(currentView==='reports'?'active':'')+'">'+t('Rapporti giornalieri')+'</button>'+
-      '<button data-action="toggle-menu" aria-expanded="'+menuOpen+'" class="'+(menuOpen?'active':'')+'">'+t('Menu')+'</button></nav>'+
+      '<button data-action="view" data-view="home" '+(currentView==='home'?'aria-current="page" ':'')+'class="'+(currentView==='home'?'active':'')+'">'+egNavIcon('home')+'<span>'+t('Home')+'</span></button>'+
+      '<button data-action="eod-new" '+(currentView==='eod'?'aria-current="page" ':'')+'class="'+(currentView==='eod'?'active':'')+'">'+egNavIcon('leaf')+'<span>'+t('Fine giornata')+'</span></button>'+
+      '<button data-action="view" data-view="calendar" '+(currentView==='calendar'?'aria-current="page" ':'')+'class="'+(currentView==='calendar'?'active':'')+'">'+egNavIcon('calendar')+'<span>'+t('Calendario')+'</span></button>'+
+      '<button data-action="view" data-view="reports" '+(['reports','report-detail'].includes(currentView)?'aria-current="page" ':'')+'class="'+(['reports','report-detail'].includes(currentView)?'active':'')+'">'+egNavIcon('reports')+'<span>'+t('Rapporti')+'</span></button>'+
+      '<button data-action="toggle-menu" aria-expanded="'+menuOpen+'" class="'+(menuOpen?'active':'')+'">'+egNavIcon('menu')+'<span>'+t('Menu')+'</span></button></nav>'+
     (menuOpen?'<nav class="eg-extra-nav" aria-label="'+t('Altre sezioni')+'">'+
       '<button data-action="view" data-view="tasks">'+t('Compiti')+'</button>'+
       '<button data-action="view" data-view="clock">'+t('Timbrature')+'</button>'+
@@ -457,7 +472,7 @@ function render() {
       '<button data-action="view" data-view="maintenance">'+t('Manutenzioni ricorrenti')+'</button>'+
       '<button data-action="view" data-view="invoices">'+t('Bozze proforma')+'</button>'+
       '<button data-action="view" data-view="archive">'+t('Dati ed esportazione')+'</button>':'')+
-      '<button data-action="guide-open">'+t('Guida')+'</button></nav>':'')+
+      '<div class="eg-menu-divider"><span>'+t('Impostazioni e account')+'</span></div>'+ '<button data-action="guide-open">'+t('Guida')+'</button>'+ '<button data-action="account-password">'+t('Sicurezza account')+'</button>'+ (!window.EASYGART_INSTALL?.isStandalone?.()?'<button data-action="install">'+t('Installa app')+'</button>':'')+ '<button data-action="signout">'+t('Esci')+'</button></nav>':'')+
     (currentView==='home'?homeMarkup():currentView==='eod'?(endOfDay?.markup()||''):
       currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar'?(calendar?.markup()||''):
       currentView==='reports'?reportsMarkup():currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
@@ -569,7 +584,7 @@ function homeMarkup(){
   const last=mine.slice().sort((a,b)=>b.work_date.localeCompare(a.work_date)).slice(0,4);
   const todo=tasks.filter(x=>owner||x.assignee_id===user.id).filter(x=>x.status!=='done');
   const actions=[
-    ['eod-new','Fine giornata','Inserisci le ore e il cantiere'],
+    ['eod-new','Fine giornata','Inserisci gli orari e il cantiere'],
     ['view','Calendario','Consulta giornate e ore','calendar'],
     ['view','Rapporti giornalieri','Consulta e modifica i rapporti','reports'],
     ['view','Compiti','Attività assegnate','tasks']
@@ -661,6 +676,8 @@ function reportSummaryMarkup(report,owner){
   return '<div class="eg-report-list-item"><div class="eg-report-list-content">'+
     '<strong>'+esc(label)+'</strong><div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
+    (report.work_start_time&&report.work_end_time?
+      '<span>'+esc(String(report.work_start_time).slice(0,5))+' – '+esc(String(report.work_end_time).slice(0,5))+'</span>':'')+
     (owner?'<span>'+esc(getWorkerName(report.created_by))+'</span>':'')+
     '<span class="pill '+(report.status==='submitted'?'amber':'')+'">'+t(reportStatusLabel(report))+'</span></div>'+
     '<p class="muted eg-report-preview">'+esc((report.work_summary||'').slice(0,130))+'</p></div>'+
@@ -684,6 +701,8 @@ function reportCardMarkup(report,owner){
     '<div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
     (owner?'<span>'+esc(getWorkerName(report.created_by))+'</span>':'')+
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
+    (report.work_start_time&&report.work_end_time?
+      '<span>'+esc(String(report.work_start_time).slice(0,5))+' – '+esc(String(report.work_end_time).slice(0,5))+'</span>':'')+
     '<span>'+esc(getName(clients,task?.client_id))+'</span>'+
     '<span>'+esc(getName(sites,report.site_id||task?.site_id))+'</span></div>'+
     '<p class="task-note">'+esc(report.work_summary||tr('Descrizione non ancora compilata'))+'</p>'+
