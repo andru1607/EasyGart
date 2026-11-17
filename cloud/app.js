@@ -30,6 +30,15 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  'Home':'Startseite','Fine giornata':'Feierabend','Menu':'Menü','Altre sezioni':'Weitere Bereiche',
+  'Panoramica azienda':'Betriebsübersicht','La tua giornata':'Dein Arbeitstag',
+  'Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.':'Jede Funktion hat eine eigene Seite. Beginne mit dem Feierabendbericht.',
+  'Inserisci le ore e il cantiere':'Stunden und Einsatzort erfassen',
+  'Consulta giornate e ore':'Tage und Stunden ansehen',
+  'Consulta e modifica i rapporti':'Berichte ansehen und bearbeiten',
+  'Attività assegnate':'Zugewiesene Aufgaben','Compiti aperti':'Offene Aufgaben',
+  'Rapporti da verificare':'Zu prüfende Berichte','Rapporti registrati':'Gespeicherte Berichte',
+  'Ultimi rapporti':'Letzte Berichte','Vedi tutti':'Alle anzeigen','Apri':'Öffnen',
   "Password dimenticata?": "Passwort vergessen?",
   "Recupera password": "Passwort zurücksetzen",
   "Inserisci la tua email: riceverai un link per impostare una nuova password.": "Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Festlegen eines neuen Passworts.",
