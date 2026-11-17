@@ -445,6 +445,9 @@ function render() {
       const ownerViews=['clients','team','materials','maintenance','invoices','archive'];
       if(!workerViews.includes(view)&&!(memberIsOwner()&&ownerViews.includes(view)))return;
       endOfDay?.reset();currentView=view;menuOpen=false;editingTaskId=null;reportEditingId=null;
+      if(view==='monthly'){
+        monthly?.refresh(selectedCompanyId).then(render).catch(fail);
+      }
       render();
     }
   });
