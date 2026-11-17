@@ -411,3 +411,7 @@ select{background-color:#fff}
  .eg-cal-switch-icon{font-size:17px}
  .eg-calendar-page>.eg-calendar-totals>.card strong{font-size:15px}
 }
+
+.eg-cal-footer-actions{display:flex;justify-content:flex-end;margin:2px 0 20px}
+.eg-cal-footer-actions button{border-radius:12px;min-height:42px;font-weight:760}
+@media(max-width:760px){.eg-cal-footer-actions button{width:100%;min-height:45px}}
