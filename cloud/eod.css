@@ -1,0 +1,53 @@
+/* Navigazione con viste separate: una sola pagina alla volta. */
+.eg-main-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-bottom:22px}
+.eg-main-nav button{border:1px solid var(--line);border-radius:12px;background:#fff;padding:13px 8px;min-height:49px;font-weight:750;color:var(--dark);line-height:1.3}
+.eg-main-nav button.active{background:var(--green);color:#fff;border-color:var(--green)}
+.eg-extra-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;background:#f0f5ed;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:22px}
+.eg-extra-nav button{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;font-weight:650;color:var(--dark);min-height:47px}
+.eg-extra-nav button:hover,.eg-home-action:hover{border-color:#90ad93;background:#f3f9ee}
+.eg-home-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:18px 0 20px}
+.eg-home-action{position:relative;text-align:left;background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 40px 22px 20px;min-height:115px;color:var(--dark)}
+.eg-home-action strong{display:block;font-size:18px;margin-bottom:8px}
+.eg-home-action span{display:block;color:var(--muted);font-size:13px}
+.eg-home-action b{position:absolute;right:18px;top:24px;font-size:24px;color:#5c865f}
+.eg-home-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-bottom:20px}
+.eg-work-page{max-width:880px;margin:0 auto}.eg-work-page .view-head{align-items:flex-start}
+.eg-eod-form{padding:24px;gap:0}.eg-eod-step{display:grid;grid-template-columns:46px minmax(0,1fr);gap:15px;padding:24px 0;border-bottom:1px solid var(--line)}
+.eg-eod-step:first-child{padding-top:3px}
+.eg-step-label{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#e7f1df;font-size:12px;font-weight:850;color:#396447}
+.eg-eod-fields{display:grid;gap:14px;min-width:0}
+.eg-eod-fields h2{font-size:18px;margin:5px 0}.eg-eod-fields .field{min-width:0}
+.eg-eod-fields .field>span{font-weight:750;font-size:13px}
+.eg-eod-time{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.eg-eod-time input{font-size:23px;font-weight:750;min-height:58px;text-align:center;font-variant-numeric:tabular-nums}
+.eg-eod-submit{display:flex;gap:12px;justify-content:flex-end;padding:22px 0 10px;flex-wrap:wrap}
+.eg-eod-submit button{min-height:48px;min-width:146px}
+.eg-small{font-size:12px}
+@media(max-width:760px){
+ .container{padding-bottom:114px}
+ .eg-main-nav{position:fixed;z-index:19;bottom:0;left:0;right:0;margin:0;display:grid;
+   grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;background:#fff;
+   border-top:1px solid var(--line);padding:8px max(7px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom));box-shadow:0 -5px 25px #183d3020}
+ .eg-main-nav button{font-size:11px;min-width:0;min-height:55px;line-height:1.15;overflow-wrap:anywhere;
+   padding:6px 2px;border-radius:10px;border-color:transparent;background:#fff}
+ .eg-main-nav button.active{background:#e7f2df;color:var(--dark);border-color:#bdd6b3}
+ .eg-extra-nav{position:fixed;z-index:18;bottom:calc(77px + env(safe-area-inset-bottom));left:10px;right:10px;
+    max-height:min(58dvh,450px);overflow-y:auto;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;
+    box-shadow:0 -14px 55px #0c2e2a30;background:#f9fcf7}
+ .eg-extra-nav button{font-size:12px}
+ .eg-home-actions{grid-template-columns:1fr 1fr;gap:10px}
+ .eg-home-action{padding:16px 22px 15px 14px;min-height:111px}
+ .eg-home-action strong{font-size:15px}.eg-home-action span{font-size:12px}
+ .eg-home-action b{right:9px;top:14px;font-size:19px}
+ .eg-home-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .eg-home-summary .card{padding:10px 9px}.eg-home-summary .metric strong{font-size:24px}
+ .eg-home-summary .metric span{font-size:11px}
+ .eg-eod-form{padding:14px}
+ .eg-eod-step{grid-template-columns:30px minmax(0,1fr);gap:7px;padding:20px 0}
+ .eg-step-label{width:28px;height:28px;border-radius:8px;font-size:10px}
+ .eg-eod-fields h2{font-size:17px;margin:3px 0 6px}
+ .eg-eod-time{gap:8px}
+ .eg-eod-submit{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ .eg-eod-submit button{min-width:0;padding:11px 6px;font-size:13px}
+}
+@media(max-width:375px){.eg-main-nav button{font-size:10px}}
