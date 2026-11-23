@@ -10,10 +10,10 @@
     let m=s.match(/\b(20\d{2})[\/-](\d{1,2})[\/-](\d{1,2})\b/);
     if(m){year=+m[1];month=+m[2];day=+m[3]}
     else {
-      m=s.match(/\b(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2}|20\d{2}))?\b/);
-      if(!m)return null;
-      day=+m[1];month=+m[2];
-      guessed=!m[3];year=m[3]?(m[3].length===2?2000+(+m[3]):+m[3]):defaultYear;
+      m=s.match(/\b(\d{1,2})([\/.-])(\d{1,2})(?:[\/.-](\d{2}|20\d{2}))?\b/);
+      if(!m||m[2]==='-'&&!m[4])return null;
+      day=+m[1];month=+m[3];
+      guessed=!m[4];year=m[4]?(m[4].length===2?2000+(+m[4]):+m[4]):defaultYear;
     }
     if(year<2020||year>2099)return null;
     const dt=new Date(Date.UTC(year,month-1,day));
@@ -37,36 +37,46 @@
     return matches.length===1?matches[0].id||matches[0].user_id||'':'';
   };
   function hours(source,{members=[],sites=[],year=new Date().getFullYear()}={}){
-    const rows=[];let headingDate=null;
-    const seen=new Set();
-    const lines=String(source||'').replace(/\r/g,'').split('\n').map(tidy).filter(Boolean);
-    for(const line of lines){
-      // A dot without a year is ambiguous with HH.MM; never infer a date from it.
-      const hasDateToken=/\b(?:20\d{2}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{1,2}\.\d{1,2}\.\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4})\b/.test(line);
-      const date=hasDateToken?isoDate(line,year):null;
-      // Do not treat a dotted date (15.11.2026) as the time 15:11.
-      const withoutDate=date?line.replace(/\b(?:20\d{2}-\d{1,2}-\d{1,2}|\d{1,2}[\/.-]\d{1,2}[\/.-](?:20\d{2}|\d{2})|\d{1,2}\/\d{1,2})\b/,' '):line;
-      const time=times(withoutDate);
-      if(date&&time.length<2){headingDate=date;continue}
+    const rows=[],seen=new Set();let headingDate=null,headingWorker='',headingSite='';
+    const toM=v=>Number(v.slice(0,2))*60+Number(v.slice(3,5));
+    for(const line of String(source||'').replace(/\r/g,'').split('\n').map(tidy).filter(Boolean)){
+      const date=isoDate(line,year);
+      if(date&&(!headingDate||date.date!==headingDate.date)){headingWorker='';headingSite=''}
+      if(date)headingDate=date;
+      const workerOnLine=matchName(line,members,'full_name');
+      const siteOnLine=matchName(line,sites,'name');
+      if(workerOnLine)headingWorker=workerOnLine;
+      if(siteOnLine)headingSite=siteOnLine;
+      const withoutDate=date?line.replace(/\b(?:20\d{2}[\/-]\d{1,2}[\/-]\d{1,2}|\d{1,2}[\/.-]\d{1,2}[\/.-](?:20\d{2}|\d{2})|\d{1,2}[\/.]\d{1,2})\b/,' '):line;
+      let found=times(withoutDate);
+      if(found.length<2){
+        const short=[...withoutDate.matchAll(/\b([01]?\d|2[0-3])\s*[-–]\s*([01]?\d|2[0-3])\b/g)];
+        if(short.length&&short.length<=4)found=short.flatMap(m=>
+          [String(+m[1]).padStart(2,'0')+':00',String(+m[2]).padStart(2,'0')+':00']);
+      }
       const when=date||headingDate;
-      if(!when||time.length<2)continue;
-      // A row needs an explicit date either on itself or in a preceding heading.
-      const start=time[0],end=time[1],breakMinutes=pause(line);
-      const worked=duration(start,end,breakMinutes);
-      if(worked===null)continue;
-      const workerId=matchName(line,members,'full_name');
-      const siteId=matchName(line,sites,'name');
-      const row={
-        include:true,work_date:when.date,worker_id:workerId,site_id:siteId,
-        start_time:start,end_time:end,break_minutes:breakMinutes,
+      if(!when||found.length<2||found.length%2!==0||found.length>8)continue;
+      let worked=0,valid=true,previousEnd=null;
+      for(let i=0;i<found.length;i+=2){
+        const part=duration(found[i],found[i+1],0);
+        if(part===null||(previousEnd!==null&&toM(found[i])<previousEnd)){valid=false;break}
+        worked+=part;previousEnd=toM(found[i+1]);
+      }
+      if(!valid)continue;
+      const startTime=found[0],endTime=found[found.length-1];
+      const elapsed=(toM(endTime)-toM(startTime)+1440)%1440;
+      if(!elapsed||worked>elapsed)continue;
+      const breakMinutes=found.length>2?elapsed-worked:pause(line);
+      if(duration(startTime,endTime,breakMinutes)===null)continue;
+      const workerId=workerOnLine||headingWorker,siteId=siteOnLine||headingSite;
+      const row={include:true,work_date:when.date,worker_id:workerId,site_id:siteId,
+        start_time:startTime,end_time:endTime,break_minutes:breakMinutes,
         work_summary:'',source_line:line.slice(0,300),year_guessed:when.guessed,
         confidence:workerId&&siteId&&!when.guessed?'review':'incomplete',
-        status:'pending',error:''
-      };
-      const fingerprint=[row.work_date,row.worker_id,row.start_time,row.end_time,workerId?siteId:'',row.source_line].join('|');
+        status:'pending',error:''};
+      const fingerprint=[row.work_date,row.worker_id,row.site_id,row.start_time,row.end_time,row.break_minutes].join('|');
       if(seen.has(fingerprint))continue;seen.add(fingerprint);
-      rows.push(row);
-      if(rows.length>=60)break;
+      rows.push(row);if(rows.length>=60)break;
     }
     return rows;
   }
