@@ -1258,6 +1258,7 @@ document.addEventListener('click',e=>{
   if(a==='import-close'){currentView='home';screenshotImport?.reset();render();return}
   if(a==='import-kind'){if(memberIsOwner()){screenshotImport?.setMode(b.dataset.kind);render()}return}
   if(a==='import-analyse'){if(memberIsOwner()){screenshotImport?.analyse();render()}return}
+  if(a==='import-add-row'){if(memberIsOwner()){screenshotImport?.addRow();render()}return}
   if(a==='import-save'){
     if(memberIsOwner())withBusy(()=>screenshotImport?.save());
     return;
