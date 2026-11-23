@@ -1,12 +1,12 @@
 /* EasyGart Cloud offline shell only. Authenticated data and API responses NEVER cached. */
 'use strict';
-const VERSION='easygart-shell-v21-20261123-calendar-delete-fix';
+const VERSION='easygart-shell-v22-20261123-screenshot-import';
 const SHELL=[
   '/cloud/','/cloud/index.html','/cloud/app.js','/cloud/config.js',
   '/cloud/operations.js','/cloud/archive.js','/cloud/business.js','/cloud/mobile.js',
   '/cloud/guide.js','/cloud/guide.css','/cloud/calendar.js',
   '/cloud/eod.js','/cloud/eod.css','/cloud/premium.css','/cloud/monthly.js','/cloud/sites_history.js',
-  '/cloud/search.js',
+  '/cloud/search.js','/cloud/import_parser.js','/cloud/import.js',
   '/cloud/logo.png','/cloud/icon.svg','/cloud/icon-192.png','/cloud/icon-512.png','/cloud/apple-touch-icon.png','/cloud/manifest.webmanifest'
 ];
 self.addEventListener('install',event=>{
