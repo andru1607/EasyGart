@@ -1,6 +1,6 @@
 /* EasyGart Cloud offline shell only. Authenticated data and API responses NEVER cached. */
 'use strict';
-const VERSION='easygart-shell-v20-20261123-global-search';
+const VERSION='easygart-shell-v21-20261123-calendar-delete-fix';
 const SHELL=[
   '/cloud/','/cloud/index.html','/cloud/app.js','/cloud/config.js',
   '/cloud/operations.js','/cloud/archive.js','/cloud/business.js','/cloud/mobile.js',
