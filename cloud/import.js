@@ -83,7 +83,7 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
       const mod=await import('https://esm.sh/tesseract.js@6.0.1?bundle');
       if(typeof mod.createWorker!=='function')throw Error('OCR module unavailable');
       announce(tr('Preparazione del riconoscimento…','Texterkennung wird vorbereitet…'));
-      worker=await mod.createWorker(['ita','eng'],1,{
+      worker=await mod.createWorker(ctx().locale==='de'?['deu','ita']:['ita','deu'],1,{
         workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
         corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.1.2',
         langPath:'https://tessdata.projectnaptha.com/4.0.0',
