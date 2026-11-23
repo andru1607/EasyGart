@@ -528,3 +528,23 @@ select{background-color:#fff}
   .eg-import-tabs button{font-size:12px;padding:10px 8px}
   .eg-import-row-head strong{font-size:15px}
 }
+
+/* Editing and admin delegation. Accessible, phone-first controls. */
+.eg-entity-item{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
+  border-bottom:1px solid #e0e9df;padding:13px 0}
+.eg-entity-item:last-child{border-bottom:0}
+.eg-entity-item>div:first-child{min-width:0;overflow-wrap:anywhere}
+.eg-entity-item>.actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.eg-entity-item button,.eg-site-visit-actions button{min-height:43px}
+.eg-site-visit-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.eg-site-visit-actions button{white-space:normal}
+.eg-site-detail .eg-site-visit-top{gap:12px}
+.eg-site-detail .eg-site-visit-top>div:first-child{min-width:0}
+.eg-site-filter input[type=search],#eg-site-history-search{min-height:48px;width:100%}
+@media(max-width:620px){
+ .eg-entity-item{align-items:stretch;flex-direction:column;gap:9px}
+ .eg-entity-item>.actions{justify-content:flex-start}
+ .eg-entity-item>button{align-self:flex-start}
+ .eg-site-visit-actions{width:100%;justify-content:stretch}
+ .eg-site-visit-actions button{flex:1}
+}
