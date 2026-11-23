@@ -1380,8 +1380,10 @@ async function openSearchResult(item){
     selectedWorkerId='all';currentView='tasks';
   }else if(item.kind==='report'){
     const report=dailyReports.find(r=>r.id===item.entityId);
-    if(!report||(!memberIsOwner()&&report.created_by!==user.id))return;
-    await loadReportMaterialRows(report.id);
+    if(!report||(!memberIsOwner()&&report.created_by!==user.id&&
+      !(report.site_id&&['submitted','approved'].includes(report.status))))return;
+    if(memberIsOwner()||report.created_by===user.id)await loadReportMaterialRows(report.id);
+    else try{await loadReportMaterialRows(report.id)}catch{reportMaterialRows.set(report.id,[])}
     selectedReportId=report.id;reportReturnView='reports';currentView='report-detail';
   }else if(item.kind==='site'){
     if(!sites.some(site=>site.id===item.entityId))return;
@@ -1391,12 +1393,25 @@ async function openSearchResult(item){
   }else if(item.kind==='client'){
     if(!memberIsOwner()||!clients.some(c=>c.id===item.entityId))return;
     currentView='clients';focusSelector='[data-search-client="'+item.entityId+'"]';
+  }else if(item.kind==='client-edit'){
+    if(!memberIsOwner()||!clients.some(c=>c.id===item.entityId))return;
+    editingClientId=item.entityId;currentView='clients';
+    focusSelector='form[data-form="client"] input[name="name"]';
+  }else if(item.kind==='site-edit'){
+    if(!memberIsOwner()||!sites.some(site=>site.id===item.entityId))return;
+    editingSiteId=item.entityId;currentView='clients';
+    focusSelector='form[data-form="site"] input[name="name"]';
   }else if(item.kind==='command'){
     const allowed=new Set(['home','eod','tasks','clock','calendar','calendar-hours','reports','monthly','sites-history']);
-    const ownerOnly=new Set(['clients','team','materials','maintenance','invoices','archive']);
+    const ownerOnly=new Set(['clients','team','materials','maintenance','invoices','archive','import']);
     const op=item.op||'view';
     if(op==='guide'){window.EASYGART_GUIDE?.open?.();return}
-    if(op==='new-report'){
+    if(op==='import-hours'||op==='import-clients'){
+      if(!memberIsOwner())return;
+      importReturnView=currentView;
+      if(!screenshotImport?.open(op==='import-hours'?'hours':'clients'))return;
+      currentView='import';
+    }else if(op==='new-report'){
       if(!reportsReady)return;
       editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;
       await endOfDay?.prepareOpen(null);currentView='eod';
@@ -1411,6 +1426,8 @@ async function openSearchResult(item){
       if(op==='new-client'&&memberIsOwner())focusSelector='form[data-form="client"] input[name="name"]';
       if(op==='new-site'&&memberIsOwner())focusSelector='form[data-form="site"] input[name="name"]';
       if(op==='invite'&&memberIsOwner())focusSelector='form[data-form="invite"] input[name="email"]';
+      if(item.id==='cmd:company-settings'&&memberIsOwner())focusSelector='form[data-form="company-settings"] input[name="name"]';
+      if(item.id==='cmd:admin-delegate'&&memberIsPrimaryOwner())focusSelector='[data-action="member-admin"]';
       if(item.view==='calendar')await calendar?.refresh(selectedCompanyId);
       if(item.view==='calendar-hours')await hoursCalendar?.refresh(selectedCompanyId);
       if(item.view==='monthly')await monthly?.refresh(selectedCompanyId);
@@ -1422,7 +1439,7 @@ async function openSearchResult(item){
   else if(focusSelector){
     const target=document.querySelector(focusSelector);
     target?.scrollIntoView?.({behavior:'smooth',block:'center'});
-    if(target?.matches?.('input')||item.kind==='client')target?.focus?.({preventScroll:true});
+    if(target?.matches?.('input')||target?.matches?.('button')||item.kind==='client')target?.focus?.({preventScroll:true});
   }else window.scrollTo?.({top:0,behavior:'instant'});
 }
 document.addEventListener('submit',e=>{
@@ -1587,6 +1604,19 @@ document.addEventListener('click',e=>{
   }
   if(a==='view'){
     const view=b.dataset.view;
+    const ordinary=new Set(['home','tasks','clock','calendar','calendar-hours','reports','monthly','sites-history']);
+    const ownerViews=new Set(['clients','team','materials','maintenance','invoices','archive']);
+    if(!ordinary.has(view)&&!(memberIsOwner()&&ownerViews.has(view)))return;
+    if(view==='monthly'||view==='sites-history'||view==='calendar'){
+      withBusy(async()=>{
+        currentView=view;menuOpen=false;selectedReportId=null;pendingReportDeletionId=null;
+        endOfDay?.reset();editingTaskId=null;reportEditingId=null;
+        if(view==='monthly')await monthly?.refresh(selectedCompanyId);
+        if(view==='sites-history'){siteHistory?.back();await siteHistory?.refresh(selectedCompanyId)}
+        if(view==='calendar')await calendar?.refresh(selectedCompanyId);
+        render();window.scrollTo?.({top:0,behavior:'instant'});
+      });return;
+    }
     if(view==='calendar-hours'){
       withBusy(async()=>{
         currentView=view;menuOpen=false;selectedReportId=null;pendingReportDeletionId=null;
