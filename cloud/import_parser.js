@@ -40,7 +40,9 @@
     const rows=[],seen=new Set();let headingDate=null,headingWorker='',headingSite='';
     const toM=v=>Number(v.slice(0,2))*60+Number(v.slice(3,5));
     for(const line of String(source||'').replace(/\r/g,'').split('\n').map(tidy).filter(Boolean)){
-      const date=isoDate(line,year);
+      // A dotted HH.MM is an hour, not a day/month date without a year.
+      const dateToken=/\b(?:20\d{2}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{1,2}\.\d{1,2}\.(?:20\d{2}|\d{2})|\d{1,2}-\d{1,2}-\d{2,4})\b/;
+      const date=dateToken.test(line)?isoDate(line,year):null;
       if(date&&(!headingDate||date.date!==headingDate.date)){headingWorker='';headingSite=''}
       if(date)headingDate=date;
       const workerOnLine=matchName(line,members,'full_name');
