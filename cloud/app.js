@@ -835,6 +835,7 @@ function clientsMarkup(){
     '<h3>'+t("Elenco clienti")+'</h3>'+(clients.length?clients.map(c=>'<p tabindex="-1" data-search-client="'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong>'+
       (clientContactsReady&&[c.phone,c.email,c.address].some(Boolean)?
         '<small class="muted" style="display:block">'+esc([c.phone,c.email,c.address].filter(Boolean).join(' · '))+'</small>':'')+
+      (c.notes?'<small class="muted" style="display:block;white-space:pre-wrap">'+esc(c.notes)+'</small>':'')+
       '</p>').join(''):'<p class="muted">'+t("Nessun cliente")+'</p>')+'</div>'+
     '<div class="card stacked"><h2>'+t('Nuovo cantiere')+'</h2><form data-form="site" class="stacked">'+
     select('Cliente','client_id',clients.map(c=>option(c.id,c.name)).join(''),'required')+
@@ -874,9 +875,17 @@ async function refresh() {
   for (const x of results)if(x.error)throw x.error;
   [tasks,clients,sites,members] = results.slice(0,4).map(x=>x.data||[]);
   const contactResponse=owner?await client.from('eg_clients')
-    .select('id,company_id,name,phone,email,address').eq('company_id',org):null;
+    .select('id,company_id,name,phone,email,address,notes').eq('company_id',org):null;
   clientContactsReady=!!contactResponse&&!contactResponse.error;
   if(clientContactsReady)clients=contactResponse.data||[];
+  else if(owner){
+    // Legacy schema: notes is available even before the optional contact-fields migration.
+    const notesResponse=await client.from('eg_clients').select('id,notes').eq('company_id',org);
+    if(!notesResponse.error){
+      const byId=new Map((notesResponse.data||[]).map(x=>[x.id,x.notes||'']));
+      clients=clients.map(x=>({...x,notes:byId.get(x.id)||''}));
+    }
+  }
   invites=owner?(results[4]?.data||[]):[];
   // La migrazione dei rapporti può non essere ancora installata: non bloccare gli altri moduli.
   const reportResponse = await client.from('eg_daily_reports').select('*')
