@@ -599,5 +599,6 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   }
   return {refresh,reset,markup,reportMaterialsMarkup,handleSubmit,handleAction,handleChange,
     hasOpenForm:()=>showNewMaterial||showNewPlan||!!editingPlanId||!!selectedInvoiceId,
-    visible:()=>ready,summary};
+    visible:()=>ready,summary,
+    searchableMaterials:()=>owner()?materials.map(m=>({id:m.id,name:m.name,unit:m.unit,active:m.active})):[]};
 };
