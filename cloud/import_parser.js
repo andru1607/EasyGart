@@ -94,7 +94,13 @@
     for(const original of lines){
       const line=tidy(original);
       if(!line){flush();continue}
-      if(/^(?:cliente|kunde|nome|name)\s*:/i.test(line)&&block.some(x=>/^(?:cliente|kunde|nome|name)\s*:/i.test(x)))flush();
+      const named=/^(?:cliente|kunde|nome|name|azienda|company)\s*:/i.test(line);
+      const detail=/^(?:indirizzo|adresse|address|via|viale|vicolo|piazza|corso|strada|straße|strasse|tel|telefono|cell|cellulare|telefon|phone|handy|mobil|email|e-mail)\b/i.test(line)||
+        /^[+\d][\d\s().-]{6,}$/.test(line)||line.includes('@');
+      const hasName=block.some(x=>/^(?:cliente|kunde|nome|name|azienda|company)\s*:/i.test(x)||
+        (!/^(?:indirizzo|adresse|address|via|viale|vicolo|piazza|corso|strada|straße|strasse|tel|telefono|cell|cellulare|telefon|phone|handy|mobil|email|e-mail)\b/i.test(x)&&
+        !x.includes('@')&&!/^[+\d][\d\s().-]{6,}$/.test(x)));
+      if(block.length&&hasName&&(named||!detail))flush();
       block.push(line);
     }
     flush();
@@ -105,8 +111,9 @@
       for(const line of blk){
         const n=line.match(labelRx);
         if(n&&!fields.name){fields.name=tidy(n[2]);continue}
-        const address=line.match(/^(?:indirizzo|adresse|address|via|strada|straße)\s*:?\s*(.+)$/i);
-        if(address&&!fields.address){fields.address=/^(via|strada|straße)$/i.test((line.split(':')[0]||''))?line:tidy(address[1]);continue}
+        const address=line.match(/^(?:indirizzo|adresse|address)\s*:\s*(.+)$/i);
+        const street=line.match(/^(?:via|viale|vicolo|piazza|corso|strada|straße|strasse)\b\s+(.+)$/i);
+        if((address||street)&&!fields.address){fields.address=address?tidy(address[1]):line;continue}
         const em=safeEmail(line);if(em&&!fields.email)fields.email=em;
         const phone=line.match(/^(?:tel(?:efono)?|handy|mobil|phone)\s*:\s*(.+)$/i);
         if(phone&&!fields.phone)fields.phone=safePhone(phone[1])||tidy(phone[1]);
@@ -114,7 +121,7 @@
       }
       if(!fields.name){
         const possible=blk.filter(line=>!skip.test(line)&&
-          !/^(?:tel|telefon|phone|email|e-mail|indirizzo|adresse|address|via|strada|straße)\s*:/i.test(line)&&
+          !/^(?:tel|telefono|cell|cellulare|telefon|phone|email|e-mail|indirizzo|adresse|address|via|viale|vicolo|piazza|corso|strada|straße|strasse)\b/i.test(line)&&
           !line.includes('@')&&!/^(?:\+?\d[\d\s-]{6,})$/.test(line));
         if(possible.length===1)fields.name=possible[0];
         else if(possible.length===0)continue;
