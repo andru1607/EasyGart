@@ -1298,7 +1298,8 @@ async function boot(){
     globalSearch = window.createEasyGartSearch({
       esc,
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
-        locale,tasks,sites,clients,members,reports:dailyReports})
+        locale,tasks,sites,clients,members,reports:dailyReports,
+        materials:memberIsOwner()?business?.searchableMaterials?.()||[]:[]})
     });
     operations = window.createEasyGartOperations({
       client,
