@@ -16,16 +16,26 @@ Dalla schermata di accesso scegliere **Password dimenticata?**, inserire l'email
 ## Dipendente
 - Incarichi assegnati, aggiornamento stato, rapporti con bozza/invio/correzioni.
 - Timbratura del turno e delle pause con orario del database.
+- Dopo l'attivazione della migrazione di annullamento, può cancellare **le proprie timbrature già concluse** in Timbrature > Storico oppure da ciascuno dei due calendari. Il sistema richiede conferma; i rapporti giornalieri restano separati.
 - Consumi materiali associati ai rapporti, senza prezzi.
 - Fino a 3 foto prima e 3 dopo per rapporto, massimo 5 MB ciascuna, in Storage privato. Formati supportati JPEG/PNG/WebP, conversione HEIC dove supportata dal browser.
 - Firma sullo schermo del cliente presente, con nome e consenso. È una presa visione, non una firma elettronica qualificata.
 
 ## Titolare
+- Può annullare le timbrature concluse dei dipendenti. In Timbrature > **Mostra annullate** consulta la data, l'autore e le ore originali delle timbrature cancellate.
 - Clienti/cantieri, inviti dipendenti, assegnazioni e revisione rapporti.
 - Catalogo materiali con unità, prezzo di acquisto e di vendita e IVA.
 - Manutenzioni settimanali, bisettimanali, mensili e trimestrali. La funzione Cron genera task futuri ogni giorno alle 05:15 UTC e previene i duplicati.
 - Bozze proforma con ore e consumi da rapporto approvato, righe modificabili e stampa/Salva PDF. Non sono fatture elettroniche e non vengono inviate al Sistema di Interscambio.
 - Esportazione JSON dei dati gestionali oppure ZIP con file originali di foto/firma, entrambi accessibili soltanto al titolare. Lo ZIP non include l'intero ambiente Auth né sostituisce un backup PostgreSQL/Storage ripristinabile. Il download contiene dati personali e va protetto.
+
+## Attivazione cancellazione timbrature
+
+La funzione richiede l'esecuzione di [easygart_shift_soft_delete_v1.sql](../supabase/easygart_shift_soft_delete_v1.sql) **esclusivamente** nel progetto Supabase EasyGart `xdwsqkteykjjpzogwocx`, dopo la migrazione delle presenze. Senza questa migrazione i pulsanti di cancellazione non si attivano. Il repository non applica automaticamente la modifica al database.
+
+Il pulsante **Elimina orario / Zeiteintrag löschen** appare soltanto per turni conclusi che l'utente è autorizzato a cancellare. I dati originali restano nel database con `deleted_at` e `deleted_by`, ma non sono conteggiati nello storico attivo, nei due calendari né nel riepilogo mensile delle **timbrature**. Se per la stessa giornata esiste un rapporto con ore dichiarate, quelle restano visibili e vengono conteggiate secondo le regole del riepilogo. Le timbrature attive non possono essere eliminate.
+
+Prima dell'uso reale, verificare con almeno due dipendenti: cancellazione del proprio turno chiuso, impossibilità di cancellare quello altrui, impossibilità di cancellare un turno aperto, visibilità audit al titolare e aggiornamento dei totali.
 
 ## Sicurezza e limiti
 - Supabase RLS protegge 17 tabelle di business; lo schema privato ospita la logica privilegiata e le API esposte non usano SECURITY DEFINER.
