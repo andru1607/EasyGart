@@ -93,7 +93,12 @@ window.createEasyGartSearch = function({getContext,esc}) {
   function results(){
     const q=normalize(query);
     const index=items();
-    if(!q)return index.filter(x=>x.kind==='command').slice(0,9);
+    if(!q){
+      const favorites=context().isOwner?
+        ['new-task','new-client','new-site','team','materials','monthly','new-report','clock','guide']:
+        ['new-report','tasks','clock','delete-shift','calendar-hours','reports','monthly','sites-history','guide'];
+      return favorites.map(key=>index.find(x=>x.id==='cmd:'+key)).filter(Boolean);
+    }
     const words=q.split(/\s+/).filter(Boolean);
     return index.map((item,i)=>{
       const title=normalize(item.title),type=normalize(item.category);
