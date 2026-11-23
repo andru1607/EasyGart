@@ -1458,8 +1458,12 @@ async function openSearchResult(item){
         editingTaskId='new';selectedWorkerId='all';
         focusSelector='form[data-form="task"] input[name="title"]';
       }
-      if(op==='new-client'&&memberIsOwner())focusSelector='form[data-form="client"] input[name="name"]';
-      if(op==='new-site'&&memberIsOwner())focusSelector='form[data-form="site"] input[name="name"]';
+      if(op==='new-client'&&memberIsOwner()){
+        editingClientId=null;focusSelector='form[data-form="client"] input[name="name"]';
+      }
+      if(op==='new-site'&&memberIsOwner()){
+        editingSiteId=null;focusSelector='form[data-form="site"] input[name="name"]';
+      }
       if(op==='invite'&&memberIsOwner())focusSelector='form[data-form="invite"] input[name="email"]';
       if(op==='new-material'&&memberIsOwner()){
         await business?.handleAction({dataset:{action:'biz-new-material'}});
