@@ -46,6 +46,8 @@ let selectedWorkerId = 'all';
 let editingTaskId = null;
 let user = null;
 let memberships = [], companies = [], members = [], clients = [], sites = [], tasks = [], invites = [];
+let adminDelegations=[],adminDelegationReady=false;
+let editingClientId=null,editingSiteId=null;
 let dailyReports = [], reportsReady = false, reportsSetupError = '', reportEditingId = null;
 let selectedReportWorkerId = 'all', reportStatusFilter = 'all';
 let selectedReportId = null;
@@ -336,7 +338,10 @@ const displayDate = value => {
 };
 const statusLabel = task => task.status === 'done' ? 'Completato' : task.due_date < dateToday() ? 'In ritardo' : task.status === 'in_progress' ? 'In corso' : 'Assegnato';
 const pillTone = task => task.status === 'done' ? '' : task.due_date < dateToday() ? 'red' : task.status === 'in_progress' ? 'amber' : '';
-const memberIsOwner = () => memberships.some(m => m.company_id === selectedCompanyId && m.role === 'owner' && m.active);
+const memberIsPrimaryOwner=()=>memberships.some(m=>m.company_id===selectedCompanyId&&m.role==='owner'&&m.active);
+const memberIsAdmin=()=>memberships.some(m=>m.company_id===selectedCompanyId&&m.role==='worker'&&m.active)&&
+  adminDelegations.some(d=>d.company_id===selectedCompanyId&&d.user_id===user?.id);
+const memberIsOwner = () => memberIsPrimaryOwner()||memberIsAdmin();
 const company = () => companies.find(c => c.id === selectedCompanyId);
 const getName = (items,id) => items.find(x=>x.id===id)?.name || '—';
 const getWorkerName = id => members.find(x=>x.user_id===id)?.full_name || '—';
@@ -455,7 +460,7 @@ function render() {
     active:ready && !!user && authMode!=='reset',
     userId:user?.id||'',
     companyId:memberships.length?selectedCompanyId:'',
-    role:memberships.length?(memberIsOwner()?'owner':'worker'):'setup',
+    role:memberships.length?(memberIsPrimaryOwner()?'owner':memberIsAdmin()?'admin':'worker'):'setup',
     locale,
     onLocale(next){
       if(next!==locale){
@@ -864,6 +869,11 @@ async function refresh() {
   companies=requireSuccess(await client.from('eg_companies').select('id,name').in('id',cids))||[];
   if(!cids.includes(selectedCompanyId))selectedCompanyId=cids[0];
   const org=selectedCompanyId;
+  // Check delegation for this user BEFORE owner-only queries.
+  const delegationResponse=await client.from('eg_admin_delegations')
+    .select('company_id,user_id,granted_at').eq('company_id',org);
+  adminDelegationReady=!delegationResponse.error;
+  adminDelegations=adminDelegationReady?delegationResponse.data||[]:[];
   const owner=memberIsOwner();
   const requests = [
     client.from('eg_tasks').select('*').eq('company_id',org),
