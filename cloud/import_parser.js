@@ -41,7 +41,9 @@
     const seen=new Set();
     const lines=String(source||'').replace(/\r/g,'').split('\n').map(tidy).filter(Boolean);
     for(const line of lines){
-      const date=isoDate(line,year);
+      // A dot without a year is ambiguous with HH.MM; never infer a date from it.
+      const hasDateToken=/\b(?:20\d{2}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{1,2}\.\d{1,2}\.\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4})\b/.test(line);
+      const date=hasDateToken?isoDate(line,year):null;
       // Do not treat a dotted date (15.11.2026) as the time 15:11.
       const withoutDate=date?line.replace(/\b(?:20\d{2}-\d{1,2}-\d{1,2}|\d{1,2}[\/.-]\d{1,2}[\/.-](?:20\d{2}|\d{2})|\d{1,2}\/\d{1,2})\b/,' '):line;
       const time=times(withoutDate);
