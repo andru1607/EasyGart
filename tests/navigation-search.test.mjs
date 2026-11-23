@@ -72,7 +72,7 @@ test('owner search can directly reach edit, screenshot and management flows',()=
   ['proforma','cmd:invoices'],
   ['modifica cantiere','cmd:edit-site'],
   ['sicurezza password','cmd:account-security'],
-  ['installare','cmd:install'],
+  ['installa','cmd:install'],
   ['aggiorna dati','cmd:reload']
  ]){
   model.setQuery(query);
