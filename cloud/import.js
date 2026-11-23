@@ -199,10 +199,23 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
     try{
       let existing=[],supportsContacts=false;
       if(mode==='hours'){
+        // Only load the dates being imported (plus previous day for overnight overlaps).
+        // A global latest-2000 query could miss an old duplicate.
+        const wanted=new Set();
+        for(const row of selected){
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(row.work_date))continue;
+          wanted.add(row.work_date);
+          const previous=new Date(row.work_date+'T00:00:00Z');
+          previous.setUTCDate(previous.getUTCDate()-1);
+          wanted.add(previous.toISOString().slice(0,10));
+        }
+        if(!wanted.size)throw Error(tr('Correggi prima le date da importare.','Zuerst die Datumsangaben korrigieren.'));
         const res=await client.from('eg_daily_reports')
           .select('id,created_by,site_id,work_date,work_start_time,work_end_time,deleted_at')
-          .eq('company_id',companyId).order('work_date',{ascending:false}).limit(2000);
+          .eq('company_id',companyId).in('work_date',[...wanted]).limit(2000);
         if(res.error)throw res.error;
+        if((res.data||[]).length>=2000)throw Error(tr('Troppi rapporti nel periodo. Importa meno giorni alla volta.',
+          'Zu viele Berichte im Zeitraum. Weniger Tage gleichzeitig importieren.'));
         existing=res.data||[];
       }else{
         const res=await client.from('eg_clients').select('id,name').eq('company_id',companyId).limit(2000);
@@ -212,6 +225,16 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
         supportsContacts=!check.error;
       }
       const known=new Set();
+      const toMinute=v=>{const m=String(v||'').match(/^(\d{1,2}):(\d{2})/);
+        return m?Number(m[1])*60+Number(m[2]):null};
+      const span=(date,start,end)=>{
+        const a=toMinute(start),b=toMinute(end),base=Date.parse(date+'T00:00:00Z')/60000;
+        return a===null||b===null||!Number.isFinite(base)?null:
+          [base+a,base+b+(b<=a?1440:0)];
+      };
+      const existingIntervals=mode==='hours'?existing.filter(r=>!r.deleted_at&&r.work_start_time&&r.work_end_time)
+        .map(r=>({worker:r.created_by,span:span(r.work_date,r.work_start_time,r.work_end_time)}))
+        .filter(r=>r.span):[];
       for(const r of existing){
         const key=mode==='hours'?
           [r.created_by,r.site_id,r.work_date,r.work_start_time?.slice(0,5),r.work_end_time?.slice(0,5)].join('|'):
@@ -235,6 +258,11 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
               'Beginn, Ende und Pause prüfen (maximal 16 Stunden).'));
             key=[row.worker_id,row.site_id,row.work_date,row.start_time,row.end_time].join('|');
             if(known.has(key))throw Error(tr('Orario già presente: possibile duplicato.','Zeit bereits vorhanden: mögliches Duplikat.'));
+            const currentSpan=span(row.work_date,row.start_time,row.end_time);
+            if(currentSpan&&existingIntervals.some(x=>x.worker===row.worker_id&&
+              Math.max(x.span[0],currentSpan[0])<Math.min(x.span[1],currentSpan[1])))
+              throw Error(tr('Questo orario si sovrappone a un rapporto già registrato per il dipendente.',
+                'Diese Arbeitszeit überschneidet sich mit einem vorhandenen Bericht des Mitarbeiters.'));
             const result=await client.rpc('eg_save_daily_report_v5',{
               p_report_id:null,p_company_id:companyId,p_worker_id:row.worker_id,
               p_site_id:row.site_id,p_task_id:null,p_work_date:row.work_date,
@@ -244,6 +272,7 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
               p_materials_used:'',p_issues:'',p_materials:[],p_send:false
             });
             if(result.error)throw result.error;
+            if(currentSpan)existingIntervals.push({worker:row.worker_id,span:currentSpan});
           }else{
             const name=String(row.name||'').trim();
             if(name.length<2||name.length>150)throw Error(tr('Nome cliente non valido.','Ungültiger Kundenname.'));
