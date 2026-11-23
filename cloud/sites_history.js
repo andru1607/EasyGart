@@ -14,10 +14,12 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
   Math.max(0,Math.round((new Date(s.ended_at)-new Date(s.started_at))/60000-(s.break_seconds||0)/60)):0;
  const clock=v=>v?new Intl.DateTimeFormat(c().locale==='de'?'de-DE':'it-IT',
   {hour:'2-digit',minute:'2-digit'}).format(new Date(v)):'—';
- let reports=[],shifts=[],materials=[],selectedSite=null,person='all';
+ let reports=[],shifts=[],materials=[],selectedSite=null,person='all',search='';
  let ready=false,error='',partial=false,company='';
  const authorized=id=>c().isOwner||id===c().user?.id;
- const filteredReports=()=>reports.filter(x=>authorized(x.created_by)&&(person==='all'||x.created_by===person));
+ const filteredReports=()=>reports.filter(x=>!x.deleted_at&&
+   (authorized(x.created_by)||['submitted','approved'].includes(x.status))&&
+   (person==='all'||x.created_by===person));
  const filteredShifts=()=>shifts.filter(x=>authorized(x.user_id)&&(person==='all'||x.user_id===person));
  const rsFor=id=>filteredReports().filter(r=>sd(r)===id);
  const ssFor=id=>filteredShifts().filter(s=>s.site_id===id);
@@ -37,19 +39,20 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
   try{
    const [r,s,m]=await Promise.all([
     pages(client.from('eg_daily_reports')
-      .select('id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status,invoice_locked')
+      .select('*')
       .eq('company_id',companyId).order('work_date',{ascending:false}).order('id',{ascending:false})),
     pages(client.from('eg_shifts')
       .select('*')
       .eq('company_id',companyId).order('started_at',{ascending:false}).order('id',{ascending:false})),
     client.rpc('eg_list_month_materials',{p_company_id:companyId,p_begin:'2020-01-01',p_end:'2099-12-31'})
    ]);
-   if(m.error)throw m.error;
    if(company!==companyId)return;
-   reports=r;shifts=s.filter(shift=>!shift.deleted_at);materials=m.data||[];ready=true;
+   reports=r.filter(report=>!report.deleted_at);shifts=s.filter(shift=>!shift.deleted_at);
+   // Materials are optional; workers may only read their own material rows.
+   materials=m.error?[]:m.data||[];ready=true;
   }catch(e){reports=[];shifts=[];materials=[];ready=false;error=String(e?.message||e)}
  }
- function reset(){reports=[];shifts=[];materials=[];selectedSite=null;person='all';ready=false;error='';company='';partial=false}
+ function reset(){reports=[];shifts=[];materials=[];selectedSite=null;person='all';search='';ready=false;error='';company='';partial=false}
  function choosePerson(id){
   person=c().isOwner&&(id==='all'||c().members.some(m=>m.user_id===id))?id:'all';
   selectedSite=null;
@@ -66,7 +69,7 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
   return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,c().locale||'it'));
  }
  function workedSites(){
-  const ids=new Set([...filteredReports().map(sd),...filteredShifts().map(s=>s.site_id)].filter(Boolean));
+  const ids=new Set([...c().sites.map(x=>x.id),...filteredReports().map(sd),...filteredShifts().map(s=>s.site_id)].filter(Boolean));
   return [...ids].map(id=>{
    const rs=rsFor(id),ss=ssFor(id);
    return {id,rs,ss,declared:rs.reduce((a,r)=>a+Number(r.minutes_worked||0),0),
@@ -75,10 +78,16 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
   }).sort((a,b)=>display(a.id).localeCompare(display(b.id),c().locale||'it'));
  }
  function siteCards(){
-  const list=workedSites();
+  const term=search.trim().toLocaleLowerCase();
+  const list=workedSites().filter(x=>!term||[display(x.id),
+    c().sites.find(s=>s.id===x.id)?.address||''].some(value=>value.toLocaleLowerCase().includes(term)));
   return '<div class="view-head"><div><h2>'+tr('Cantieri svolti','Bearbeitete Einsatzorte')+'</h2>'+
    '<p class="muted">'+tr('Apri un cantiere per vedere tutte le giornate, ore, interventi e materiali.',
     'Öffne einen Einsatzort, um Tage, Stunden, Arbeiten und Materialien zu sehen.')+'</p></div></div>'+
+   '<label class="field" style="display:block;margin-bottom:14px"><span>'+
+    tr('Cerca cantiere','Einsatzort suchen')+'</span>'+
+    '<input id="eg-site-history-search" type="search" placeholder="'+tr('Nome o indirizzo…','Name oder Adresse…')+
+    '" value="'+safe(search)+'" autocomplete="off"></label>'+
    (c().isOwner?'<div class="card eg-site-filter"><label class="field"><span>'+tr('Dipendente','Mitarbeiter')+'</span>'+
      '<select id="eg-site-worker"><option value="all">'+tr('Tutta la squadra','Gesamtes Team')+'</option>'+
      c().members.map(m=>'<option value="'+safe(m.user_id)+'"'+(person===m.user_id?' selected':'')+'>'+safe(m.full_name)+'</option>').join('')+
@@ -101,8 +110,13 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
      (r.work_start_time&&r.work_end_time?safe(String(r.work_start_time).slice(0,5)+' – '+String(r.work_end_time).slice(0,5))+' · ':'')+
      fmt(Number(r.minutes_worked||0))+
      (r.break_minutes?' · '+tr('Pausa','Pause')+' '+r.break_minutes+' min':'')+'</p></div>'+
+     '<div class="eg-site-visit-actions">'+
      '<button type="button" class="secondary small" data-action="site-history-open-report" data-id="'+safe(r.id)+'">'+
-     tr('Apri rapporto','Bericht öffnen')+'</button></div>'+
+     tr('Apri rapporto','Bericht öffnen')+'</button>'+
+     ((c().isOwner||r.created_by===c().user?.id)&&!r.invoice_locked?
+       '<button type="button" class="ghost small" data-action="site-history-edit-report" data-id="'+safe(r.id)+'">'+
+       tr('Modifica','Bearbeiten')+'</button>':'')+
+     '</div></div>'+
      '<p class="eg-site-work">'+safe(r.work_summary||tr('Nessuna descrizione','Keine Beschreibung'))+'</p>'+
      (selected.length?'<div class="eg-site-material-lines">'+selected.map(m=>'<span>'+safe(m.material_name)+
        ' <b>'+safe(m.quantity)+' '+safe(m.unit)+'</b></span>').join('')+'</div>':'')+
@@ -136,5 +150,6 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
    return (selectedSite?detail():siteCards())+
       (partial?'<div class="alert warn">'+tr('Archivio molto grande: dati non completi.','Sehr großes Archiv: Daten unvollständig.')+'</div>':'');
  }
- return {refresh,reset,markup,open,back,choosePerson,getReport:id=>reports.find(r=>r.id===id)||null};
+ function setSearch(value){search=String(value||'').slice(0,100);return true}
+ return {refresh,reset,markup,open,back,choosePerson,setSearch,getReport:id=>reports.find(r=>r.id===id)||null};
 };
