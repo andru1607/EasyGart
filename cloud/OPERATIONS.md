@@ -13,6 +13,15 @@ EasyGart è una PWA, non un'app nativa App Store/Play Store. Servono Internet e 
 
 Dalla schermata di accesso scegliere **Password dimenticata?**, inserire l'email e seguire il link ricevuto. Il collegamento riporta a EasyGart Cloud e permette di impostare una password nuova di almeno 12 caratteri. Dopo il cambio password è necessario effettuare nuovamente l'accesso. Chi è già autenticato trova **Sicurezza account** nell'intestazione. Il flusso è disponibile in italiano e tedesco. La consegna delle email richiede configurazione corretta di Supabase Auth/SMTP e URL di redirect autorizzati.
 
+## Cancellazione degli orari dal calendario (IT/DE)
+
+1. Apri **Calendario > Solo orari** oppure **Calendario > Orari e rapporti**, scegli il mese e il giorno già registrato.
+2. **Timbratura conclusa:** tocca **Elimina orario / Zeiteintrag löschen**. La cancellazione riguarda solo la timbratura e conserva una traccia per il titolare. Il pulsante è visibile anche se manca l'aggiornamento SQL, ma in tal caso la finestra spiega che la funzione non è ancora attiva.
+3. **Orario dichiarato nel rapporto:** tocca **Modifica orari / Arbeitszeiten bearbeiten** per cambiare inizio, fine e pausa. In alternativa, **Elimina rapporto e orari / Bericht und Zeiten löschen** apre una conferma che cancella l'intero rapporto, **non soltanto le ore**. Materiali e descrizione vengono quindi rimossi dalle viste come previsto dalla cancellazione del rapporto. Non usare questa seconda opzione se vuoi conservare i lavori documentati.
+4. Ogni dipendente può intervenire soltanto sulle proprie registrazioni, il titolare può intervenire sulle registrazioni della squadra; non è possibile cancellare un turno aperto o un rapporto già bloccato per proforma.
+
+**Attivazione necessaria:** la cancellazione delle sole timbrature dipende dalla migrazione SQL [easygart_shift_soft_delete_v1.sql](../supabase/easygart_shift_soft_delete_v1.sql) da applicare nel progetto Supabase EasyGart `xdwsqkteykjjpzogwocx`. Il repository non ha accesso al database tramite il connettore Supabase attuale, quindi la funzione non va considerata operativa fino a verifica. La cancellazione del rapporto utilizza invece l'RPC già prevista per i rapporti e va verificata con un account reale.
+
 ## Ricerca rapida per tutti
 
 Premere la lente **Cerca / Suche** nella testata della dashboard, oppure **⌘K** (Mac) o **Ctrl+K** (computer). La ricerca trova le attività assegnate, i cantieri, i rapporti già caricati, le sezioni e le azioni disponibili in base al ruolo. Senza testo mostra le azioni rapide; digitando vengono cercati titoli, descrizioni dei compiti, date e luoghi. Toccare un risultato per aprire la relativa schermata o attività; **Esc** chiude la ricerca.
