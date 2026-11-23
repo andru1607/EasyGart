@@ -31,6 +31,7 @@ La PWA mantiene offline soltanto i file pubblici dell'interfaccia; **non** memor
 - [Configurazione Supabase](cloud/SETUP.md)
 - [Backup, ripristino e rilascio](cloud/RELEASE_AND_RECOVERY.md)
 - [Migrazioni SQL](supabase/)
+- [Annullamento timbrature concluse](supabase/easygart_shift_soft_delete_v1.sql) (migrazione da applicare sul progetto EasyGart prima di usare la funzione)
 - [Verifiche automatiche](tests/)
 
 Il progetto Supabase Cloud è xdwsqkteykjjpzogwocx. Le migrazioni core, rapporti, presenze, media privati, confini RPC, business e pianificazione Cron sono state applicate al progetto corretto. La migrazione easygart_fk_indexes_v1.sql aggiunge indici per le chiavi esterne ed è idempotente.
