@@ -45,7 +45,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
           .eq('company_id',companyId).gte('work_date',from).lt('work_date',to)
           .order('work_date',{ascending:true}).order('id',{ascending:true})),
         fetchAll(client.from('eg_shifts')
-          .select('id,user_id,site_id,started_at,ended_at,break_seconds,status')
+          .select('*')
           .eq('company_id',companyId).gte('started_at',after).lt('started_at',before)
           .order('started_at',{ascending:true}).order('id',{ascending:true})),
         fetchAll(client.from('eg_tasks')
@@ -57,7 +57,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
       if(loadedCompany!==companyId)return;
       if(m.error)throw m.error;
       materials=m.data||[];
-      reports=r;tasks=t;shifts=s.filter(x=>{
+      reports=r;tasks=t;shifts=s.filter(x=>!x.deleted_at).filter(x=>{
         const d=new Date(x.started_at);
         return d.getFullYear()===year&&d.getMonth()===month;
       });
