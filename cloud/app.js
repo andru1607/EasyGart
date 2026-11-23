@@ -1240,6 +1240,46 @@ document.addEventListener('click',e=>{
       });return;
     }
     if(a==='cal-delete-shift'){withBusy(()=>operations?.openShiftDeletion(b.dataset.id));return}
+    if(a==='cal-delete-report'){
+      withBusy(async()=>{
+        const id=b.dataset.id;
+        if(!id)return;
+        let report=dailyReports.find(r=>r.id===id);
+        if(!report){
+          const response=await client.from('eg_daily_reports').select('*')
+            .eq('company_id',selectedCompanyId).eq('id',id).single();
+          if(response.error)throw response.error;
+          report=response.data;
+          dailyReports=[report,...dailyReports.filter(r=>r.id!==id)];
+        }
+        if(!canDeleteReport(report))throw Error(
+          locale==='de'?'Dieser Bericht kann nicht gelöscht werden.':'Non puoi eliminare questo rapporto.');
+        reportReturnView=currentView;
+        pendingReportDeletionId=id;
+        render();
+        document.querySelector?.('[data-action="report-delete-cancel"]')?.focus?.();
+      });return;
+    }
+    if(a==='cal-edit-hours'){
+      withBusy(async()=>{
+        const id=b.dataset.id;
+        if(!id)return;
+        let report=dailyReports.find(r=>r.id===id);
+        if(!report){
+          const response=await client.from('eg_daily_reports').select('*')
+            .eq('company_id',selectedCompanyId).eq('id',id).single();
+          if(response.error)throw response.error;
+          report=response.data;dailyReports=[report,...dailyReports.filter(r=>r.id!==id)];
+        }
+        if(!endOfDay?.canEdit(report))throw Error(
+          locale==='de'?'Die Zeiten können nicht bearbeitet werden.':'Non puoi modificare questi orari.');
+        const fromCalendar=currentView;
+        await endOfDay.prepareOpen(id);
+        editingFromCalendar=fromCalendar;editingFromMonthly=false;editingFromSite=false;
+        currentView='eod';menuOpen=false;render();
+        window.scrollTo?.({top:0,behavior:'instant'});
+      });return;
+    }
     if(a==='cal-open-report'){
       withBusy(async()=>{
         const id=b.dataset.id;
@@ -1251,7 +1291,7 @@ document.addEventListener('click',e=>{
           report=response.data;dailyReports=[report,...dailyReports.filter(r=>r.id!==id)];
         }
         await loadReportMaterialRows(id);
-        selectedReportId=id;reportReturnView='calendar';menuOpen=false;
+        selectedReportId=id;reportReturnView=currentView;menuOpen=false;
         currentView='report-detail';render();window.scrollTo?.({top:0,behavior:'instant'});
       });return;
     }
