@@ -460,7 +460,7 @@ function render() {
     active:ready && !!user && authMode!=='reset',
     userId:user?.id||'',
     companyId:memberships.length?selectedCompanyId:'',
-    role:memberships.length?(memberIsPrimaryOwner()?'owner':memberIsAdmin()?'admin':'worker'):'setup',
+    role:memberships.length?(memberIsOwner()?'owner':'worker'):'setup',
     locale,
     onLocale(next){
       if(next!==locale){
