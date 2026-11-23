@@ -249,14 +249,19 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
               throw Error(tr('Indirizzo email non valido.','Ungültige E-Mail-Adresse.'));
             key=parser.norm(name);
             if(known.has(key))throw Error(tr('Cliente già presente: possibile duplicato.','Kunde bereits vorhanden: mögliches Duplikat.'));
-            if(!supportsContacts&&(row.phone||row.email||row.address))
-              throw Error(tr('Per salvare telefono, email e indirizzo serve la migrazione dei contatti del cliente. Nessun dato è stato scartato.',
-                'Zum Speichern der Kontaktdaten ist eine Datenbankmigration erforderlich. Keine Daten verworfen.'));
             const payload={company_id:companyId,name};
             if(supportsContacts){
               payload.phone=String(row.phone||'').trim().slice(0,80);
               payload.email=String(row.email||'').trim().slice(0,200);
               payload.address=String(row.address||'').trim().slice(0,300);
+            }else{
+              // The original eg_clients schema already has notes: preserve contact details
+              // without inventing columns or silently discarding user information.
+              payload.notes=[
+                row.phone?tr('Telefono: ','Telefon: ')+String(row.phone).trim():'',
+                row.email?'Email: '+String(row.email).trim():'',
+                row.address?tr('Indirizzo: ','Adresse: ')+String(row.address).trim():''
+              ].filter(Boolean).join('\n');
             }
             const result=await client.from('eg_clients').insert(payload).select('id').single();
             if(result.error)throw result.error;
@@ -267,7 +272,10 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
       if(lastAdded)await onImported(mode,lastAdded);
       const failed=selected.filter(r=>r.status==='error').length;
       message=tr('Importati','Importiert')+' '+lastAdded+' · '+tr('Da correggere','Zu korrigieren')+' '+failed+
-       '. '+tr('Le righe con errore restano disponibili.','Fehlerhafte Zeilen bleiben verfügbar.');
+       '. '+tr('Le righe con errore restano disponibili.','Fehlerhafte Zeilen bleiben verfügbar.')+
+       (mode==='clients'&&!supportsContacts&&lastAdded?
+         ' '+tr('Recapiti conservati nelle note cliente; per campi separati serve l’aggiornamento del database.',
+           'Kontaktdaten in Kundennotizen gespeichert; für separate Felder ist ein Datenbank-Update nötig.'):'');
     }finally{busy=false;rerender()}
   }
   return {open,reset,markup,setMode,setRaw,analyse,readScreenshot,setField,addRow,save,getMode:()=>mode,isBusy:()=>busy,
