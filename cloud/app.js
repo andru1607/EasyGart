@@ -1189,7 +1189,9 @@ async function boot(){
     });
     operations = window.createEasyGartOperations({
       client,
-      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,reports:dailyReports,locale,reload:refresh}),
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
+        isWorker:memberships.some(m=>m.company_id===selectedCompanyId&&m.user_id===user?.id&&m.role==='worker'&&m.active),
+        members,sites,tasks,reports:dailyReports,locale,reload:refresh}),
       t,tr,esc,onSuccess:success,rerender:render
     });
     calendar = window.createEasyGartCalendar({client,
