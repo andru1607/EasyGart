@@ -169,6 +169,56 @@ drop policy if exists eg_members_read on public.eg_members;
 create policy eg_members_read on public.eg_members for select to authenticated
   using(private.eg_is_member(company_id));
 
+-- Se la cancellazione delle timbrature è già installata, consentirla anche
+-- all'amministratore delegato. Non crea il modulo se la migrazione precedente
+-- non è ancora stata applicata.
+do $eg_shift_delegate_upgrade$
+begin
+  if to_regprocedure('public.eg_delete_shift(uuid,uuid)') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='eg_shifts' and column_name='deleted_at'
+    ) then
+    execute $eg_shift_rpc$
+create or replace function public.eg_delete_shift(
+  p_company_id uuid, p_shift_id uuid
+) returns boolean
+language plpgsql security definer set search_path = '' as $eg_delete_shift$
+declare
+  v_uid uuid := auth.uid();
+  v_role text;
+  v_shift public.eg_shifts%rowtype;
+begin
+  if v_uid is null then raise exception 'Accesso richiesto'; end if;
+  select m.role into v_role from public.eg_members m
+    where m.company_id=p_company_id and m.user_id=v_uid and m.active;
+  if v_role is null or v_role not in ('owner','worker') then
+    raise exception 'Utente non autorizzato';
+  end if;
+
+  select * into v_shift from public.eg_shifts s
+    where s.company_id=p_company_id and s.id=p_shift_id for update;
+  if not found then raise exception 'Timbratura non trovata'; end if;
+  if not private.eg_is_owner(p_company_id) and v_shift.user_id <> v_uid then
+    raise exception 'Puoi cancellare soltanto le tue timbrature';
+  end if;
+  if v_shift.deleted_at is not null then raise exception 'Timbratura già cancellata'; end if;
+  if v_shift.status <> 'closed' or v_shift.ended_at is null then
+    raise exception 'Puoi cancellare soltanto turni conclusi';
+  end if;
+
+  update public.eg_shifts
+     set deleted_at=clock_timestamp(), deleted_by=v_uid
+   where id=v_shift.id and company_id=p_company_id;
+  return true;
+end
+$eg_delete_shift$;
+
+    $eg_shift_rpc$;
+  end if;
+end
+$eg_shift_delegate_upgrade$;
+
 commit;
 
 -- Solo verifica, nessuna modifica ai dati:
