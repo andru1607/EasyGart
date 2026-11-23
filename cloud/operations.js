@@ -8,6 +8,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   const API_SIGNED_URL_TTL=120; // Short-lived preview links. Never use getPublicUrl.
   let shifts=[],media=[],shiftsReady=false,mediaReady=false;
   let shiftError='',mediaError='',selectedWorker='all',signingReportId=null;
+  let shiftToDelete=null,showDeleted=false;
   let signatureDrawn=false,drawing=false,lastPoint=null,mediaUrls=new Map();
   const context=()=>getContext();
   const ownReport=report=>{
@@ -49,7 +50,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   async function refresh(companyId){
     if(!companyId){shifts=[];media=[];shiftsReady=false;mediaReady=false;mediaUrls.clear();return}
     const [rs,rm]=await Promise.all([
-      client.from('eg_shifts').select('id,company_id,user_id,site_id,started_at,ended_at,break_started_at,break_seconds,status')
+      client.from('eg_shifts').select('*')
         .eq('company_id',companyId).order('started_at',{ascending:false}).limit(200),
       client.from('eg_report_media').select('id,company_id,report_id,author_id,kind,mime_type,storage_path,status,signer_name,uploaded_at,created_at')
         .eq('company_id',companyId).eq('status','uploaded')
@@ -78,14 +79,62 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     const c=context();
     return shifts.filter(s=>c.isOwner||(s.user_id===c.user?.id));
   }
+  const canDeleteShift=s=>{
+    const c=context();
+    return !!c.user && !!s && s.status==='closed' && !!s.ended_at && !s.deleted_at &&
+      (c.isOwner||s.user_id===c.user.id) &&
+      Object.prototype.hasOwnProperty.call(s,'deleted_at');
+  };
+  async function openShiftDeletion(id){
+    const c=context();
+    if(!c.companyId||!c.user||!id)throw Error(tr('Sessione non valida.','Ungültige Sitzung.'));
+    const {data,error}=await client.from('eg_shifts').select('*')
+      .eq('company_id',c.companyId).eq('id',id).single();
+    if(error)throw error;
+    if(!canDeleteShift(data))throw Error(tr('Puoi eliminare soltanto i tuoi turni conclusi, oppure quelli della squadra se sei titolare.',
+      'Du kannst nur eigene abgeschlossene Schichten löschen, als Inhaber auch die deines Teams.'));
+    shiftToDelete=data;
+    rerender();
+    document.querySelector?.('[data-action="ops-shift-delete-cancel"]')?.focus?.();
+  }
+  function deletionDialogMarkup(){
+    const s=shiftToDelete;
+    if(!canDeleteShift(s))return '';
+    return '<div class="eg-delete-overlay"><div class="eg-delete-dialog" role="alertdialog" aria-modal="true" '+
+      'aria-labelledby="eg-shift-delete-title" aria-describedby="eg-shift-delete-desc">'+
+      '<h2 id="eg-shift-delete-title">'+tr('Eliminare questa timbratura?','Diese Zeiterfassung löschen?')+'</h2>'+
+      '<p id="eg-shift-delete-desc">'+tr('Il turno scomparirà dal calendario e dal totale delle ore timbrate. Il rapporto giornaliero rimarrà invariato. La cancellazione sarà registrata.',
+       'Die Schicht verschwindet aus dem Kalender und der Stundensumme. Der Tagesbericht bleibt unverändert. Die Löschung wird protokolliert.')+'</p>'+
+      '<div class="eg-delete-report-summary"><strong>'+safeText(workerName(s.user_id))+'</strong>'+
+      '<span>'+dateTime(s.started_at)+' – '+dateTime(s.ended_at)+'</span></div>'+
+      '<div class="eg-delete-actions">'+
+      '<button type="button" class="ghost" data-action="ops-shift-delete-cancel">'+tr('Annulla','Abbrechen')+'</button>'+
+      '<button type="button" class="eg-danger-solid" data-action="ops-shift-delete-confirm">'+tr('Elimina orario','Zeiteintrag löschen')+'</button>'+
+      '</div></div></div>';
+  }
+  async function confirmShiftDeletion(){
+    const s=shiftToDelete,c=context();
+    if(!canDeleteShift(s))throw Error(tr('Timbratura non modificabile.','Zeiterfassung nicht bearbeitbar.'));
+    if(typeof navigator!=='undefined'&&navigator.onLine===false)
+      throw Error(tr('Serve una connessione Internet per cancellare la timbratura.','Zum Löschen ist eine Internetverbindung erforderlich.'));
+    const {data,error}=await client.rpc('eg_delete_shift',{p_company_id:c.companyId,p_shift_id:s.id});
+    if(error)throw error;
+    if(data!==true)throw Error(tr('Impossibile eliminare la timbratura.','Zeiterfassung konnte nicht gelöscht werden.'));
+    shiftToDelete=null;
+    await c.reload();
+    onSuccess(tr('Timbratura eliminata dai riepiloghi. Modifica registrata.',
+      'Zeiterfassung aus den Übersichten entfernt. Änderung protokolliert.'));
+  }
   function clockMarkup(){
     if(!shiftsReady)return '<div class="view-head"><h2>'+t('Timbrature')+'</h2></div>'+showMissing('attendance');
     const c=context(),owner=c.isOwner;
-    let list=activeWorkerShifts();
-    if(owner&&selectedWorker!=='all')list=list.filter(s=>s.user_id===selectedWorker);
+    const all=activeWorkerShifts();
+    const filtered=all.filter(s=>!owner||selectedWorker==='all'||s.user_id===selectedWorker);
+    const live=filtered.filter(s=>!s.deleted_at);
+    let list=(owner&&showDeleted)?filtered.filter(s=>!!s.deleted_at):live;
     const open=ownShift();
-    const closed=list.filter(s=>s.status==='closed').length;
-    const worked=list.filter(s=>s.status==='closed').reduce((sum,s)=>{
+    const closed=live.filter(s=>s.status==='closed').length;
+    const worked=live.filter(s=>s.status==='closed').reduce((sum,s)=>{
       const delta=(new Date(s.ended_at)-new Date(s.started_at))/1000-(s.break_seconds||0);
       return sum+Math.max(0,delta);
     },0);
@@ -94,10 +143,19 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     const metric='<div class="grid" style="margin-bottom:17px">'+
       '<div class="card metric"><span>'+t('Turni conclusi')+'</span><strong>'+closed+'</strong></div>'+
       '<div class="card metric"><span>'+t('Ore lavorate registrate')+'</span><strong style="font-size:25px">'+duration(worked)+'</strong></div>'+
-      '<div class="card metric"><span>'+t('Turni aperti')+'</span><strong>'+list.filter(s=>s.status!=='closed').length+'</strong></div></div>';
+      '<div class="card metric"><span>'+t('Turni aperti')+'</span><strong>'+live.filter(s=>s.status!=='closed').length+'</strong></div></div>';
     const choose=owner?'<div class="card" style="margin-bottom:17px"><label class="field">'+t('Dipendente')+
       '<select data-ops-filter="worker">'+labelOption('all',tr('Tutti i dipendenti'),selectedWorker==='all')+
       c.members.filter(m=>m.role==='worker').map(m=>labelOption(m.user_id,m.full_name,m.user_id===selectedWorker)).join('')+'</select></label></div>':'';
+    const auditToggle=owner&&filtered.some(s=>Object.prototype.hasOwnProperty.call(s,'deleted_at'))?
+      '<div class="actions" style="margin-bottom:15px"><button type="button" class="ghost small" data-action="ops-shift-deleted-toggle" aria-pressed="'+showDeleted+'">'+
+      (showDeleted?tr('Mostra timbrature attive','Aktive Zeiterfassungen anzeigen'):tr('Mostra annullate','Gelöschte anzeigen'))+
+      '</button></div>':'';
+    const migrationInfo=live.some(s=>s.status==='closed'&&!Object.prototype.hasOwnProperty.call(s,'deleted_at'))?
+      '<div class="alert warn" style="margin-bottom:15px">'+tr('La cancellazione delle timbrature richiede un aggiornamento del database.',
+       'Zum Löschen der Zeiterfassung muss die Datenbank aktualisiert werden.')+
+      ' <a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_shift_soft_delete_v1.sql" target="_blank" rel="noopener noreferrer">'+
+      tr('Apri lo script','SQL-Skript öffnen')+'</a></div>':'';
     let controls='';
     if(!owner){
       const siteOptions=labelOption('',tr('Non specificato'))+c.sites.map(x=>labelOption(x.id,x.name)).join('');
@@ -119,8 +177,14 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
       '<span>'+t('Cantiere')+': '+safeText(c.sites.find(x=>x.id===shift.site_id)?.name||tr('Non specificato'))+'</span></div>'+
       '<div class="task-meta"><span>'+t('Pause')+': '+duration(shift.break_seconds||0)+'</span>'+
       '<span>'+t('Tempo lavorato')+': '+elapsed(shift)+'</span></div></div>'+
-      '<span class="pill '+(shift.status==='break'?'amber':'')+'">'+t(shift.status==='closed'?'Concluso':shift.status==='break'?'In pausa':'In corso')+'</span></div>';
-    return head+metric+choose+controls+'<section class="card"><h2 style="margin-bottom:16px">'+t('Storico timbrature')+'</h2>'+
+      '<div class="task-right"><span class="pill '+(shift.status==='break'?'amber':'')+'">'+
+      (shift.deleted_at?tr('Annullato','Gelöscht'):t(shift.status==='closed'?'Concluso':shift.status==='break'?'In pausa':'In corso'))+'</span>'+
+      (canDeleteShift(shift)?'<button type="button" class="eg-shift-delete-button small" data-action="ops-shift-delete-open" data-shift-id="'+safeText(shift.id)+'">'+
+        tr('Elimina orario','Zeiteintrag löschen')+'</button>':'')+
+      (shift.deleted_at?'<small class="muted">'+tr('Annullato il','Gelöscht am')+' '+dateTime(shift.deleted_at)+
+        ' · '+tr('da','von')+' '+safeText(workerName(shift.deleted_by))+'</small>':'')+
+      '</div></div>';
+    return head+metric+choose+auditToggle+migrationInfo+controls+'<section class="card"><h2 style="margin-bottom:16px">'+t('Storico timbrature')+'</h2>'+
       (list.length?list.slice(0,60).map(row).join(''):'<p class="muted">'+t('Nessuna timbratura registrata.')+'</p>')+
       '<p class="muted" style="font-size:12px;margin-top:17px">'+t('Le ore sono indicative per il riepilogo operativo, non sostituiscono il cedolino o le registrazioni obbligatorie.')+'</p></section>';
   }
@@ -317,6 +381,10 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   async function handleAction(b){
     const a=b.dataset.action;
     if(a==='ops-clock')return clock(b.dataset.opsType);
+    if(a==='ops-shift-delete-open')return openShiftDeletion(b.dataset.shiftId);
+    if(a==='ops-shift-delete-cancel'){shiftToDelete=null;rerender();return}
+    if(a==='ops-shift-delete-confirm')return confirmShiftDeletion();
+    if(a==='ops-shift-deleted-toggle'){showDeleted=!showDeleted;rerender();return}
     if(a==='ops-media-delete')return deleteMedia(b.dataset.mediaId);
     if(a==='ops-sign-open'){
       const report=context().reports.find(x=>x.id===b.dataset.reportId);
@@ -348,8 +416,8 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     return false;
   }
   return {
-    refresh,clockMarkup,mediaMarkup,uploadPhotos,saveSignature,handleAction,handleChange,
+    refresh,clockMarkup,deletionDialogMarkup,openShiftDeletion,mediaMarkup,uploadPhotos,saveSignature,handleAction,handleChange,
     pointerStart,pointerMove,pointerEnd,captureSignature,restoreSignature,isSigning:()=>signingReportId!==null,
-    reset:()=>{shifts=[];media=[];shiftsReady=false;mediaReady=false;mediaUrls.clear();signingReportId=null;signatureDrawn=false}
+    reset:()=>{shifts=[];media=[];shiftsReady=false;mediaReady=false;mediaUrls.clear();signingReportId=null;signatureDrawn=false;shiftToDelete=null;showDeleted=false}
   };
 };
