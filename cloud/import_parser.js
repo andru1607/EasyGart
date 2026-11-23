@@ -66,12 +66,14 @@
       const startTime=found[0],endTime=found[found.length-1];
       const elapsed=(toM(endTime)-toM(startTime)+1440)%1440;
       if(!elapsed||worked>elapsed)continue;
-      const breakMinutes=found.length>2?elapsed-worked:pause(line);
+      const explicitPause=pause(line);
+      const breakMinutes=found.length>2?elapsed-worked:explicitPause;
+      const pause_warning=found.length>2&&explicitPause>0&&explicitPause!==breakMinutes;
       if(duration(startTime,endTime,breakMinutes)===null)continue;
       const workerId=workerOnLine||headingWorker,siteId=siteOnLine||headingSite;
       const row={include:true,work_date:when.date,worker_id:workerId,site_id:siteId,
         start_time:startTime,end_time:endTime,break_minutes:breakMinutes,
-        work_summary:'',source_line:line.slice(0,300),year_guessed:when.guessed,
+        work_summary:'',source_line:line.slice(0,300),year_guessed:when.guessed,pause_warning,
         confidence:workerId&&siteId&&!when.guessed?'review':'incomplete',
         status:'pending',error:''};
       const fingerprint=[row.work_date,row.worker_id,row.site_id,row.start_time,row.end_time,row.break_minutes].join('|');
