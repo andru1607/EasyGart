@@ -35,7 +35,10 @@ window.createEasyGartSearch = function({getContext,esc}) {
       command('calendar','Calendario orari e rapporti','Arbeitszeit- und Berichtskalender','Consulta ore, attività e rapporti','Zeiten, Tätigkeiten und Berichte ansehen','calendar','giorno lavoro'),
       command('reports','Rapporti giornalieri','Tagesberichte','Consulta, modifica e correggi i rapporti','Berichte anzeigen, bearbeiten und korrigieren','reports','rapporti storico lavori'),
       command('monthly','Resoconto mensile','Monatsübersicht','Totali ore, attività e materiali','Stunden, Tätigkeiten und Material im Monat','monthly','riepilogo statistiche'),
-      command('sites-history','Cantieri svolti','Bearbeitete Einsatzorte','Storico delle attività nei cantieri','Verlauf der Arbeiten an Einsatzorten','sites-history','cantieri storico'),
+      command('sites-history','Cantieri e rapporti','Einsatzorte und Berichte','Elenco di tutti i cantieri, con interventi e documenti','Alle Einsatzorte mit Arbeitsberichten','sites-history','cantieri storico lista lavori consultare'),
+      command('site-reports','Rapporti per singolo cantiere','Berichte je Einsatzort','Apri lo storico completo del cantiere','Arbeitsberichte nach Einsatzort ansehen','sites-history','rapporti cantiere lista'),
+      command('edit-report','Modifica rapporto e orari','Bericht und Arbeitszeiten bearbeiten','Apri un rapporto per correggere data, ore e materiali','Datum, Zeiten und Material korrigieren','reports','modificare orari rapporto vecchio'),
+      command('my-history','Storico ore e attività','Arbeitszeiten und Tätigkeiten im Verlauf','Riepiloghi giornalieri e mensili','Tages- und Monatsübersichten','monthly','ore lavorate mese storico'),
       command('guide','Guida alle funzioni','Funktionshilfe','Scopri come usare EasyGart','EasyGart Funktionen kennenlernen','guide','aiuto help assistenza','guide')
     ];
     if(!owner)return common;
@@ -44,12 +47,22 @@ window.createEasyGartSearch = function({getContext,esc}) {
       command('clients','Clienti e cantieri','Kunden und Einsatzorte','Apri la rubrica aziendale','Firmenverzeichnis öffnen','clients','rubrica anagrafica'),
       command('new-client','Nuovo cliente','Neuer Kunde','Aggiungi un cliente alla rubrica','Kunden zum Verzeichnis hinzufügen','clients','crea cliente','new-client'),
       command('new-site','Nuovo cantiere','Neuer Einsatzort','Aggiungi un cantiere al cliente','Neuen Einsatzort beim Kunden anlegen','clients','crea cantiere','new-site'),
+      command('edit-client','Modifica cliente e recapiti','Kundendaten bearbeiten','Correggi nomi, indirizzi e note dei clienti','Namen, Adressen und Notizen korrigieren','clients','aggiorna anagrafica telefono email'),
+      command('edit-site','Modifica cantiere','Einsatzort bearbeiten','Correggi nome o indirizzo del cantiere','Namen oder Adresse des Einsatzorts korrigieren','clients','aggiorna modifica indirizzo cantiere'),
+      command('import-hours','Importa orari da screenshot','Arbeitszeiten aus Screenshot importieren','Leggi e verifica le ore dalle Note','Zeiten aus Notizen einlesen und prüfen','import','ocr screenshot fotografia orari','import-hours'),
+      command('import-clients','Importa clienti da screenshot','Kunden aus Screenshot importieren','Leggi i clienti dalle Note e verifica i dati','Kunden aus Notizen einlesen und prüfen','import','ocr screenshot foto clienti','import-clients'),
       command('team','La tua squadra','Dein Team','Gestisci i dipendenti','Mitarbeitende verwalten','team','personale dipendenti'),
+      command('admin-delegate','Concedi o revoca permessi admin','Admin-Rechte vergeben oder entziehen','Scegli un dipendente dalla squadra','Mitarbeiter im Team auswählen','team','admin titolare delega autorizzazioni'),
       command('invite','Invita dipendente','Mitarbeiter einladen','Invia un nuovo invito alla squadra','Neue Einladung ans Team senden','team','aggiungi personale','invite'),
       command('materials','Catalogo materiali','Materialkatalog','Gestisci materiali e prezzi','Material und Preise verwalten','materials','materiale magazzino'),
+      command('new-material','Aggiungi materiale','Material hinzufügen','Apri catalogo e registra il materiale','Katalog öffnen und Material erfassen','materials','nuovo prodotto quantità prezzo listino'),
       command('maintenance','Manutenzioni ricorrenti','Wiederkehrende Pflege','Pianifica i lavori periodici','Wiederkehrende Arbeiten planen','maintenance','pianifica intervento ricorrente'),
+      command('new-maintenance','Nuova manutenzione','Neue Pflegeplanung','Apri le pianificazioni ricorrenti','Wiederkehrende Arbeiten anlegen','maintenance','crea ricorrenza programmare lavoro'),
       command('invoices','Bozze proforma','Proforma-Entwürfe','Prepara le proforma','Proforma-Entwürfe vorbereiten','invoices','fatture preventivo'),
-      command('archive','Dati ed esportazione','Daten und Export','Esporta i dati aziendali','Firmendaten exportieren','archive','backup scarica export')
+      command('new-invoice','Crea proforma','Proforma erstellen','Prepara una bozza per il cliente','Proforma-Entwurf für Kunden erstellen','invoices','fattura crea emissione'),
+      command('company-settings','Nome azienda e impostazioni','Firmenname und Einstellungen','Aggiorna i dati dell’azienda','Firmendaten aktualisieren','team','impostazioni azienda modifica nome'),
+      command('archive','Dati ed esportazione','Daten und Export','Esporta i dati aziendali','Firmendaten exportieren','archive','backup scarica export'),
+      command('export-data','Esporta e salva i dati','Daten exportieren und sichern','Apri gli strumenti di esportazione e backup','Export und Backup öffnen','archive','zip json backup foto dati')
     ]);
   }
   function items(){
@@ -72,11 +85,24 @@ window.createEasyGartSearch = function({getContext,esc}) {
       detail:(c.clients||[]).find(x=>x.id===site.client_id)?.name||'',
       keywords:[site.name,site.address,(c.clients||[]).find(x=>x.id===site.client_id)?.name].join(' ')
     }));
-    const customers=c.isOwner?(c.clients||[]).map(v=>({
+    const customers=c.isOwner?(c.clients||[]).flatMap(v=>[{
       id:'client:'+v.id,kind:'client',entityId:v.id,title:v.name,
-      category:lang('Cliente','Kunde'),detail:lang('Rubrica clienti','Kundenverzeichnis'),keywords:v.name
+      category:lang('Cliente','Kunde'),detail:lang('Apri in rubrica','Im Verzeichnis öffnen'),
+      keywords:[v.name,v.email,v.address,v.phone,v.notes].join(' ')
+    },{
+      id:'client-edit:'+v.id,kind:'client-edit',entityId:v.id,
+      title:lang('Modifica cliente: ','Kunde bearbeiten: ')+v.name,
+      category:lang('Modifica','Bearbeiten'),detail:lang('Aggiorna i dati in rubrica','Daten im Verzeichnis ändern'),
+      keywords:[v.name,v.email,v.address,'modifica cliente recapiti'].join(' ')
+    }]):[];
+    const siteEdits=c.isOwner?(c.sites||[]).map(site=>({
+      id:'site-edit:'+site.id,kind:'site-edit',entityId:site.id,
+      title:lang('Modifica cantiere: ','Einsatzort bearbeiten: ')+site.name,
+      category:lang('Modifica','Bearbeiten'),detail:lang('Correggi il cantiere','Einsatzort bearbeiten'),
+      keywords:[site.name,site.address,'modifica indirizzo cantiere'].join(' ')
     })):[];
-    const reports=(c.reports||[]).filter(r=>c.isOwner||r.created_by===c.user?.id)
+    const reports=(c.reports||[]).filter(r=>!r.deleted_at&&
+      (c.isOwner||r.created_by===c.user?.id||r.site_id&&['submitted','approved'].includes(r.status)))
       .map(report=>{
         const site=(c.sites||[]).find(x=>x.id===report.site_id);
         const task=(c.tasks||[]).find(x=>x.id===report.task_id);
@@ -88,15 +114,15 @@ window.createEasyGartSearch = function({getContext,esc}) {
           keywords:[site?.name,task?.title,report.work_summary,report.work_date,who].join(' ')
         };
       });
-    return [...commandsList,...jobs,...places,...customers,...reports];
+    return [...commandsList,...jobs,...places,...customers,...siteEdits,...reports];
   }
   function results(){
     const q=normalize(query);
     const index=items();
     if(!q){
       const favorites=context().isOwner?
-        ['new-task','new-client','new-site','team','materials','monthly','new-report','clock','guide']:
-        ['new-report','tasks','clock','delete-shift','calendar-hours','reports','monthly','sites-history','guide'];
+        ['new-task','new-client','sites-history','reports','team','import-hours','import-clients','materials','monthly','new-report','admin-delegate','guide']:
+        ['clock','new-report','tasks','sites-history','reports','calendar-hours','monthly','delete-shift','guide'];
       return favorites.map(key=>index.find(x=>x.id==='cmd:'+key)).filter(Boolean);
     }
     const words=q.split(/\s+/).filter(Boolean);
