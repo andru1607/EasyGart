@@ -20,6 +20,8 @@ const app = $('app'), topRight = $('top-right');
 let client = null;
 let operations = null;
 let globalSearch = null;
+let screenshotImport = null;
+let clientContactsReady = false;
 let calendar = null;
 let hoursCalendar = null;
 let endOfDay = null;
@@ -463,7 +465,7 @@ function render() {
     },
     onNavigate(view){
       const workerViews=['home','eod','tasks','clock','calendar','calendar-hours','reports','monthly','sites-history'];
-      const ownerViews=['clients','team','materials','maintenance','invoices','archive'];
+      const ownerViews=['clients','team','materials','maintenance','invoices','archive','import'];
       if(!workerViews.includes(view)&&!(memberIsOwner()&&ownerViews.includes(view)))return;
       endOfDay?.reset();currentView=view;menuOpen=false;editingTaskId=null;reportEditingId=null;
       if(view==='monthly')monthly?.refresh(selectedCompanyId).then(render).catch(fail);
@@ -506,13 +508,15 @@ function render() {
       '<button data-action="view" data-view="materials">'+t('Catalogo materiali')+'</button>'+
       '<button data-action="view" data-view="maintenance">'+t('Manutenzioni ricorrenti')+'</button>'+
       '<button data-action="view" data-view="invoices">'+t('Bozze proforma')+'</button>'+
-      '<button data-action="view" data-view="archive">'+t('Dati ed esportazione')+'</button>':'')+
+      '<button data-action="view" data-view="archive">'+t('Dati ed esportazione')+'</button>'+
+       '<button data-action="import-open" data-kind="hours">'+(locale==='de'?'Screenshot importieren':'Importa screenshot')+'</button>':'')+
       '<button data-action="monthly-view">'+t('Resoconto mensile')+'</button>'+ 
       '<button data-action="site-history-view">'+t('Cantieri svolti')+'</button>'+
       '<div class="eg-menu-divider"><span>'+t('Impostazioni e account')+'</span></div>'+ '<button data-action="guide-open">'+t('Guida')+'</button>'+ '<button data-action="account-password">'+t('Sicurezza account')+'</button>'+ (!window.EASYGART_INSTALL?.isStandalone?.()?'<button data-action="install">'+t('Installa app')+'</button>':'')+ '<button data-action="signout">'+t('Esci')+'</button></nav>':'')+
     (currentView==='home'?homeMarkup():currentView==='eod'?(endOfDay?.markup()||''):
       currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar-hours'?(hoursCalendar?.markup()||''):currentView==='calendar'?(calendar?.markup()||''):
       currentView==='reports'?reportsMarkup():currentView==='monthly'?(monthly?.markup()||''):currentView==='sites-history'?(siteHistory?.markup()||''):currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
+      currentView==='import'&&memberIsOwner()?(screenshotImport?.markup()||''):
       currentView==='team'&&memberIsOwner()?teamMarkup():
       ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
        (business?.markup(currentView)||''):tasksMarkup())+
@@ -630,6 +634,8 @@ function homeMarkup(){
     ['site-history-view','Cantieri svolti','Apri lo storico dei cantieri'],
     ['view','Compiti','Attività assegnate','tasks']
   ];
+  if(owner)actions.unshift(['import-open',locale==='de'?'Screenshot importieren':'Importa screenshot',
+     locale==='de'?'Zeiten und Kunden aus Notizen übernehmen':'Importa orari e clienti dalle Note']);
   return '<div class="eg-home-page"><div class="view-head"><div><h2>'+t(owner?'Panoramica azienda':'La tua giornata')+'</h2>'+
     '<p class="muted">'+t('Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.')+'</p></div></div>'+
     '<div class="eg-home-actions">'+actions.map(([action,title,description,view])=>
@@ -817,9 +823,19 @@ function reportCardMarkup(report,owner){
 
 function clientsMarkup(){
   return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
-    '<div class="card stacked"><h2>'+t('Nuovo cliente')+'</h2><form data-form="client" class="stacked">'+field('Nome cliente','name','text','','required maxlength="150"')+
+    '<div class="card stacked"><div class="cardhead"><h2>'+t('Nuovo cliente')+'</h2>'+
+    '<button type="button" class="secondary small" data-action="import-open" data-kind="clients">'+
+      (locale==='de'?'Aus Screenshot':'Da screenshot')+'</button></div>'+
+    '<form data-form="client" class="stacked">'+field('Nome cliente','name','text','','required maxlength="150"')+
+    (clientContactsReady?
+      field(locale==='de'?'Telefon':'Telefono','phone','tel','','maxlength="80"')+
+      field('Email','email','email','','maxlength="200"')+
+      field(locale==='de'?'Adresse':'Indirizzo','address','text','','maxlength="300"'):'')+
     '<button type="submit" class="primary">'+t('Nuovo cliente')+'</button></form>'+
-    '<h3>'+t("Elenco clienti")+'</h3>'+(clients.length?clients.map(c=>'<p tabindex="-1" data-search-client="'+esc(c.id)+'">'+esc(c.name)+'</p>').join(''):'<p class="muted">'+t("Nessun cliente")+'</p>')+'</div>'+
+    '<h3>'+t("Elenco clienti")+'</h3>'+(clients.length?clients.map(c=>'<p tabindex="-1" data-search-client="'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong>'+
+      (clientContactsReady&&[c.phone,c.email,c.address].some(Boolean)?
+        '<small class="muted" style="display:block">'+esc([c.phone,c.email,c.address].filter(Boolean).join(' · '))+'</small>':'')+
+      '</p>').join(''):'<p class="muted">'+t("Nessun cliente")+'</p>')+'</div>'+
     '<div class="card stacked"><h2>'+t('Nuovo cantiere')+'</h2><form data-form="site" class="stacked">'+
     select('Cliente','client_id',clients.map(c=>option(c.id,c.name)).join(''),'required')+
     field('Cantiere','name','text','','required maxlength="150"')+field('Indirizzo','address','text','')+
@@ -857,6 +873,10 @@ async function refresh() {
   const results=await Promise.all(requests);
   for (const x of results)if(x.error)throw x.error;
   [tasks,clients,sites,members] = results.slice(0,4).map(x=>x.data||[]);
+  const contactResponse=owner?await client.from('eg_clients')
+    .select('id,company_id,name,phone,email,address').eq('company_id',org):null;
+  clientContactsReady=!!contactResponse&&!contactResponse.error;
+  if(clientContactsReady)clients=contactResponse.data||[];
   invites=owner?(results[4]?.data||[]):[];
   // La migrazione dei rapporti può non essere ancora installata: non bloccare gli altri moduli.
   const reportResponse = await client.from('eg_daily_reports').select('*')
@@ -943,7 +963,15 @@ async function submitForm(form,formAction='draft'){
     }
     case 'client':{
       if(!memberIsOwner())throw Error('Permesso negato');
-      requireSuccess(await client.from('eg_clients').insert({company_id:selectedCompanyId,name:String(vals.name||'').trim()}).select('id').single());
+      const payload={company_id:selectedCompanyId,name:String(vals.name||'').trim()};
+      if(clientContactsReady){
+        payload.phone=String(vals.phone||'').trim().slice(0,80);
+        payload.email=String(vals.email||'').trim().slice(0,200);
+        payload.address=String(vals.address||'').trim().slice(0,300);
+      }
+      const exists=clients.some(c=>c.name.trim().toLocaleLowerCase()===payload.name.toLocaleLowerCase());
+      if(exists)throw Error(locale==='de'?'Kunde bereits vorhanden.':'Cliente già presente.');
+      requireSuccess(await client.from('eg_clients').insert(payload).select('id').single());
       await refresh();break;
     }
     case 'site':{
@@ -1045,6 +1073,16 @@ async function boot(){
           notice=send?'Rapporto inviato al titolare.':'Modifiche salvate.';
           errorNotice=false;render();
         }})
+    });
+    screenshotImport = window.createEasyGartImport({
+      client,esc,
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
+        locale,members,sites,clients,reports:dailyReports}),
+      onImported:async()=>{
+        await refresh();
+        if(currentView==='import'){notice='';errorNotice=false}
+      },
+      rerender:render
     });
     globalSearch = window.createEasyGartSearch({
       esc,
@@ -1209,6 +1247,21 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-action]');
   if(!b)return;
   const a=b.dataset.action;
+  if(a==='import-open'){
+    if(!memberIsOwner())return;
+    if(screenshotImport?.open(b.dataset.kind||'hours')){
+      currentView='import';menuOpen=false;render();
+      window.scrollTo?.({top:0,behavior:'instant'});
+    }
+    return;
+  }
+  if(a==='import-close'){currentView='home';screenshotImport?.reset();render();return}
+  if(a==='import-kind'){if(memberIsOwner()){screenshotImport?.setMode(b.dataset.kind);render()}return}
+  if(a==='import-analyse'){if(memberIsOwner()){screenshotImport?.analyse();render()}return}
+  if(a==='import-save'){
+    if(memberIsOwner())withBusy(()=>screenshotImport?.save());
+    return;
+  }
   if(a==='search-open'){
     if(globalSearch?.open()){
       renderPreservingForms();
@@ -1348,7 +1401,7 @@ document.addEventListener('click',e=>{
     render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';globalSearch?.close();pendingReportDeletionId=null;memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';globalSearch?.close();screenshotImport?.reset();pendingReportDeletionId=null;memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
   if(a==='site-history-view'){
@@ -1490,6 +1543,14 @@ document.addEventListener('click',e=>{
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
 });
 document.addEventListener('input',e=>{
+  if(e.target?.id==='eg-import-raw'){
+    screenshotImport?.setRaw(e.target.value);
+    return;
+  }
+  if(e.target?.dataset?.importKey&&e.target.type!=='checkbox'){
+    screenshotImport?.setField(Number(e.target.dataset.importRow),e.target.dataset.importKey,e.target.value);
+    return;
+  }
   if(e.target?.id==='eg-search-input'){
     globalSearch?.setQuery(e.target.value);
     const area=document.getElementById('eg-search-results');
@@ -1500,6 +1561,17 @@ document.addEventListener('input',e=>{
   if(form)saveSessionDraft(form);
 });
 document.addEventListener('change',e=>{
+  if(e.target.id==='eg-import-image'){
+    if(!memberIsOwner())return;
+    const chosen=e.target.files?.[0];
+    if(!chosen)return;
+    withBusy(async()=>{await screenshotImport?.readScreenshot(chosen);render()});
+    return;
+  }
+  if(e.target?.dataset?.importKey==='include'){
+    screenshotImport?.setField(Number(e.target.dataset.importRow),'include',e.target.checked);
+    return;
+  }
   if(e.target.dataset.bizClient){business?.handleChange(e.target);return}
   if(e.target.dataset.opsInput){
     if(typeof navigator!=='undefined'&&navigator.onLine===false){
@@ -1514,7 +1586,7 @@ document.addEventListener('change',e=>{
   if(['eod-site','eod-worker'].includes(e.target.id)){endOfDay?.handleChange(e.target);return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
-  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;globalSearch?.close();currentView='home';pendingReportDeletionId=null;siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;globalSearch?.close();screenshotImport?.reset();currentView='home';pendingReportDeletionId=null;siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
   if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
