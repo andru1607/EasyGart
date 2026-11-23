@@ -65,6 +65,14 @@ $eg_admin_owner$;
 revoke all on function private.eg_is_owner(uuid) from public,anon;
 grant execute on function private.eg_is_owner(uuid) to authenticated;
 
+-- Titolare e amministratore possono correggere il nome aziendale, ma nessuno
+-- dei due può cambiare il proprietario created_by tramite le API pubbliche.
+revoke update on public.eg_companies from authenticated;
+grant update(name) on public.eg_companies to authenticated;
+drop policy if exists eg_companies_edit on public.eg_companies;
+create policy eg_companies_edit on public.eg_companies for update to authenticated
+  using(private.eg_is_owner(id)) with check(private.eg_is_owner(id));
+
 drop policy if exists eg_admin_delegations_read on public.eg_admin_delegations;
 create policy eg_admin_delegations_read on public.eg_admin_delegations
 for select to authenticated
