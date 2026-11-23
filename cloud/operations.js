@@ -81,7 +81,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   }
   const canDeleteShift=s=>{
     const c=context();
-    return !!c.user && !!s && s.status==='closed' && !!s.ended_at && !s.deleted_at &&
+    return !!c.user && !!s && s.company_id===c.companyId && s.status==='closed' && !!s.ended_at && !s.deleted_at &&
       (c.isOwner||s.user_id===c.user.id) &&
       Object.prototype.hasOwnProperty.call(s,'deleted_at');
   };
