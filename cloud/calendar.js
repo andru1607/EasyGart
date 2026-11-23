@@ -32,12 +32,12 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
       'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,status':
       'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status')
      .eq('company_id',id).gte('work_date',begin).lt('work_date',end).order('work_date')),
-    pages(client.from('eg_shifts').select('id,user_id,site_id,started_at,ended_at,break_seconds,status')
+    pages(client.from('eg_shifts').select('*')
      .eq('company_id',id).gte('started_at',new Date(year,month,-1).toISOString())
      .lt('started_at',new Date(year,month+1,2).toISOString()).order('started_at'))
    ]);
    if(loadingKey!==load)return;
-   reports=r;shifts=s;ready=true;
+   reports=r;shifts=s.filter(item=>!item.deleted_at);ready=true;
   }catch(e){if(loadingKey===load){reports=[];shifts=[];error=String(e?.message||e)}}
  }
  function reset(){const d=new Date();year=d.getFullYear();month=d.getMonth();chosen=key(d);worker='all';reports=[];shifts=[];ready=false;error='';loadingKey=''}
@@ -109,9 +109,13 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
   grid+='</div>';
   const selected=data.get(chosen),details=[];
   for(const s of selected?.shifts||[]){
+   const canDelete=s.status==='closed' && !s.deleted_at && Object.prototype.hasOwnProperty.call(s,'deleted_at') &&
+    (c.isOwner||s.user_id===c.user?.id);
    details.push('<article class="eg-calendar-record"><strong>'+tr('Timbratura','Zeiterfassung')+' · '+esc(who(s.user_id))+'</strong><p class="muted">'+
     esc(clock(s.started_at))+' – '+esc(clock(s.ended_at))+' · '+hm(minutes(s))+' · '+esc(where(s.site_id))+
-    ' · '+tr('Pausa','Pause')+': '+hm(Math.round((s.break_seconds||0)/60))+'</p></article>');
+    ' · '+tr('Pausa','Pause')+': '+hm(Math.round((s.break_seconds||0)/60))+'</p>'+
+    (canDelete?'<button type="button" class="eg-shift-delete-button small" data-action="cal-delete-shift" data-id="'+esc(s.id)+'">'+
+      tr('Elimina orario','Zeiteintrag löschen')+'</button>':'')+'</article>');
   }
   for(const r of selected?.reports||[]){
    const task=c.tasks.find(x=>x.id===r.task_id);
