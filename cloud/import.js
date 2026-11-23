@@ -51,7 +51,18 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
     if(!allowed.includes(key))return;
     row[key]=key==='include'?!!value:
       key==='break_minutes'?Number(value):String(value||'').slice(0,500);
+    if(key==='work_date'&&value)row.year_guessed=false;
     row.error='';row.status='pending';
+  }
+  function addRow(){
+    if(!canUse()||busy||rows.length>=60)return;
+    rows.push(mode==='hours'?{
+      include:true,work_date:'',worker_id:'',site_id:'',start_time:'',end_time:'',
+      break_minutes:0,work_summary:'',source_line:tr('Riga aggiunta a mano','Manuell hinzugefügt'),
+      year_guessed:false,status:'pending',error:''
+    }:{
+      include:true,name:'',phone:'',email:'',address:'',status:'pending',error:''
+    });
   }
   const fileSize=10*1024*1024;
   async function readScreenshot(file){
@@ -169,6 +180,8 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
           'Keine Zeilen zum Importieren. Screenshot auswählen oder Text einfügen.')+'</p></div>')+
       (error?'<div class="alert error" role="alert">'+safe(error)+'</div>':'')+
       (message?'<div class="alert" role="status">'+safe(message)+'</div>':'')+
+      '<button type="button" class="secondary" data-action="import-add-row">'+
+        tr('Aggiungi riga mancante','Fehlende Zeile hinzufügen')+'</button>'+
       (rows.some(r=>r.include&&r.status!=='saved')?
         '<button class="primary eg-import-save" type="button" data-action="import-save"'+(busy?' disabled':'')+'>'+
          tr('Conferma e importa le righe selezionate','Ausgewählte Zeilen bestätigen und importieren')+'</button>':'')+
@@ -257,6 +270,6 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
        '. '+tr('Le righe con errore restano disponibili.','Fehlerhafte Zeilen bleiben verfügbar.');
     }finally{busy=false;rerender()}
   }
-  return {open,reset,markup,setMode,setRaw,analyse,readScreenshot,setField,save,getMode:()=>mode,isBusy:()=>busy,
+  return {open,reset,markup,setMode,setRaw,analyse,readScreenshot,setField,addRow,save,getMode:()=>mode,isBusy:()=>busy,
     getRows:()=>rows,getRaw:()=>raw};
 };
