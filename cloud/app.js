@@ -1298,6 +1298,7 @@ async function boot(){
     globalSearch = window.createEasyGartSearch({
       esc,
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
+        isPrimaryOwner:memberIsPrimaryOwner(),
         locale,tasks,sites,clients,members,reports:dailyReports,
         materials:memberIsOwner()?business?.searchableMaterials?.()||[]:[]})
     });
@@ -1460,6 +1461,15 @@ async function openSearchResult(item){
       if(op==='new-client'&&memberIsOwner())focusSelector='form[data-form="client"] input[name="name"]';
       if(op==='new-site'&&memberIsOwner())focusSelector='form[data-form="site"] input[name="name"]';
       if(op==='invite'&&memberIsOwner())focusSelector='form[data-form="invite"] input[name="email"]';
+      if(op==='new-material'&&memberIsOwner()){
+        await business?.handleAction({dataset:{action:'biz-new-material'}});
+        focusSelector='form[data-form="biz-material"] input[name="name"]';
+      }
+      if(op==='new-maintenance'&&memberIsOwner()){
+        await business?.handleAction({dataset:{action:'biz-new-plan'}});
+        focusSelector='form[data-form="biz-maintenance"] input[name="title"]';
+      }
+      if(op==='new-invoice'&&memberIsOwner())focusSelector='form[data-form="biz-invoice"] select';
       if(item.id==='cmd:company-settings'&&memberIsOwner())focusSelector='form[data-form="company-settings"] input[name="name"]';
       if(item.id==='cmd:admin-delegate'&&memberIsPrimaryOwner())focusSelector='[data-action="member-admin"]';
       if(item.view==='calendar')await calendar?.refresh(selectedCompanyId);
