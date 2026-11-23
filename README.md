@@ -14,6 +14,8 @@ La versione Cloud è una **Progressive Web App (PWA)** installabile su iPhone e 
 
 **Account:** registrazione con conferma email, recupero password e modifica della password. La lingua IT/DE può essere cambiata dall'interfaccia.
 
+**Ricerca globale:** la lente **Cerca** è disponibile per titolari e dipendenti nella versione Cloud. Trova le attività assegnate, le sezioni, i cantieri accessibili, i rapporti caricati e le operazioni consentite dal ruolo. Supporta IT/DE e la scorciatoia ⌘K / Ctrl+K. La ricerca si basa sui dati già caricati e autorizzati per l'azienda attiva; non sostituisce la ricerca storica sul database.
+
 ### Installazione
 
 - **iOS:** Safari → Condividi → Aggiungi alla schermata Home.
