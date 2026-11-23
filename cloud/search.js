@@ -39,7 +39,10 @@ window.createEasyGartSearch = function({getContext,esc}) {
       command('site-reports','Rapporti per singolo cantiere','Berichte je Einsatzort','Apri lo storico completo del cantiere','Arbeitsberichte nach Einsatzort ansehen','sites-history','rapporti cantiere lista'),
       command('edit-report','Modifica rapporto e orari','Bericht und Arbeitszeiten bearbeiten','Apri un rapporto per correggere data, ore e materiali','Datum, Zeiten und Material korrigieren','reports','modificare orari rapporto vecchio'),
       command('my-history','Storico ore e attività','Arbeitszeiten und Tätigkeiten im Verlauf','Riepiloghi giornalieri e mensili','Tages- und Monatsübersichten','monthly','ore lavorate mese storico'),
-      command('guide','Guida alle funzioni','Funktionshilfe','Scopri come usare EasyGart','EasyGart Funktionen kennenlernen','guide','aiuto help assistenza','guide')
+      command('guide','Guida alle funzioni','Funktionshilfe','Scopri come usare EasyGart','EasyGart Funktionen kennenlernen','guide','aiuto help assistenza','guide'),
+      command('account-security','Sicurezza e password','Sicherheit und Passwort','Modifica la password del tuo account','Kontopasswort ändern','account','cambia password sicurezza profilo','account-security'),
+      command('install','Installa EasyGart sul telefono','EasyGart auf Handy installieren','Apri le istruzioni per installare l’app','Installationsanleitung für die App öffnen','install','iphone android home schermata installa','install'),
+      command('reload','Aggiorna dati','Daten aktualisieren','Ricarica i dati dell’azienda','Firmendaten aktualisieren','home','ricarica aggiorna sincronizza','reload')
     ];
     if(!owner)return common;
     return common.concat([
