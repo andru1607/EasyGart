@@ -479,3 +479,12 @@ select{background-color:#fff}
   .eg-search-result{min-height:66px}
   .eg-app-intro .toolbar{display:flex;gap:7px;flex-wrap:wrap}
 }
+
+/* Comandi rapidi nel dettaglio di giornate precedenti, su entrambi i calendari. */
+.eg-calendar-row-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:13px}
+.eg-calendar-row-actions button{min-height:43px;white-space:normal;line-height:1.25}
+.eg-calendar-record>.eg-shift-delete-button{margin-top:12px}
+@media(max-width:570px){
+  .eg-calendar-row-actions{display:grid;grid-template-columns:1fr;gap:8px}
+  .eg-calendar-row-actions button{width:100%;min-height:46px;text-align:center}
+}
