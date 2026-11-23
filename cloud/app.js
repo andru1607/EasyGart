@@ -828,26 +828,55 @@ function reportCardMarkup(report,owner){
 }
 
 function clientsMarkup(){
-  return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
-    '<div class="card stacked"><div class="cardhead"><h2>'+t('Nuovo cliente')+'</h2>'+
+  const editingClient=clients.find(c=>c.id===editingClientId)||null;
+  const editingSite=sites.find(s=>s.id===editingSiteId)||null;
+  const tr2=(it,de)=>locale==='de'?de:it;
+  const clientForm='<div class="card stacked"><div class="cardhead"><h2>'+
+    (editingClient?tr2('Modifica cliente','Kunde bearbeiten'):t('Nuovo cliente'))+'</h2>'+
     '<button type="button" class="secondary small" data-action="import-open" data-kind="clients">'+
-      (locale==='de'?'Aus Screenshot':'Da screenshot')+'</button></div>'+
-    '<form data-form="client" class="stacked">'+field('Nome cliente','name','text','','required maxlength="150"')+
+      tr2('Da screenshot','Aus Screenshot')+'</button></div>'+
+    '<form data-form="client" class="stacked">'+
+    field('Nome cliente','name','text',editingClient?.name||'','required maxlength="150"')+
     (clientContactsReady?
-      field(locale==='de'?'Telefon':'Telefono','phone','tel','','maxlength="80"')+
-      field('Email','email','email','','maxlength="200"')+
-      field(locale==='de'?'Adresse':'Indirizzo','address','text','','maxlength="300"'):'')+
-    '<button type="submit" class="primary">'+t('Nuovo cliente')+'</button></form>'+
-    '<h3>'+t("Elenco clienti")+'</h3>'+(clients.length?clients.map(c=>'<p tabindex="-1" data-search-client="'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong>'+
+      field(tr2('Telefono','Telefon'),'phone','tel',editingClient?.phone||'','maxlength="80"')+
+      field('Email','email','email',editingClient?.email||'','maxlength="200"')+
+      field(tr2('Indirizzo','Adresse'),'address','text',editingClient?.address||'','maxlength="300"'):'')+
+    '<label class="field"><span>'+tr2('Note','Notizen')+'</span><textarea name="notes" maxlength="4000" rows="3">'+
+      esc(editingClient?.notes||'')+'</textarea></label>'+
+    '<div class="actions"><button type="submit" class="primary">'+
+      (editingClient?tr2('Salva modifiche','Änderungen speichern'):t('Nuovo cliente'))+'</button>'+
+      (editingClient?'<button type="button" class="ghost" data-action="cancel-client-edit">'+
+        tr2('Annulla','Abbrechen')+'</button>':'')+'</div></form>'+
+    '<h3>'+t('Elenco clienti')+'</h3>'+
+    (clients.length?clients.map(c=>
+      '<div class="eg-entity-item" tabindex="-1" data-search-client="'+esc(c.id)+'"><div><strong>'+esc(c.name)+'</strong>'+
       (clientContactsReady&&[c.phone,c.email,c.address].some(Boolean)?
         '<small class="muted" style="display:block">'+esc([c.phone,c.email,c.address].filter(Boolean).join(' · '))+'</small>':'')+
       (c.notes?'<small class="muted" style="display:block;white-space:pre-wrap">'+esc(c.notes)+'</small>':'')+
-      '</p>').join(''):'<p class="muted">'+t("Nessun cliente")+'</p>')+'</div>'+
-    '<div class="card stacked"><h2>'+t('Nuovo cantiere')+'</h2><form data-form="site" class="stacked">'+
-    select('Cliente','client_id',clients.map(c=>option(c.id,c.name)).join(''),'required')+
-    field('Cantiere','name','text','','required maxlength="150"')+field('Indirizzo','address','text','')+
-    '<button type="submit" class="primary" '+(!clients.length?'disabled':'')+'>'+t('Nuovo cantiere')+'</button></form>'+
-    '<h3>'+t("Cantieri")+'</h3>'+(sites.length?sites.map(s=>'<p>'+esc(s.name)+' <span class="muted">· '+esc(getName(clients,s.client_id))+'</span></p>').join(''):'<p class="muted">'+t("Nessun cantiere")+'</p>')+'</div></div>';
+      '</div><button type="button" class="secondary small" data-action="edit-client" data-id="'+esc(c.id)+'">'+
+      tr2('Modifica','Bearbeiten')+'</button></div>').join(''):'<p class="muted">'+t('Nessun cliente')+'</p>')+
+    '</div>';
+  const siteForm='<div class="card stacked"><h2>'+
+    (editingSite?tr2('Modifica cantiere','Einsatzort bearbeiten'):t('Nuovo cantiere'))+'</h2>'+
+    '<form data-form="site" class="stacked">'+
+    select('Cliente','client_id',clients.map(c=>option(c.id,c.name,c.id===(editingSite?.client_id||clients[0]?.id))).join(''),'required')+
+    field('Cantiere','name','text',editingSite?.name||'','required maxlength="150"')+
+    field('Indirizzo','address','text',editingSite?.address||'','maxlength="500"')+
+    '<div class="actions"><button type="submit" class="primary" '+(!clients.length?'disabled':'')+'>'+
+      (editingSite?tr2('Salva modifiche','Änderungen speichern'):t('Nuovo cantiere'))+'</button>'+
+      (editingSite?'<button type="button" class="ghost" data-action="cancel-site-edit">'+
+        tr2('Annulla','Abbrechen')+'</button>':'')+'</div></form>'+
+    '<h3>'+t('Cantieri')+'</h3>'+
+    (sites.length?sites.map(site=>
+      '<div class="eg-entity-item"><div><strong>'+esc(site.name)+'</strong>'+
+      '<small class="muted" style="display:block">'+esc(getName(clients,site.client_id))+
+      (site.address?' · '+esc(site.address):'')+'</small></div>'+
+      '<div class="actions"><button type="button" class="secondary small" data-action="open-site-reports" data-id="'+esc(site.id)+'">'+
+      tr2('Rapporti','Berichte')+'</button>'+
+      '<button type="button" class="ghost small" data-action="edit-site" data-id="'+esc(site.id)+'">'+
+      tr2('Modifica','Bearbeiten')+'</button></div></div>').join(''):'<p class="muted">'+t('Nessun cantiere')+'</p>')+'</div>';
+  return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
+    clientForm+siteForm+'</div>';
 }
 function teamMarkup(){
   const delegateIds=new Set(adminDelegations.map(x=>x.user_id));
@@ -1011,20 +1040,41 @@ async function submitForm(form,formAction='draft'){
     }
     case 'client':{
       if(!memberIsOwner())throw Error('Permesso negato');
-      const payload={company_id:selectedCompanyId,name:String(vals.name||'').trim()};
+      const name=String(vals.name||'').trim(),notes=String(vals.notes||'').trim();
+      if(name.length<2||name.length>150||notes.length>4000)throw Error(tr('Nome o note non validi.'));
+      const payload={name,notes};
       if(clientContactsReady){
         payload.phone=String(vals.phone||'').trim().slice(0,80);
         payload.email=String(vals.email||'').trim().slice(0,200);
         payload.address=String(vals.address||'').trim().slice(0,300);
       }
-      const exists=clients.some(c=>c.name.trim().toLocaleLowerCase()===payload.name.toLocaleLowerCase());
+      const exists=clients.some(c=>c.id!==editingClientId&&
+        c.name.trim().toLocaleLowerCase()===name.toLocaleLowerCase());
       if(exists)throw Error(locale==='de'?'Kunde bereits vorhanden.':'Cliente già presente.');
-      requireSuccess(await client.from('eg_clients').insert(payload).select('id').single());
+      if(editingClientId){
+        if(!clients.some(c=>c.id===editingClientId))throw Error('Cliente non trovato');
+        requireSuccess(await client.from('eg_clients').update(payload)
+          .eq('company_id',selectedCompanyId).eq('id',editingClientId).select('id').single());
+        editingClientId=null;
+      }else{
+        requireSuccess(await client.from('eg_clients').insert({...payload,company_id:selectedCompanyId}).select('id').single());
+      }
       await refresh();break;
     }
     case 'site':{
       if(!memberIsOwner())throw Error('Permesso negato');
-      requireSuccess(await client.from('eg_sites').insert({company_id:selectedCompanyId,client_id:vals.client_id,name:String(vals.name||'').trim(),address:String(vals.address||'').trim()}).select('id').single());
+      const customer=clients.find(c=>c.id===vals.client_id);
+      const name=String(vals.name||'').trim(),address=String(vals.address||'').trim();
+      if(!customer||name.length<2||name.length>150||address.length>500)throw Error('Dati cantiere non validi');
+      const payload={client_id:customer.id,name,address};
+      if(editingSiteId){
+        if(!sites.some(s=>s.id===editingSiteId))throw Error('Cantiere non trovato');
+        requireSuccess(await client.from('eg_sites').update(payload)
+          .eq('company_id',selectedCompanyId).eq('id',editingSiteId).select('id').single());
+        editingSiteId=null;
+      }else{
+        requireSuccess(await client.from('eg_sites').insert({...payload,company_id:selectedCompanyId}).select('id').single());
+      }
       await refresh();break;
     }
     case 'invite':{
@@ -1467,6 +1517,27 @@ document.addEventListener('click',e=>{
     withBusy(async()=>{siteHistory?.choosePerson(monthly?.getPerson?.()||'all');
       await siteHistory?.refresh(selectedCompanyId);siteHistory?.open(b.dataset.id);
       currentView='sites-history';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
+    });return;
+  }
+  if(a==='edit-client'&&memberIsOwner()){
+    if(!clients.some(c=>c.id===b.dataset.id))return;
+    editingClientId=b.dataset.id;render();
+    document.querySelector('form[data-form="client"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return;
+  }
+  if(a==='cancel-client-edit'){editingClientId=null;render();return}
+  if(a==='edit-site'&&memberIsOwner()){
+    if(!sites.some(c=>c.id===b.dataset.id))return;
+    editingSiteId=b.dataset.id;render();
+    document.querySelector('form[data-form="site"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return;
+  }
+  if(a==='cancel-site-edit'){editingSiteId=null;render();return}
+  if(a==='open-site-reports'){
+    if(!sites.some(site=>site.id===b.dataset.id))return;
+    withBusy(async()=>{
+      await siteHistory?.refresh(selectedCompanyId);
+      siteHistory?.open(b.dataset.id);
+      currentView='sites-history';menuOpen=false;render();
+      window.scrollTo?.({top:0,behavior:'instant'});
     });return;
   }
   if(a==='site-history-open'){siteHistory?.open(b.dataset.id);render();window.scrollTo?.({top:0,behavior:'instant'});return}
