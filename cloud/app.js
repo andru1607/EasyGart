@@ -512,7 +512,7 @@ function render() {
       currentView==='team'&&memberIsOwner()?teamMarkup():
       ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
        (business?.markup(currentView)||''):tasksMarkup())+
-    (pendingReportDeletionId?reportDeletionDialogMarkup():'');
+    (pendingReportDeletionId?reportDeletionDialogMarkup():'')+(operations?.deletionDialogMarkup()||'');
   restoreSessionDrafts();
 }
 function authMarkup(){
@@ -1156,6 +1156,7 @@ document.addEventListener('click',e=>{
         currentView=target;menuOpen=false;render();
       });return;
     }
+    if(a==='cal-delete-shift'){withBusy(()=>operations?.openShiftDeletion(b.dataset.id));return}
     if(a==='cal-open-report'){
       withBusy(async()=>{
         const id=b.dataset.id;
