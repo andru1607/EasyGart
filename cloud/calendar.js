@@ -163,7 +163,9 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
       'Orari, cantieri e rapporti dettagliati dei lavori di ogni giornata.',
     hoursOnly?'Nur Arbeitszeiten, Beginn, Ende, Pausen und Einsatzorte. Keine Berichtstexte.':
       'Arbeitszeiten, Einsatzorte und vollständige Tagesberichte.'
-   )+'</p></div></div>'+
+   )+'</p></div>'+
+   (c.isOwner?'<button type="button" class="secondary" data-action="import-open" data-kind="hours">'+
+     tr('Importa screenshot','Screenshot importieren')+'</button>':'')+'</div>'+
    '<div class="eg-cal-switch" role="group" aria-label="'+tr('Scegli calendario','Kalender auswählen')+'">'+
    '<button type="button" data-action="cal-switch" data-target="calendar-hours" class="'+(hoursOnly?'active':'')+
      '" aria-pressed="'+hoursOnly+'">'+
