@@ -1421,6 +1421,11 @@ async function openSearchResult(item){
     if(!memberIsOwner()||!sites.some(site=>site.id===item.entityId))return;
     editingSiteId=item.entityId;currentView='clients';
     focusSelector='form[data-form="site"] input[name="name"]';
+  }else if(item.kind==='material'){
+    if(!memberIsOwner()||!business?.searchableMaterials?.().some(m=>m.id===item.entityId))return;
+    currentView='materials';
+    await business.handleAction({dataset:{action:'biz-edit-material',id:item.entityId}});
+    focusSelector='form[data-form="biz-material"] input[name="name"]';
   }else if(item.kind==='command'){
     const allowed=new Set(['home','eod','tasks','clock','calendar','calendar-hours','reports','monthly','sites-history']);
     const ownerOnly=new Set(['clients','team','materials','maintenance','invoices','archive','import']);
