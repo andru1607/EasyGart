@@ -701,39 +701,58 @@ function formatReportMinutes(value){
   return Math.floor(n/60)+' h '+String(n%60).padStart(2,'0')+' min';
 }
 function homeMarkup(){
-  const owner=memberIsOwner(),mine=dailyReports.filter(r=>owner||r.created_by===user.id);
+  const owner=memberIsOwner();
+  const worker=memberships.some(m=>m.company_id===selectedCompanyId&&m.user_id===user?.id&&m.role==='worker'&&m.active);
+  const lang=(it,de)=>locale==='de'?de:it;
+  const mine=dailyReports.filter(r=>!r.deleted_at&&(owner||r.created_by===user.id));
   const pending=dailyReports.filter(r=>r.status==='submitted'&&(owner||r.created_by===user.id)).length;
   const last=mine.slice().sort((a,b)=>b.work_date.localeCompare(a.work_date)).slice(0,4);
   const todo=tasks.filter(x=>owner||x.assignee_id===user.id).filter(x=>x.status!=='done');
-  const actions=[
-    ['eod-new','Fine giornata','Inserisci gli orari e il cantiere'],
-    ['view','Calendario orari','Consulta gli orari senza i rapporti','calendar-hours'],
-    ['view','Calendario orari e rapporti','Consulta orari, lavori e cantieri','calendar'],
-    ['view','Rapporti giornalieri','Consulta e modifica i rapporti','reports'],
-    ['monthly-view','Resoconto mensile','Visualizza ore e attività mensili'],
-    ['site-history-view','Cantieri svolti','Apri lo storico dei cantieri'],
-    ['view','Compiti','Attività assegnate','tasks']
+  const action=(id,it,de,detailIt,detailDe,view)=>({id,title:lang(it,de),detail:lang(detailIt,detailDe),view});
+  const shortcuts=owner&&!worker?[
+    action('home-new-task','Assegna attività','Aufgabe zuweisen','Crea un incarico','Neue Aufgabe anlegen'),
+    action('view','Rapporti','Berichte','Controlla i lavori','Arbeiten überprüfen','reports'),
+    action('view','Clienti e cantieri','Kunden und Einsatzorte','Rubrica e cantieri','Kundenverzeichnis','clients'),
+    action('view','Squadra','Team','Dipendenti e permessi','Personal und Rechte','team')
+  ]:owner&&worker?[
+    action('view','Timbrature','Zeiterfassung','Entrata, uscita e pause','Beginn, Ende und Pausen','clock'),
+    action('eod-new','Nuovo rapporto','Neuer Bericht','Registra la giornata','Arbeitstag erfassen'),
+    action('view','Squadra e permessi','Team und Rechte','Gestisci i dipendenti','Personal verwalten','team'),
+    action('site-history-view','Cantieri','Einsatzorte','Storico dei lavori','Arbeitsverlauf')
+  ]:[
+    action('view','Timbrature','Zeiterfassung','Entrata, uscita e pause','Beginn, Ende und Pausen','clock'),
+    action('eod-new','Fine giornata','Tagesbericht','Registra orari e lavori','Zeiten und Arbeiten erfassen'),
+    action('view','Compiti','Aufgaben','Attività assegnate','Zugewiesene Tätigkeiten','tasks'),
+    action('site-history-view','Cantieri','Einsatzorte','Consulta i rapporti','Berichte einsehen')
   ];
-  if(owner)actions.unshift(['import-open',locale==='de'?'Screenshot importieren':'Importa screenshot',
-     locale==='de'?'Zeiten und Kunden aus Notizen übernehmen':'Importa orari e clienti dalle Note']);
-  return '<div class="eg-home-page"><div class="view-head"><div><h2>'+t(owner?'Panoramica azienda':'La tua giornata')+'</h2>'+
-    '<p class="muted">'+t('Ogni funzione ha la sua schermata. Inizia dalla registrazione di fine giornata.')+'</p></div></div>'+
-    '<div class="eg-home-actions">'+actions.map(([action,title,description,view])=>
-      '<button class="eg-home-action" data-action="'+action+'"'+(view?' data-view="'+view+'"':'')+'>'+
-      '<strong>'+t(title)+'</strong><span>'+t(description)+'</span><b aria-hidden="true">›</b></button>').join('')+'</div>'+
-    '<div class="eg-home-summary"><div class="card metric"><span>'+t('Compiti aperti')+'</span><strong>'+todo.length+'</strong></div>'+
-    '<div class="card metric"><span>'+t('Rapporti da verificare')+'</span><strong>'+pending+'</strong></div>'+
-    '<div class="card metric"><span>'+t('Rapporti registrati')+'</span><strong>'+mine.length+'</strong></div></div>'+
-    '<section class="card"><div class="cardhead"><h2>'+t('Ultimi rapporti')+'</h2><button class="ghost small" data-action="view" data-view="reports">'+t('Vedi tutti')+'</button></div>'+
+  return '<div class="eg-home-page"><div class="view-head"><div>'+
+    '<div class="eyebrow">'+lang('Accesso rapido','Schnellzugriff')+'</div>'+
+    '<h2>'+lang(owner?'Panoramica aziendale':'La tua giornata',
+      owner?'Betriebsübersicht':'Dein Arbeitstag')+'</h2>'+
+    '<p class="muted">'+lang('Scegli cosa fare oppure usa la ricerca sempre in alto.',
+      'Wähle eine Aktion oder nutze die Suche oben.')+'</p></div></div>'+
+    '<div class="eg-home-actions">'+shortcuts.map((a,i)=>
+      '<button type="button" class="eg-home-action'+(i===0?' eg-home-primary':'')+
+      '" data-action="'+a.id+'"'+(a.view?' data-view="'+a.view+'"':'')+'>'+
+      '<strong>'+esc(a.title)+'</strong><span>'+esc(a.detail)+'</span><b aria-hidden="true">›</b></button>').join('')+'</div>'+
+    '<div class="eg-home-summary"><div class="card metric"><span>'+lang('Compiti aperti','Offene Aufgaben')+
+    '</span><strong>'+todo.length+'</strong></div>'+
+    '<div class="card metric"><span>'+lang(owner?'Da verificare':'Rapporti inviati',
+      owner?'Zur Prüfung':'Gesendete Berichte')+'</span><strong>'+pending+'</strong></div>'+
+    '<div class="card metric"><span>'+lang('Rapporti registrati','Erfasste Berichte')+
+    '</span><strong>'+mine.length+'</strong></div></div>'+
+    '<section class="card"><div class="cardhead"><h2>'+lang('Ultimi rapporti','Letzte Berichte')+
+    '</h2><button type="button" class="ghost small" data-action="view" data-view="reports">'+
+    lang('Vedi tutti','Alle anzeigen')+'</button></div>'+
     (last.length?last.map(r=>{
       const task=tasks.find(x=>x.id===r.task_id);
       return '<div class="taskrow"><div><strong>'+esc(getName(sites,r.site_id||task?.site_id))+'</strong>'+
-       '<div class="task-meta">'+esc(displayDate(r.work_date))+' · '+esc(formatReportMinutes(r.minutes_worked))+
-       (owner?' · '+esc(getWorkerName(r.created_by)):'')+'</div></div>'+
-       '<button class="secondary small" data-action="view" data-view="reports">'+t('Apri')+'</button></div>';
-    }).join(''):'<p class="muted">'+t('Nessun rapporto')+'</p>')+'</section></div>';
+        '<div class="task-meta">'+esc(displayDate(r.work_date))+' · '+esc(formatReportMinutes(r.minutes_worked))+
+        (owner?' · '+esc(getWorkerName(r.created_by)):'')+'</div></div>'+
+        '<button type="button" class="secondary small" data-action="report-open" data-id="'+esc(r.id)+'">'+
+        lang('Apri','Öffnen')+'</button></div>';
+    }).join(''):'<p class="muted">'+lang('Nessun rapporto','Keine Berichte')+'</p>')+'</section></div>';
 }
-
 function reportsMarkup(){
   const owner=memberIsOwner();
   if(!reportsReady){
@@ -1802,6 +1821,12 @@ document.addEventListener('click',e=>{
   }
   if(a==='eod-back'){endOfDay?.reset();currentView=editingFromCalendar|| (editingFromSite?'sites-history':editingFromMonthly?'monthly':'reports');editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;render();return}
   if(a==='report-cancel'){reportEditingId=null;render();return}
+  if(a==='home-new-task'){
+    if(!memberIsOwner())return;
+    editingTaskId='new';currentView='tasks';menuOpen=false;render();
+    document.querySelector?.('form[data-form="task"] input[name="title"]')?.focus?.();
+    return;
+  }
   if(a==='new-task'){editingTaskId='new';render();document.querySelector?.('form[data-form="task"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
   if(a==='cancel-edit'){editingTaskId=null;render();return}
