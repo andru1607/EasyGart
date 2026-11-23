@@ -118,8 +118,10 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
     const included='<label class="eg-import-check"><input type="checkbox" data-import-row="'+i+
       '" data-import-key="include"'+(row.include?' checked':'')+disabled+'><span>'+
       tr('Includi','Einbeziehen')+'</span></label>';
-    const warning=row.year_guessed?'<p class="eg-import-warning">'+tr('Anno dedotto: verifica la data.',
-      'Jahr angenommen: Datum prüfen.')+'</p>':'';
+    const warning=(row.year_guessed?'<p class="eg-import-warning">'+tr('Anno dedotto: verifica la data.',
+      'Jahr angenommen: Datum prüfen.')+'</p>':'')+
+      (row.pause_warning?'<p class="eg-import-warning">'+tr('La pausa scritta non coincide con gli intervalli: controlla i minuti.',
+        'Die notierte Pause stimmt nicht mit den Zeitintervallen überein: Minuten prüfen.')+'</p>':'');
     const feedback=row.error?'<p class="eg-import-error" role="alert">'+safe(row.error)+'</p>':
       row.status==='saved'?'<p class="eg-import-saved">'+tr('Salvato','Gespeichert')+'</p>':'';
     if(mode==='hours')return '<section class="card eg-import-row"><div class="eg-import-row-head">'+
