@@ -581,7 +581,7 @@ function taskMarkup(task){
   const actions = task.status==='done' ? (memberIsOwner()?'<button class="ghost small" data-action="status" data-id="'+esc(task.id)+'" data-status="assigned">'+t('Riapri')+'</button>':'') :
     (task.status==='assigned'?'<button class="secondary small" data-action="status" data-id="'+esc(task.id)+'" data-status="in_progress">'+t('Inizia')+'</button>':'')+
     '<button class="primary small" data-action="status" data-id="'+esc(task.id)+'" data-status="done">'+t('Completa')+'</button>';
-  return '<article class="taskrow" data-search-task="'+esc(task.id)+'"><div style="flex:1"><div class="task-title">'+esc(task.title)+'</div>'+
+  return '<article class="taskrow" tabindex="-1" data-search-task="'+esc(task.id)+'"><div style="flex:1"><div class="task-title">'+esc(task.title)+'</div>'+
     '<div class="task-meta"><span>'+esc(displayDate(task.due_date))+(task.start_time?' · '+esc(task.start_time.slice(0,5)):'')+'</span>'+
       '<span>'+esc(getName(clients,task.client_id))+'</span>'+
       '<span>'+esc(getName(sites,task.site_id))+'</span>'+
@@ -819,7 +819,7 @@ function clientsMarkup(){
   return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
     '<div class="card stacked"><h2>'+t('Nuovo cliente')+'</h2><form data-form="client" class="stacked">'+field('Nome cliente','name','text','','required maxlength="150"')+
     '<button type="submit" class="primary">'+t('Nuovo cliente')+'</button></form>'+
-    '<h3>'+t("Elenco clienti")+'</h3>'+(clients.length?clients.map(c=>'<p>'+esc(c.name)+'</p>').join(''):'<p class="muted">'+t("Nessun cliente")+'</p>')+'</div>'+
+    '<h3>'+t("Elenco clienti")+'</h3>'+(clients.length?clients.map(c=>'<p tabindex="-1" data-search-client="'+esc(c.id)+'">'+esc(c.name)+'</p>').join(''):'<p class="muted">'+t("Nessun cliente")+'</p>')+'</div>'+
     '<div class="card stacked"><h2>'+t('Nuovo cantiere')+'</h2><form data-form="site" class="stacked">'+
     select('Cliente','client_id',clients.map(c=>option(c.id,c.name)).join(''),'required')+
     field('Cantiere','name','text','','required maxlength="150"')+field('Indirizzo','address','text','')+
@@ -1186,11 +1186,11 @@ async function openSearchResult(item){
     }
   }else return;
   render();
-  if(item.kind==='task')getTarget()?.scrollIntoView?.({behavior:'smooth',block:'center'});
+  if(item.kind==='task'){const target=getTarget();target?.scrollIntoView?.({behavior:'smooth',block:'center'});target?.focus?.({preventScroll:true})}
   else if(focusSelector){
     const target=document.querySelector(focusSelector);
     target?.scrollIntoView?.({behavior:'smooth',block:'center'});
-    if(target?.matches?.('input'))target.focus?.({preventScroll:true});
+    if(target?.matches?.('input')||item.kind==='client')target?.focus?.({preventScroll:true});
   }else window.scrollTo?.({top:0,behavior:'instant'});
 }
 document.addEventListener('submit',e=>{
