@@ -19,6 +19,7 @@ const cfg = window.EASYGART_SUPABASE_CONFIG || {};
 const app = $('app'), topRight = $('top-right');
 let client = null;
 let operations = null;
+let globalSearch = null;
 let calendar = null;
 let hoursCalendar = null;
 let endOfDay = null;
@@ -54,6 +55,7 @@ const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
   'Home':'Startseite','Fine giornata':'Feierabend','Menu':'Menü','Altre sezioni':'Weitere Bereiche',
+  'Cerca':'Suche','Cerca attività e azioni':'Aufgaben und Aktionen suchen',
   'Impostazioni e account':'Einstellungen und Konto','Seleziona una sezione':'Bereich auswählen',
   'Inserisci gli orari e il cantiere':'Arbeitszeiten und Einsatzort erfassen','Rapporti':'Berichte',
   'Resoconto mensile':'Monatsübersicht','Apri resoconto mensile':'Monatsübersicht öffnen',
@@ -485,6 +487,8 @@ function render() {
     '<div class="view-head eg-app-intro"><div><div class="eyebrow">'+t('Azienda')+'</div><h1>'+esc(org?.name||'EasyGart')+'</h1>'+
     '<p>'+t('Solo i dati autorizzati dal server vengono mostrati.')+'</p></div>'+
     '<div class="toolbar">'+(companies.length>1?'<select id="company-select" aria-label="'+t('Azienda')+'" style="max-width:190px">'+companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select>':'')+
+    '<button type="button" class="eg-search-trigger" data-action="search-open" aria-label="'+t('Cerca attività e azioni')+'">'+
+      '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg><span>'+t('Cerca')+'</span></button>'+
     '<button class="ghost" data-action="refresh">'+t('Ricarica')+'</button></div></div>'+
     '<nav class="eg-main-nav" aria-label="'+t('Sezioni')+'">'+
       '<button data-action="view" data-view="home" '+(currentView==='home'?'aria-current="page" ':'')+'class="'+(currentView==='home'?'active':'')+'">'+egNavIcon('home')+'<span>'+t('Home')+'</span></button>'+
@@ -512,7 +516,7 @@ function render() {
       currentView==='team'&&memberIsOwner()?teamMarkup():
       ['materials','maintenance','invoices','archive'].includes(currentView)&&memberIsOwner()?
        (business?.markup(currentView)||''):tasksMarkup())+
-    (pendingReportDeletionId?reportDeletionDialogMarkup():'')+(operations?.deletionDialogMarkup()||'');
+    (pendingReportDeletionId?reportDeletionDialogMarkup():'')+(operations?.deletionDialogMarkup()||'')+(globalSearch?.markup()||'');
   restoreSessionDrafts();
 }
 function authMarkup(){
@@ -577,7 +581,7 @@ function taskMarkup(task){
   const actions = task.status==='done' ? (memberIsOwner()?'<button class="ghost small" data-action="status" data-id="'+esc(task.id)+'" data-status="assigned">'+t('Riapri')+'</button>':'') :
     (task.status==='assigned'?'<button class="secondary small" data-action="status" data-id="'+esc(task.id)+'" data-status="in_progress">'+t('Inizia')+'</button>':'')+
     '<button class="primary small" data-action="status" data-id="'+esc(task.id)+'" data-status="done">'+t('Completa')+'</button>';
-  return '<article class="taskrow"><div style="flex:1"><div class="task-title">'+esc(task.title)+'</div>'+
+  return '<article class="taskrow" data-search-task="'+esc(task.id)+'"><div style="flex:1"><div class="task-title">'+esc(task.title)+'</div>'+
     '<div class="task-meta"><span>'+esc(displayDate(task.due_date))+(task.start_time?' · '+esc(task.start_time.slice(0,5)):'')+'</span>'+
       '<span>'+esc(getName(clients,task.client_id))+'</span>'+
       '<span>'+esc(getName(sites,task.site_id))+'</span>'+
@@ -1042,6 +1046,11 @@ async function boot(){
           errorNotice=false;render();
         }})
     });
+    globalSearch = window.createEasyGartSearch({
+      esc,
+      getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),
+        locale,tasks,sites,clients,members,reports:dailyReports})
+    });
     operations = window.createEasyGartOperations({
       client,
       getContext:()=>({companyId:selectedCompanyId,user,isOwner:memberIsOwner(),members,sites,tasks,reports:dailyReports,locale,reload:refresh}),
@@ -1128,6 +1137,62 @@ function renderPreservingForms(){
   restoreEditableForms(drafts);
   operations?.restoreSignature?.(signature);
 }
+async function openSearchResult(item){
+  if(!user||!selectedCompanyId||!item) return;
+  menuOpen=false;
+  editingTaskId=null;reportEditingId=null;pendingReportDeletionId=null;
+  const getTarget = () => document.querySelector('[data-search-task="'+item.entityId+'"]');
+  let focusSelector='';
+  if(item.kind==='task'){
+    if(!tasks.some(task=>task.id===item.entityId&&(memberIsOwner()||task.assignee_id===user.id)))return;
+    selectedWorkerId='all';currentView='tasks';
+  }else if(item.kind==='report'){
+    const report=dailyReports.find(r=>r.id===item.entityId);
+    if(!report||(!memberIsOwner()&&report.created_by!==user.id))return;
+    await loadReportMaterialRows(report.id);
+    selectedReportId=report.id;reportReturnView='reports';currentView='report-detail';
+  }else if(item.kind==='site'){
+    if(!sites.some(site=>site.id===item.entityId))return;
+    siteHistory?.choosePerson('all');
+    await siteHistory?.refresh(selectedCompanyId);
+    siteHistory?.open(item.entityId);currentView='sites-history';
+  }else if(item.kind==='client'){
+    if(!memberIsOwner()||!clients.some(c=>c.id===item.entityId))return;
+    currentView='clients';focusSelector='[data-search-client="'+item.entityId+'"]';
+  }else if(item.kind==='command'){
+    const allowed=new Set(['home','eod','tasks','clock','calendar','calendar-hours','reports','monthly','sites-history']);
+    const ownerOnly=new Set(['clients','team','materials','maintenance','invoices','archive']);
+    const op=item.op||'view';
+    if(op==='guide'){window.EASYGART_GUIDE?.open?.();return}
+    if(op==='new-report'){
+      if(!reportsReady)return;
+      editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;
+      await endOfDay?.prepareOpen(null);currentView='eod';
+    }else{
+      if(!allowed.has(item.view)&&!(memberIsOwner()&&ownerOnly.has(item.view)))return;
+      currentView=item.view;
+      if(op==='new-task'){
+        if(!memberIsOwner())return;
+        editingTaskId='new';selectedWorkerId='all';
+        focusSelector='form[data-form="task"] input[name="title"]';
+      }
+      if(op==='new-client'&&memberIsOwner())focusSelector='form[data-form="client"] input[name="name"]';
+      if(op==='new-site'&&memberIsOwner())focusSelector='form[data-form="site"] input[name="name"]';
+      if(op==='invite'&&memberIsOwner())focusSelector='form[data-form="invite"] input[name="email"]';
+      if(item.view==='calendar')await calendar?.refresh(selectedCompanyId);
+      if(item.view==='calendar-hours')await hoursCalendar?.refresh(selectedCompanyId);
+      if(item.view==='monthly')await monthly?.refresh(selectedCompanyId);
+      if(item.view==='sites-history'){siteHistory?.back();await siteHistory?.refresh(selectedCompanyId)}
+    }
+  }else return;
+  render();
+  if(item.kind==='task')getTarget()?.scrollIntoView?.({behavior:'smooth',block:'center'});
+  else if(focusSelector){
+    const target=document.querySelector(focusSelector);
+    target?.scrollIntoView?.({behavior:'smooth',block:'center'});
+    if(target?.matches?.('input'))target.focus?.({preventScroll:true});
+  }else window.scrollTo?.({top:0,behavior:'instant'});
+}
 document.addEventListener('submit',e=>{
   const form=e.target.closest('form[data-form]');
   if(!form)return;
@@ -1144,6 +1209,24 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-action]');
   if(!b)return;
   const a=b.dataset.action;
+  if(a==='search-open'){
+    if(globalSearch?.open()){
+      renderPreservingForms();
+      document.getElementById('eg-search-input')?.focus?.();
+    }
+    return;
+  }
+  if(a==='search-close'){
+    globalSearch?.close();renderPreservingForms();
+    document.querySelector('[data-action="search-open"]')?.focus?.();
+    return;
+  }
+  if(a==='search-pick'){
+    const item=globalSearch?.get(b.dataset.searchId);
+    if(!item)return;
+    globalSearch.close();renderPreservingForms();
+    withBusy(()=>openSearchResult(item));return;
+  }
   if(a.startsWith('cal-')){
     const activeCalendar=currentView==='calendar-hours'?hoursCalendar:calendar;
     if(a==='cal-switch'){
@@ -1225,7 +1308,7 @@ document.addEventListener('click',e=>{
     render();window.scrollTo?.({top:0,behavior:'instant'});return;
   }
   if(a==='refresh'){withBusy(refresh);return}
-  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';pendingReportDeletionId=null;memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
+  if(a==='signout'){withBusy(async()=>{clearAccountDrafts();requireSuccess(await client.auth.signOut());user=null;authMode='signin';globalSearch?.close();pendingReportDeletionId=null;memberships=[];dailyReports=[];reportsReady=false;reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();operations?.reset();calendar?.reset();hoursCalendar?.reset();business?.reset();const print=$('eg-print-zone');if(print)print.textContent='';render()});return}
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
   if(a==='site-history-view'){
@@ -1367,6 +1450,12 @@ document.addEventListener('click',e=>{
   if(a==='status'){withBusy(async()=>{requireSuccess(await client.rpc('eg_set_task_status',{p_task_id:b.dataset.id,p_status:b.dataset.status}));await refresh()});return}
 });
 document.addEventListener('input',e=>{
+  if(e.target?.id==='eg-search-input'){
+    globalSearch?.setQuery(e.target.value);
+    const area=document.getElementById('eg-search-results');
+    if(area)area.innerHTML=globalSearch?.resultsMarkup()||'';
+    return;
+  }
   const form=e.target?.closest?.('form[data-form]');
   if(form)saveSessionDraft(form);
 });
@@ -1385,13 +1474,33 @@ document.addEventListener('change',e=>{
   if(['eod-site','eod-worker'].includes(e.target.id)){endOfDay?.handleChange(e.target);return}
   if(e.target.dataset.opsFilter){operations?.handleChange(e.target);return}
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
-  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;currentView='home';pendingReportDeletionId=null;siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+  if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;globalSearch?.close();currentView='home';pendingReportDeletionId=null;siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
   if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='task-client'){
     const s=$('task-site');if(!s)return;
     s.innerHTML=option('','—')+sites.filter(x=>x.client_id===e.target.value).map(x=>option(x.id,x.name)).join('');
+  }
+});
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key?.toLowerCase()==='k'&&!e.altKey){
+    if(!user||!memberships.length||authMode==='reset')return;
+    e.preventDefault();
+    if(globalSearch?.isOpen()){document.getElementById('eg-search-input')?.focus?.();return}
+    if(globalSearch?.open()){renderPreservingForms();document.getElementById('eg-search-input')?.focus?.()}
+    return;
+  }
+  if(!globalSearch?.isOpen())return;
+  if(e.key==='Escape'){
+    e.preventDefault();
+    globalSearch.close();renderPreservingForms();
+    document.querySelector('[data-action="search-open"]')?.focus?.();
+  }else if(e.key==='Enter'&&e.target?.id==='eg-search-input'){
+    const item=globalSearch.results()[0];
+    if(!item)return;
+    e.preventDefault();globalSearch.close();renderPreservingForms();
+    withBusy(()=>openSearchResult(item));
   }
 });
 document.addEventListener('pointerdown',e=>operations?.pointerStart(e));
