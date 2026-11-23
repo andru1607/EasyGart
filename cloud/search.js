@@ -101,6 +101,12 @@ window.createEasyGartSearch = function({getContext,esc}) {
       category:lang('Modifica','Bearbeiten'),detail:lang('Correggi il cantiere','Einsatzort bearbeiten'),
       keywords:[site.name,site.address,'modifica indirizzo cantiere'].join(' ')
     })):[];
+    const materials=c.isOwner?(c.materials||[]).map(m=>({
+      id:'material:'+m.id,kind:'material',entityId:m.id,title:m.name,
+      category:lang('Materiale','Material'),
+      detail:[m.unit,m.active===false?lang('Disattivo','Inaktiv'):''].filter(Boolean).join(' · '),
+      keywords:[m.name,m.unit,'catalogo materiale modifica prodotto'].join(' ')
+    })):[];
     const reports=(c.reports||[]).filter(r=>!r.deleted_at&&
       (c.isOwner||r.created_by===c.user?.id||r.site_id&&['submitted','approved'].includes(r.status)))
       .map(report=>{
@@ -114,7 +120,7 @@ window.createEasyGartSearch = function({getContext,esc}) {
           keywords:[site?.name,task?.title,report.work_summary,report.work_date,who].join(' ')
         };
       });
-    return [...commandsList,...jobs,...places,...customers,...siteEdits,...reports];
+    return [...commandsList,...jobs,...places,...customers,...siteEdits,...materials,...reports];
   }
   function results(){
     const q=normalize(query);
