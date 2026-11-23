@@ -40,13 +40,13 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
       .select('id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status,invoice_locked')
       .eq('company_id',companyId).order('work_date',{ascending:false}).order('id',{ascending:false})),
     pages(client.from('eg_shifts')
-      .select('id,user_id,site_id,started_at,ended_at,break_seconds,status')
+      .select('*')
       .eq('company_id',companyId).order('started_at',{ascending:false}).order('id',{ascending:false})),
     client.rpc('eg_list_month_materials',{p_company_id:companyId,p_begin:'2020-01-01',p_end:'2099-12-31'})
    ]);
    if(m.error)throw m.error;
    if(company!==companyId)return;
-   reports=r;shifts=s;materials=m.data||[];ready=true;
+   reports=r;shifts=s.filter(shift=>!shift.deleted_at);materials=m.data||[];ready=true;
   }catch(e){reports=[];shifts=[];materials=[];ready=false;error=String(e?.message||e)}
  }
  function reset(){reports=[];shifts=[];materials=[];selectedSite=null;person='all';ready=false;error='';company='';partial=false}
