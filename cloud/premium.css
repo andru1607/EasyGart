@@ -415,3 +415,15 @@ select{background-color:#fff}
 .eg-cal-footer-actions{display:flex;justify-content:flex-end;margin:2px 0 20px}
 .eg-cal-footer-actions button{border-radius:12px;min-height:42px;font-weight:760}
 @media(max-width:760px){.eg-cal-footer-actions button{width:100%;min-height:45px}}
+
+/* Timbrature annullabili: tasto visibile e comodo anche su iPhone. */
+.eg-shift-delete-button{display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid #e5aaa5;border-radius:11px;background:#fff4f1;color:#8f2c24;
+  padding:9px 12px;min-height:44px;font-size:13px;font-weight:770;line-height:1.25;
+  touch-action:manipulation;text-align:center}
+.eg-shift-delete-button:hover{background:#ffe8e3}
+.eg-shift-delete-button:focus-visible{outline:3px solid #8cbf7f;outline-offset:2px}
+.eg-calendar-record .eg-shift-delete-button{margin-top:11px}
+.taskrow .task-right .eg-shift-delete-button{max-width:180px}
+@media(max-width:570px){.taskrow .task-right{max-width:48%;align-items:flex-end}
+  .taskrow .eg-shift-delete-button{width:100%;max-width:150px;padding:9px 7px}}
