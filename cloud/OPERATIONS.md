@@ -13,6 +13,12 @@ EasyGart è una PWA, non un'app nativa App Store/Play Store. Servono Internet e 
 
 Dalla schermata di accesso scegliere **Password dimenticata?**, inserire l'email e seguire il link ricevuto. Il collegamento riporta a EasyGart Cloud e permette di impostare una password nuova di almeno 12 caratteri. Dopo il cambio password è necessario effettuare nuovamente l'accesso. Chi è già autenticato trova **Sicurezza account** nell'intestazione. Il flusso è disponibile in italiano e tedesco. La consegna delle email richiede configurazione corretta di Supabase Auth/SMTP e URL di redirect autorizzati.
 
+## Ricerca rapida per tutti
+
+Premere la lente **Cerca / Suche** nella testata della dashboard, oppure **⌘K** (Mac) o **Ctrl+K** (computer). La ricerca trova le attività assegnate, i cantieri, i rapporti già caricati, le sezioni e le azioni disponibili in base al ruolo. Senza testo mostra le azioni rapide; digitando vengono cercati titoli, descrizioni dei compiti, date e luoghi. Toccare un risultato per aprire la relativa schermata o attività; **Esc** chiude la ricerca.
+
+Esempi: `potatura` apre il compito, `resoconto mensile` apre il riepilogo, `cancella ore` apre la sezione timbrature, `nuovo cliente` è disponibile soltanto al titolare. La ricerca non esegue cancellazioni o operazioni rischiose automaticamente, e non rende visibili dati di altri dipendenti quando non autorizzati. Indicizza i dati già caricati nell'azienda selezionata, inclusi soltanto i rapporti presenti nell'elenco corrente. La ricerca non viene inviata a un servizio esterno.
+
 ## Dipendente
 - Incarichi assegnati, aggiornamento stato, rapporti con bozza/invio/correzioni.
 - Timbratura del turno e delle pause con orario del database.
