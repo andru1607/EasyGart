@@ -889,7 +889,14 @@ function teamMarkup(){
   const explanation=locale==='de'?
     'Der Inhaber kann einem Mitarbeiter den gesamten Verwaltungszugriff geben oder entziehen. Der Mitarbeiter nutzt weiterhin sein eigenes Konto und kann seine Zeiten erfassen. Nur der ursprüngliche Inhaber verwaltet diese Delegation.':
     'Il titolare può concedere o revocare i permessi di gestione a un dipendente. Il dipendente conserva il proprio account e può continuare a timbrare. Solo il titolare originale gestisce la delega.';
-  return '<div class="view-head"><h2>'+t('Squadra e inviti')+'</h2></div><div class="two">'+
+  const companySettings='<section class="card stacked" style="margin-bottom:16px">'+
+    '<h3>'+(locale==='de'?'Firmeneinstellungen':'Impostazioni azienda')+'</h3>'+
+    '<form data-form="company-settings" class="stacked">'+
+    field('Nome azienda','name','text',company()?.name||'','required minlength="2" maxlength="150"')+
+    '<button type="submit" class="secondary">'+(locale==='de'?'Firmenname speichern':'Salva nome azienda')+
+    '</button></form></section>';
+  return '<div class="view-head"><h2>'+t('Squadra e inviti')+'</h2></div>'+
+    companySettings+'<div class="two">'+
     '<div class="card stacked"><h2>'+t('Invita dipendente')+'</h2><p class="muted">'+t("Inserisci l’email del lavoratore. Condividi il link del portale: l’invito sarà associato alla sua email verificata.")+'</p>'+
     '<form data-form="invite" class="stacked">'+field('Email','email','email','','required maxlength="200"')+
     '<button type="submit" class="primary">'+t('Invia invito')+'</button></form>'+
@@ -1038,6 +1045,14 @@ async function submitForm(form,formAction='draft'){
       pendingCompanyName='';companyPolicyError=false;notice='';errorNotice=false;
       await refresh();break;
     }
+    case 'company-settings':{
+      if(!memberIsOwner())throw Error('Permesso negato');
+      const name=String(vals.name||'').trim();
+      if(name.length<2||name.length>150)throw Error(locale==='de'?'Ungültiger Firmenname.':'Nome azienda non valido.');
+      requireSuccess(await client.from('eg_companies').update({name})
+        .eq('id',selectedCompanyId).select('id').single());
+      await refresh();break;
+    }
     case 'client':{
       if(!memberIsOwner())throw Error('Permesso negato');
       const name=String(vals.name||'').trim(),notes=String(vals.notes||'').trim();
@@ -1068,7 +1083,12 @@ async function submitForm(form,formAction='draft'){
       if(!customer||name.length<2||name.length>150||address.length>500)throw Error('Dati cantiere non validi');
       const payload={client_id:customer.id,name,address};
       if(editingSiteId){
-        if(!sites.some(s=>s.id===editingSiteId))throw Error('Cantiere non trovato');
+        const old=sites.find(s=>s.id===editingSiteId);
+        if(!old)throw Error('Cantiere non trovato');
+        if(old.client_id!==payload.client_id&&tasks.some(t=>t.site_id===old.id)){
+          throw Error(locale==='de'?'Einsatzort mit zugewiesenen Aufgaben kann nicht zu einem anderen Kunden verschoben werden. Name und Adresse können bearbeitet werden.':
+            'Il cantiere ha attività collegate: per ora puoi modificarne nome e indirizzo, ma non spostarlo a un altro cliente.');
+        }
         requireSuccess(await client.from('eg_sites').update(payload)
           .eq('company_id',selectedCompanyId).eq('id',editingSiteId).select('id').single());
         editingSiteId=null;
