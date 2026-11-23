@@ -21,6 +21,7 @@ let client = null;
 let operations = null;
 let globalSearch = null;
 let screenshotImport = null;
+let importReturnView = 'home';
 let clientContactsReady = false;
 let calendar = null;
 let hoursCalendar = null;
@@ -1259,12 +1260,16 @@ document.addEventListener('click',e=>{
   if(a==='import-open'){
     if(!memberIsOwner())return;
     if(screenshotImport?.open(b.dataset.kind||'hours')){
+      importReturnView=currentView;
       currentView='import';menuOpen=false;render();
       window.scrollTo?.({top:0,behavior:'instant'});
     }
     return;
   }
-  if(a==='import-close'){currentView='home';screenshotImport?.reset();render();return}
+  if(a==='import-close'){
+    currentView=['calendar','calendar-hours','clients','home'].includes(importReturnView)?importReturnView:'home';
+    importReturnView='home';screenshotImport?.reset();render();return
+  }
   if(a==='import-kind'){if(memberIsOwner()){screenshotImport?.setMode(b.dataset.kind);render()}return}
   if(a==='import-analyse'){if(memberIsOwner()){screenshotImport?.analyse();render()}return}
   if(a==='import-add-row'){if(memberIsOwner()){screenshotImport?.addRow();render()}return}
