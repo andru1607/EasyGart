@@ -1431,6 +1431,15 @@ async function openSearchResult(item){
     const ownerOnly=new Set(['clients','team','materials','maintenance','invoices','archive','import']);
     const op=item.op||'view';
     if(op==='guide'){window.EASYGART_GUIDE?.open?.();return}
+    if(op==='account-security'){authMode='reset';notice='';render();return}
+    if(op==='install'){
+      const installed=await window.EASYGART_INSTALL?.install?.();
+      if(!installed)success(locale==='de'?
+        'iPhone: Teilen → Zum Home-Bildschirm. Android: Im Browsermenü App installieren.':
+        'iPhone: Condividi → Aggiungi alla schermata Home. Android: Installa app dal menu del browser.');
+      return;
+    }
+    if(op==='reload'){await refresh();return}
     if(op==='import-hours'||op==='import-clients'){
       if(!memberIsOwner())return;
       importReturnView=currentView;
