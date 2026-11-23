@@ -7,6 +7,9 @@ const egNavIcon=name=>{
   const paths={
     home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
     leaf:'<path d="M20 4C12 4 5 7 5 15a5 5 0 0 0 5 5c8 0 11-7 10-16Z"/><path d="M6 20c3-6 7-8 13-11"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    sites:'<path d="M4 20h16M6 20V9l6-5 6 5v11M9 13h6M10 20v-4h4v4"/>',
+    team:'<circle cx="9" cy="7" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 10a3 3 0 0 1 0 6M17 18c2 0 4 1 4 3"/>',
     calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/>',
     reports:'<path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/>',
     menu:'<path d="M4 7h16M4 12h16M4 17h16"/>'
@@ -431,6 +434,96 @@ function clearAccountDrafts(){
   }catch{}
 }
 
+// Four quick destinations plus a role-aware menu. Search is separate and always visible.
+function navLabels(){
+  const de=locale==='de';
+  return {
+    home:de?'Start':'Home',clock:de?'Zeiten':'Timbrature',eod:de?'Bericht':'Rapporto',
+    sites:de?'Einsatzorte':'Cantieri',team:de?'Team':'Squadra',reports:de?'Berichte':'Rapporti',
+    menu:de?'Mehr':'Altro'
+  };
+}
+function primaryNavigationMarkup(){
+  const delegatedWorker=memberships.some(m=>m.company_id===selectedCompanyId&&m.user_id===user?.id&&m.role==='worker'&&m.active);
+  const owner=memberIsPrimaryOwner();
+  // Delegated administrators remain workers and need instant access to their own punches.
+  const tabs=owner&&!delegatedWorker?[
+    ['home','home','home'],['team','team','team'],['reports','reports','reports'],
+    ['sites','sites-history','sites-history'],['menu','menu','menu']
+  ]:[
+    ['home','home','home'],['clock','clock','clock'],['eod','eod','eod'],
+    ['sites','sites-history','sites-history'],['menu','menu','menu']
+  ];
+  const labels=navLabels();
+  const active=view=>view==='menu'?menuOpen:
+    view==='eod'?currentView==='eod':
+    view==='reports'?['reports','report-detail'].includes(currentView):
+    view==='sites-history'?currentView==='sites-history':
+    currentView===view;
+  return '<nav class="eg-main-nav" aria-label="'+(locale==='de'?'Hauptnavigation':'Navigazione principale')+'">'+
+    tabs.map(([id,view,icon])=>{
+      const picked=active(view);
+      const action=id==='menu'?'toggle-menu':id==='eod'?'eod-new':
+        view==='sites-history'?'site-history-view':'view';
+      return '<button type="button" data-action="'+action+'"'+
+        (action==='view'?' data-view="'+view+'"':'')+
+        (id==='menu'?' aria-expanded="'+menuOpen+'" aria-controls="eg-more-menu"':'')+
+        (picked?' aria-current="page"':'')+
+        ' class="'+(picked?'active':'')+'">'+egNavIcon(icon)+'<span>'+esc(labels[id])+'</span></button>';
+    }).join('')+'</nav>';
+}
+function moreMenuMarkup(){
+  if(!menuOpen)return '';
+  const de=locale==='de';
+  const nav=(view,it,ger)=>'<button type="button" data-action="view" data-view="'+view+'">'+
+    (de?ger:it)+'</button>';
+  const act=(key,it,ger)=>'<button type="button" data-action="'+key+'">'+(de?ger:it)+'</button>';
+  const section=(titleIt,titleDe,body)=>'<section class="eg-menu-group"><h3>'+
+    (de?titleDe:titleIt)+'</h3><div class="eg-menu-links">'+body+'</div></section>';
+  const work=nav('tasks','Compiti e attività','Aufgaben und Tätigkeiten')+
+    nav('clock','Timbrature e pause','Zeiterfassung und Pausen')+
+    act('eod-new','Nuovo rapporto','Neuer Tagesbericht')+
+    nav('reports','Rapporti giornalieri','Tagesberichte');
+  const review=nav('calendar-hours','Calendario orari','Stundenkalender')+
+    nav('calendar','Calendario orari e rapporti','Kalender für Zeiten und Berichte')+
+    nav('monthly','Resoconto mensile','Monatsübersicht')+
+    act('site-history-view','Cantieri e storico lavori','Einsatzorte und Verlauf');
+  const manage=memberIsOwner()?section('Gestione aziendale','Betriebsverwaltung',
+    nav('clients','Clienti e cantieri','Kunden und Einsatzorte')+
+    nav('team','Squadra e permessi','Team und Berechtigungen')+
+    nav('materials','Catalogo materiali','Materialkatalog')+
+    nav('maintenance','Manutenzioni ricorrenti','Wiederkehrende Pflege')+
+    nav('invoices','Proforma','Proforma')+
+    nav('archive','Dati ed esportazione','Daten und Export')+
+    '<button type="button" data-action="import-open" data-kind="hours">'+
+      (de?'Screenshot importieren':'Importa screenshot')+'</button>'):'';
+  const account=section('Account e supporto','Konto und Hilfe',
+    act('guide-open','Guida all’app','App-Anleitung')+
+    act('account-password','Sicurezza account','Kontosicherheit')+
+    (!window.EASYGART_INSTALL?.isStandalone?.()?act('install','Installa app','App installieren'):'')+
+    act('refresh','Aggiorna dati','Daten aktualisieren')+
+    act('signout','Esci','Abmelden'));
+  return '<nav id="eg-more-menu" class="eg-extra-nav" aria-label="'+
+    (de?'Weitere Funktionen':'Altre funzioni')+'">'+
+    '<div class="eg-menu-head"><strong>'+(de?'Alle Funktionen':'Tutte le funzioni')+'</strong>'+
+    '<button type="button" data-action="search-open" class="secondary">'+
+      (de?'Suchen':'Cerca un’azione')+'</button></div>'+
+    section('Lavoro quotidiano','Tägliche Arbeit',work)+
+    section('Consultazioni','Übersichten',review)+manage+account+'</nav>';
+}
+function searchDockMarkup(){
+  const de=locale==='de';
+  const label=de?'Aktionen, Kunden, Einsatzorte und Berichte suchen':'Cerca azioni, clienti, cantieri e rapporti';
+  return '<div class="eg-search-dock" role="search">'+
+    '<button type="button" class="eg-search-dock-trigger" data-action="search-open" aria-label="'+label+'">'+
+      '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>'+
+      '<span class="eg-search-dock-copy">'+(de?'Alles finden: Aktionen, Kunden, Berichte …':'Cerca attività, azioni, cantieri, clienti…')+'</span>'+
+      '<span class="eg-search-dock-short">'+(de?'Suchen':'Cerca')+'</span>'+
+      '<kbd class="eg-search-shortcut">⌘ K</kbd></button>'+
+    '<button type="button" class="eg-dock-refresh" data-action="refresh" title="'+
+      (de?'Daten aktualisieren':'Aggiorna dati')+'" aria-label="'+(de?'Daten aktualisieren':'Aggiorna dati')+'">'+
+      '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/></svg></button></div>';
+}
 function render() {
   // Aggiorna anche i testi fuori dal contenitore dell'app (intestazione, footer, lingua HTML).
   if (document.documentElement) document.documentElement.lang = locale;
@@ -491,34 +584,15 @@ function render() {
   if (authMode==='reset') {app.innerHTML=alert+passwordResetMarkup();return}
   if (!memberships.length) {app.innerHTML = alert + onboardMarkup();return}
   const org = company();
-  app.innerHTML = alert +
-    '<div class="view-head eg-app-intro"><div><div class="eyebrow">'+t('Azienda')+'</div><h1>'+esc(org?.name||'EasyGart')+'</h1>'+
-    '<p>'+t('Solo i dati autorizzati dal server vengono mostrati.')+'</p></div>'+
-    '<div class="toolbar">'+(companies.length>1?'<select id="company-select" aria-label="'+t('Azienda')+'" style="max-width:190px">'+companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select>':'')+
-    '<button type="button" class="eg-search-trigger" data-action="search-open" aria-label="'+t('Cerca attività e azioni')+'">'+
-      '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg><span>'+t('Cerca')+'</span></button>'+
-    '<button class="ghost" data-action="refresh">'+t('Ricarica')+'</button></div></div>'+
-    '<nav class="eg-main-nav" aria-label="'+t('Sezioni')+'">'+
-      '<button data-action="view" data-view="home" '+(currentView==='home'?'aria-current="page" ':'')+'class="'+(currentView==='home'?'active':'')+'">'+egNavIcon('home')+'<span>'+t('Home')+'</span></button>'+
-      '<button data-action="eod-new" '+(currentView==='eod'?'aria-current="page" ':'')+'class="'+(currentView==='eod'?'active':'')+'">'+egNavIcon('leaf')+'<span>'+t('Fine giornata')+'</span></button>'+
-      '<button data-action="view" data-view="calendar-hours" '+(['calendar','calendar-hours'].includes(currentView)?'aria-current="page" ':'')+'class="'+(['calendar','calendar-hours'].includes(currentView)?'active':'')+'">'+egNavIcon('calendar')+'<span>'+t('Calendario')+'</span></button>'+
-      '<button data-action="view" data-view="reports" '+(['reports','report-detail'].includes(currentView)?'aria-current="page" ':'')+'class="'+(['reports','report-detail'].includes(currentView)?'active':'')+'">'+egNavIcon('reports')+'<span>'+t('Rapporti')+'</span></button>'+
-      '<button data-action="toggle-menu" aria-expanded="'+menuOpen+'" class="'+(menuOpen?'active':'')+'">'+egNavIcon('menu')+'<span>'+t('Menu')+'</span></button></nav>'+
-    (menuOpen?'<nav class="eg-extra-nav" aria-label="'+t('Altre sezioni')+'">'+
-      '<button data-action="view" data-view="tasks">'+t('Compiti')+'</button>'+
-      '<button data-action="view" data-view="clock">'+t('Timbrature')+'</button>'+ 
-      '<button data-action="view" data-view="calendar-hours">'+t('Calendario orari')+'</button>'+ 
-      '<button data-action="view" data-view="calendar">'+t('Calendario orari e rapporti')+'</button>'+
-      (memberIsOwner()?'<button data-action="view" data-view="clients">'+t('Clienti e cantieri')+'</button>'+
-      '<button data-action="view" data-view="team">'+t('La tua squadra')+'</button>'+
-      '<button data-action="view" data-view="materials">'+t('Catalogo materiali')+'</button>'+
-      '<button data-action="view" data-view="maintenance">'+t('Manutenzioni ricorrenti')+'</button>'+
-      '<button data-action="view" data-view="invoices">'+t('Bozze proforma')+'</button>'+
-      '<button data-action="view" data-view="archive">'+t('Dati ed esportazione')+'</button>'+
-       '<button data-action="import-open" data-kind="hours">'+(locale==='de'?'Screenshot importieren':'Importa screenshot')+'</button>':'')+
-      '<button data-action="monthly-view">'+t('Resoconto mensile')+'</button>'+ 
-      '<button data-action="site-history-view">'+t('Cantieri svolti')+'</button>'+
-      '<div class="eg-menu-divider"><span>'+t('Impostazioni e account')+'</span></div>'+ '<button data-action="guide-open">'+t('Guida')+'</button>'+ '<button data-action="account-password">'+t('Sicurezza account')+'</button>'+ (!window.EASYGART_INSTALL?.isStandalone?.()?'<button data-action="install">'+t('Installa app')+'</button>':'')+ '<button data-action="signout">'+t('Esci')+'</button></nav>':'')+
+  app.innerHTML = alert +searchDockMarkup()+
+    '<div class="view-head eg-app-intro"><div><div class="eyebrow">'+t('Azienda')+'</div><h1>'+
+    esc(org?.name||'EasyGart')+'</h1>'+
+    '<p>'+(locale==='de'?(memberIsPrimaryOwner()?'Inhaber':memberIsAdmin()?'Mitarbeiter · Admin':'Mitarbeiter'):
+      (memberIsPrimaryOwner()?'Titolare':memberIsAdmin()?'Dipendente · Admin':'Dipendente'))+'</p></div>'+
+    (companies.length>1?'<div class="toolbar"><select id="company-select" aria-label="'+t('Azienda')+'">'+
+      companies.map(c=>option(c.id,c.name,c.id===selectedCompanyId)).join('')+'</select></div>':'')+
+    '</div>'+
+    primaryNavigationMarkup()+moreMenuMarkup()+
     (currentView==='home'?homeMarkup():currentView==='eod'?(endOfDay?.markup()||''):
       currentView==='clock'?(operations?.clockMarkup()||''):currentView==='calendar-hours'?(hoursCalendar?.markup()||''):currentView==='calendar'?(calendar?.markup()||''):
       currentView==='reports'?reportsMarkup():currentView==='monthly'?(monthly?.markup()||''):currentView==='sites-history'?(siteHistory?.markup()||''):currentView==='report-detail'?reportDetailMarkup():currentView==='clients'&&memberIsOwner()?clientsMarkup():
