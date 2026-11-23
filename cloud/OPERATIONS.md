@@ -13,6 +13,19 @@ EasyGart è una PWA, non un'app nativa App Store/Play Store. Servono Internet e 
 
 Dalla schermata di accesso scegliere **Password dimenticata?**, inserire l'email e seguire il link ricevuto. Il collegamento riporta a EasyGart Cloud e permette di impostare una password nuova di almeno 12 caratteri. Dopo il cambio password è necessario effettuare nuovamente l'accesso. Chi è già autenticato trova **Sicurezza account** nell'intestazione. Il flusso è disponibile in italiano e tedesco. La consegna delle email richiede configurazione corretta di Supabase Auth/SMTP e URL di redirect autorizzati.
 
+## Navigazione semplificata e ricerca sempre visibile
+
+La versione mobile di EasyGart ha una **barra di ricerca globale fissa in alto durante lo scorrimento** e una navigazione principale differente in base al ruolo.
+
+- **Dipendente e dipendente con delega admin:** Home, Timbrature, Rapporto, Cantieri, Altro. La delega non rimuove le timbrature personali. L'admin può raggiungere tutte le funzioni gestionali tramite Altro e ricerca.
+- **Titolare:** Home, Squadra, Rapporti, Cantieri, Altro.
+- **Altro:** sezioni organizzate in Lavoro quotidiano, Consultazioni, Gestione aziendale (se autorizzato) e Account e supporto. Non serve percorrere tutte le schermate per trovare un'operazione.
+- **Home:** quattro azioni rapide contestuali al ruolo, indicatori essenziali e accesso diretto al dettaglio degli ultimi rapporti.
+- **Lente sempre visibile:** ricerca per nomi e indirizzi di cantieri, clienti, attività assegnate, rapporti accessibili e materiali del catalogo (solo titolare e admin). Indicizza anche azioni come import da screenshot, nuova proforma, creazione materiali e manutenzioni, modifica di un cliente/cantiere, resoconti, permessi di squadra e impostazioni account. I risultati rispettano il ruolo e le informazioni già autorizzate da Supabase; la ricerca avviene localmente sui dati caricati e non manda la query a terzi.
+- Su tastiera: **⌘K / Ctrl+K**. Sul telefono basta toccare la barra superiore, visibile anche dopo uno scroll lungo.
+
+La navigazione funziona dal frontend senza migrazioni aggiuntive, ma le precedenti funzioni che dipendono dalla delega e dalla condivisione dei rapporti necessitano ancora dell'attivazione della rispettiva migrazione SQL EasyGart, con verifica dal database.
+
 ## Deleghe amministrative e rapporti per cantiere
 
 Il titolare fondatore può attribuire **tutti i permessi gestionali di EasyGart** a un dipendente esistente. Vai in **Squadra e inviti** → scegli il dipendente → **Concedi admin**. Il dipendente resta registrato come lavoratore, mantiene le proprie timbrature e può anche amministrare clienti, cantieri, materiali, rapporti, compiti, inviti e riepiloghi. Il titolare originale resta il proprietario dell'azienda e **solo lui** può concedere o revocare queste deleghe. Per revocare usare **Revoca admin**; l'effetto sui permessi server è immediato. Non condividere password.
