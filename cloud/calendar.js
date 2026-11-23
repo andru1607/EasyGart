@@ -29,8 +29,8 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
   try{
    const [r,s]=await Promise.all([
     pages(client.from('eg_daily_reports').select(hoursOnly?
-      'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,status':
-      'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status')
+      'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,status,invoice_locked,deleted_at':
+      'id,task_id,site_id,created_by,work_date,work_start_time,work_end_time,break_minutes,minutes_worked,work_summary,materials_used,issues,status,invoice_locked,deleted_at')
      .eq('company_id',id).gte('work_date',begin).lt('work_date',end).order('work_date')),
     pages(client.from('eg_shifts').select('*')
      .eq('company_id',id).gte('started_at',new Date(year,month,-1).toISOString())
@@ -109,7 +109,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
   grid+='</div>';
   const selected=data.get(chosen),details=[];
   for(const s of selected?.shifts||[]){
-   const canDelete=s.status==='closed' && !s.deleted_at && Object.prototype.hasOwnProperty.call(s,'deleted_at') &&
+   const canDelete=s.status==='closed' && !!s.ended_at && !s.deleted_at &&
     (c.isOwner||s.user_id===c.user?.id);
    details.push('<article class="eg-calendar-record"><strong>'+tr('Timbratura','Zeiterfassung')+' · '+esc(who(s.user_id))+'</strong><p class="muted">'+
     esc(clock(s.started_at))+' – '+esc(clock(s.ended_at))+' · '+hm(minutes(s))+' · '+esc(where(s.site_id))+
@@ -124,10 +124,17 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
      esc(String(r.work_start_time).slice(0,5))+' – '+esc(String(r.work_end_time).slice(0,5)):'—';
    const timeText=times+' · '+hm(Number(r.minutes_worked)||0)+
      ' · '+tr('Pausa','Pause')+': '+hm(Number(r.break_minutes)||0);
+   const canManage=(c.isOwner||r.created_by===c.user?.id) && !r.deleted_at && !r.invoice_locked;
+   const changeHours=canManage?'<button type="button" class="secondary small" data-action="cal-edit-hours" data-id="'+esc(r.id)+'">'+
+      tr('Modifica orari','Arbeitszeiten bearbeiten')+'</button>':'';
+   const deleteHoursAndReport=canManage?'<button type="button" class="eg-shift-delete-button small" data-action="cal-delete-report" data-id="'+esc(r.id)+'">'+
+      tr('Elimina rapporto e orari','Bericht und Zeiten löschen')+'</button>':'';
+   const reportActions=(changeHours||deleteHoursAndReport)?
+     '<div class="eg-calendar-row-actions">'+changeHours+deleteHoursAndReport+'</div>':'';
    if(hoursOnly){
      details.push('<article class="eg-calendar-record eg-calendar-time-row">'+
        '<strong>'+tr('Orario dichiarato','Gemeldete Arbeitszeit')+' · '+esc(who(r.created_by))+'</strong>'+
-       '<p class="muted">'+timeText+' · '+esc(location)+'</p></article>');
+       '<p class="muted">'+timeText+' · '+esc(location)+'</p>'+reportActions+'</article>');
      continue;
    }
    const stat={draft:tr('Bozza','Entwurf'),submitted:tr('Inviato','Eingereicht'),
@@ -138,6 +145,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
       '<p class="muted">'+esc(location)+' · '+timeText+' · '+esc(stat)+'</p></div>'+
       '<button type="button" class="secondary small" data-action="cal-open-report" data-id="'+esc(r.id)+'">'+
        tr('Apri rapporto','Bericht öffnen')+'</button></div>'+
+    reportActions+
     '<p class="eg-calendar-note">'+esc(r.work_summary||tr('Nessuna descrizione','Keine Beschreibung'))+'</p>'+
     (r.materials_used?'<p class="eg-calendar-note"><b>'+tr('Materiali','Materialien')+':</b> '+esc(r.materials_used)+'</p>':'')+
     (r.issues?'<p class="eg-calendar-note"><b>'+tr('Osservazioni','Bemerkungen')+':</b> '+esc(r.issues)+'</p>':'')+'</article>');
