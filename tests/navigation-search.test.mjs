@@ -15,7 +15,7 @@ const searchFactory=()=>{
 };
 const fixture=owner=>{
  const ctx={
-  user:{id:'u1'},companyId:'c1',locale:'it',isOwner:owner,
+  user:{id:'u1'},companyId:'c1',locale:'it',isOwner:owner,isPrimaryOwner:owner,
   members:[{user_id:'u1',full_name:'Anna'},{user_id:'u2',full_name:'Paolo'}],
   tasks:[{id:'t1',title:'Potatura siepi',assignee_id:'u1',site_id:'s1'},
    {id:'t2',title:'Sistemare cancello',assignee_id:'u2',site_id:'s2'}],
