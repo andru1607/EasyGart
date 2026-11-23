@@ -45,7 +45,7 @@ window.createEasyGartSearch = function({getContext,esc}) {
       command('reload','Aggiorna dati','Daten aktualisieren','Ricarica i dati dell’azienda','Firmendaten aktualisieren','home','ricarica aggiorna sincronizza','reload')
     ];
     if(!owner)return common;
-    return common.concat([
+    const ownerActions=[
       command('new-task','Assegna un compito','Aufgabe zuweisen','Crea una nuova attività per la squadra','Neue Aufgabe für das Team erstellen','tasks','nuovo incarico assegnare','new-task'),
       command('clients','Clienti e cantieri','Kunden und Einsatzorte','Apri la rubrica aziendale','Firmenverzeichnis öffnen','clients','rubrica anagrafica'),
       command('new-client','Nuovo cliente','Neuer Kunde','Aggiungi un cliente alla rubrica','Kunden zum Verzeichnis hinzufügen','clients','crea cliente','new-client'),
@@ -58,15 +58,17 @@ window.createEasyGartSearch = function({getContext,esc}) {
       command('admin-delegate','Concedi o revoca permessi admin','Admin-Rechte vergeben oder entziehen','Scegli un dipendente dalla squadra','Mitarbeiter im Team auswählen','team','admin titolare delega autorizzazioni'),
       command('invite','Invita dipendente','Mitarbeiter einladen','Invia un nuovo invito alla squadra','Neue Einladung ans Team senden','team','aggiungi personale','invite'),
       command('materials','Catalogo materiali','Materialkatalog','Gestisci materiali e prezzi','Material und Preise verwalten','materials','materiale magazzino'),
-      command('new-material','Aggiungi materiale','Material hinzufügen','Apri catalogo e registra il materiale','Katalog öffnen und Material erfassen','materials','nuovo prodotto quantità prezzo listino'),
+      command('new-material','Aggiungi materiale','Material hinzufügen','Apri il modulo per un nuovo materiale','Formular für neues Material öffnen','materials','nuovo prodotto quantità prezzo listino','new-material'),
       command('maintenance','Manutenzioni ricorrenti','Wiederkehrende Pflege','Pianifica i lavori periodici','Wiederkehrende Arbeiten planen','maintenance','pianifica intervento ricorrente'),
-      command('new-maintenance','Nuova manutenzione','Neue Pflegeplanung','Apri le pianificazioni ricorrenti','Wiederkehrende Arbeiten anlegen','maintenance','crea ricorrenza programmare lavoro'),
+      command('new-maintenance','Nuova manutenzione','Neue Pflegeplanung','Apri il modulo per la manutenzione ricorrente','Formular zur wiederkehrenden Pflege öffnen','maintenance','crea ricorrenza programmare lavoro','new-maintenance'),
       command('invoices','Bozze proforma','Proforma-Entwürfe','Prepara le proforma','Proforma-Entwürfe vorbereiten','invoices','fatture preventivo'),
-      command('new-invoice','Crea proforma','Proforma erstellen','Prepara una bozza per il cliente','Proforma-Entwurf für Kunden erstellen','invoices','fattura crea emissione'),
+      command('new-invoice','Crea proforma','Proforma erstellen','Apri il modulo per una nuova bozza','Formular für neuen Entwurf öffnen','invoices','fattura crea emissione','new-invoice'),
       command('company-settings','Nome azienda e impostazioni','Firmenname und Einstellungen','Aggiorna i dati dell’azienda','Firmendaten aktualisieren','team','impostazioni azienda modifica nome'),
       command('archive','Dati ed esportazione','Daten und Export','Esporta i dati aziendali','Firmendaten exportieren','archive','backup scarica export'),
       command('export-data','Esporta e salva i dati','Daten exportieren und sichern','Apri gli strumenti di esportazione e backup','Export und Backup öffnen','archive','zip json backup foto dati')
-    ]);
+    ];
+    return common.concat(c.isPrimaryOwner?ownerActions:
+      ownerActions.filter(action=>action.id!=='cmd:admin-delegate'));
   }
   function items(){
     const c=context();
