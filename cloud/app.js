@@ -850,15 +850,43 @@ function clientsMarkup(){
     '<h3>'+t("Cantieri")+'</h3>'+(sites.length?sites.map(s=>'<p>'+esc(s.name)+' <span class="muted">· '+esc(getName(clients,s.client_id))+'</span></p>').join(''):'<p class="muted">'+t("Nessun cantiere")+'</p>')+'</div></div>';
 }
 function teamMarkup(){
+  const delegateIds=new Set(adminDelegations.map(x=>x.user_id));
+  const canDelegate=memberIsPrimaryOwner();
+  const warning=!adminDelegationReady&&canDelegate?
+    '<p class="alert warn">'+(locale==='de'?'Die Admin-Delegation muss zunächst in der EasyGart-Datenbank aktiviert werden.':
+       'La delega amministrativa richiede prima la migrazione nel database EasyGart.')+
+    ' <a target="_blank" rel="noopener noreferrer" href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_admin_delegation_site_reports_v1.sql">'+
+    (locale==='de'?'SQL öffnen':'Apri SQL')+'</a></p>':'';
+  const explanation=locale==='de'?
+    'Der Inhaber kann einem Mitarbeiter den gesamten Verwaltungszugriff geben oder entziehen. Der Mitarbeiter nutzt weiterhin sein eigenes Konto und kann seine Zeiten erfassen. Nur der ursprüngliche Inhaber verwaltet diese Delegation.':
+    'Il titolare può concedere o revocare i permessi di gestione a un dipendente. Il dipendente conserva il proprio account e può continuare a timbrare. Solo il titolare originale gestisce la delega.';
   return '<div class="view-head"><h2>'+t('Squadra e inviti')+'</h2></div><div class="two">'+
     '<div class="card stacked"><h2>'+t('Invita dipendente')+'</h2><p class="muted">'+t("Inserisci l’email del lavoratore. Condividi il link del portale: l’invito sarà associato alla sua email verificata.")+'</p>'+
     '<form data-form="invite" class="stacked">'+field('Email','email','email','','required maxlength="200"')+
     '<button type="submit" class="primary">'+t('Invia invito')+'</button></form>'+
     '<p class="muted" style="font-size:12px">'+t('Link di accesso:')+' '+esc(location.origin+location.pathname)+'</p></div>'+
     '<div class="card stacked"><h2>'+t('La tua squadra')+'</h2>'+
-    (members.length?members.map(m=>'<div class="taskrow"><div><strong>'+esc(m.full_name||'—')+'</strong><p class="muted">'+t(m.role==='owner'?'Titolare':'Dipendente')+'</p></div><div class="actions"><span class="pill">'+t(m.active?'Attivo':'Disattivato')+'</span>'+(m.role==='worker'?'<button class="ghost small" data-action="member-active" data-user="'+esc(m.user_id)+'" data-active="'+(!m.active)+'">'+t(m.active?'Disattiva':'Riattiva')+'</button>':'')+'</div></div>').join(''):'<p>'+t('Nessun dipendente')+'</p>')+
+    '<p class="muted">'+explanation+'</p>'+warning+
+    (members.length?members.map(m=>{
+      const delegated=delegateIds.has(m.user_id);
+      const roleText=m.role==='owner'?t('Titolare'):delegated?
+        (locale==='de'?'Mitarbeiter · Admin':'Dipendente · Admin'):t('Dipendente');
+      const privilegeButton=canDelegate&&adminDelegationReady&&m.role==='worker'?
+        '<button type="button" class="'+(delegated?'ghost':'secondary')+' small" data-action="member-admin" data-user="'+esc(m.user_id)+'" data-enable="'+(!delegated)+'"'+(!m.active?' disabled':'')+'>'+
+         (delegated?(locale==='de'?'Admin entziehen':'Revoca admin'):(locale==='de'?'Admin zuweisen':'Concedi admin'))+'</button>':'';
+      return '<div class="taskrow"><div><strong>'+esc(m.full_name||'—')+'</strong>'+
+        '<p class="muted">'+roleText+'</p></div><div class="actions">'+
+        '<span class="pill">'+t(m.active?'Attivo':'Disattivato')+'</span>'+
+        privilegeButton+
+        (m.role==='worker'&&m.user_id!==user?.id?
+          '<button class="ghost small" data-action="member-active" data-user="'+esc(m.user_id)+'" data-active="'+(!m.active)+'">'+
+            t(m.active?'Disattiva':'Riattiva')+'</button>':'')+
+        '</div></div>';
+    }).join(''):'<p>'+t('Nessun dipendente')+'</p>')+
     '<h3>'+t('Inviti in attesa')+'</h3>'+
-    (invites.filter(i=>!i.claimed_at).length?invites.filter(i=>!i.claimed_at).map(i=>'<p>'+esc(i.email)+' · <small>'+esc(displayDate(i.expires_at?.slice(0,10)))+'</small></p>').join(''):'<p class="muted">'+t('Nessun invito')+'</p>')+'</div></div>';
+    (invites.filter(i=>!i.claimed_at).length?invites.filter(i=>!i.claimed_at).map(i=>
+      '<p>'+esc(i.email)+' · <small>'+esc(displayDate(i.expires_at?.slice(0,10)))+'</small></p>').join(''):
+      '<p class="muted">'+t('Nessun invito')+'</p>')+'</div></div>';
 }
 async function refresh() {
   if(!client||!user)return;
@@ -1557,6 +1585,25 @@ document.addEventListener('click',e=>{
   if(a==='new-task'){editingTaskId='new';render();document.querySelector?.('form[data-form="task"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return}
   if(a==='edit-task'){editingTaskId=b.dataset.id;render();return}
   if(a==='cancel-edit'){editingTaskId=null;render();return}
+  if(a==='member-admin'){
+    if(!memberIsPrimaryOwner()||!adminDelegationReady)return;
+    const target=members.find(m=>m.user_id===b.dataset.user&&m.role==='worker');
+    if(!target)return;
+    const enable=b.dataset.enable==='true';
+    const question=enable?
+      (locale==='de'?'Diesem Mitarbeiter alle Verwaltungsrechte erteilen?':'Concedere a questo dipendente tutti i permessi gestionali?'):
+      (locale==='de'?'Admin-Zugriff für diesen Mitarbeiter entziehen?':'Revocare i permessi amministrativi a questo dipendente?');
+    if(!confirm(question))return;
+    withBusy(async()=>{
+      const result=await client.rpc('eg_set_admin_delegate',{
+        p_company_id:selectedCompanyId,p_user_id:target.user_id,p_enable:enable
+      });
+      requireSuccess(result);
+      await refresh();
+      success(enable?(locale==='de'?'Admin-Zugriff aktiviert.':'Permessi admin concessi.'):
+        (locale==='de'?'Admin-Zugriff entzogen.':'Permessi admin revocati.'));
+    });return;
+  }
   if(a==='member-active'){
     if(!memberIsOwner())return;
     const member=members.find(m=>m.user_id===b.dataset.user && m.role==='worker');
