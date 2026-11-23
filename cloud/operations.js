@@ -162,7 +162,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
       (owner?' <a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_shift_soft_delete_v1.sql" target="_blank" rel="noopener noreferrer">'+
       tr('Apri lo script','SQL-Skript öffnen')+'</a>': '')+'</div>':'';
     let controls='';
-    if(!owner){
+    if(!owner||c.isWorker){
       const siteOptions=labelOption('',tr('Non specificato'))+c.sites.map(x=>labelOption(x.id,x.name)).join('');
       controls='<div class="card stacked" style="margin-bottom:18px"><div class="cardhead"><div><h2>'+t('Turno attuale')+'</h2>'+
         '<p class="muted">'+(open?t(open.status==='break'?'Pausa in corso':'Turno in corso'):t('Non hai un turno aperto.'))+'</p></div>'+
