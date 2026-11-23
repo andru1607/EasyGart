@@ -79,19 +79,19 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     const c=context();
     return shifts.filter(s=>c.isOwner||(s.user_id===c.user?.id));
   }
-  const canDeleteShift=s=>{
+  const canRequestShiftDeletion=s=>{
     const c=context();
     return !!c.user && !!s && s.company_id===c.companyId && s.status==='closed' && !!s.ended_at && !s.deleted_at &&
-      (c.isOwner||s.user_id===c.user.id) &&
-      Object.prototype.hasOwnProperty.call(s,'deleted_at');
+      (c.isOwner||s.user_id===c.user.id);
   };
+  const canDeleteShift=s=>canRequestShiftDeletion(s)&&Object.prototype.hasOwnProperty.call(s,'deleted_at');
   async function openShiftDeletion(id){
     const c=context();
     if(!c.companyId||!c.user||!id)throw Error(tr('Sessione non valida.','Ungültige Sitzung.'));
     const {data,error}=await client.from('eg_shifts').select('*')
       .eq('company_id',c.companyId).eq('id',id).single();
     if(error)throw error;
-    if(!canDeleteShift(data))throw Error(tr('Puoi eliminare soltanto i tuoi turni conclusi, oppure quelli della squadra se sei titolare.',
+    if(!canRequestShiftDeletion(data))throw Error(tr('Puoi eliminare soltanto i tuoi turni conclusi, oppure quelli della squadra se sei titolare.',
       'Du kannst nur eigene abgeschlossene Schichten löschen, als Inhaber auch die deines Teams.'));
     shiftToDelete=data;
     rerender();
@@ -99,17 +99,22 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   }
   function deletionDialogMarkup(){
     const s=shiftToDelete;
-    if(!canDeleteShift(s))return '';
+    if(!canRequestShiftDeletion(s))return '';
+    const ready=canDeleteShift(s),owner=isOwner();
+    const missingMessage=tr('La cancellazione non è ancora attiva nel database EasyGart. Il titolare deve applicare la migrazione SQL prevista.',
+      'Das Löschen ist in der EasyGart-Datenbank noch nicht aktiviert. Der Inhaber muss die SQL-Migration installieren.');
     return '<div class="eg-delete-overlay"><div class="eg-delete-dialog" role="alertdialog" aria-modal="true" '+
       'aria-labelledby="eg-shift-delete-title" aria-describedby="eg-shift-delete-desc">'+
       '<h2 id="eg-shift-delete-title">'+tr('Eliminare questa timbratura?','Diese Zeiterfassung löschen?')+'</h2>'+
-      '<p id="eg-shift-delete-desc">'+tr('Il turno scomparirà dal calendario e dal totale delle ore timbrate. Il rapporto giornaliero rimarrà invariato. La cancellazione sarà registrata.',
-       'Die Schicht verschwindet aus dem Kalender und der Stundensumme. Der Tagesbericht bleibt unverändert. Die Löschung wird protokolliert.')+'</p>'+
+      '<p id="eg-shift-delete-desc">'+(ready?tr('Il turno scomparirà dal calendario e dal totale delle ore timbrate. Il rapporto giornaliero rimarrà invariato. La cancellazione sarà registrata.',
+       'Die Schicht verschwindet aus dem Kalender und der Stundensumme. Der Tagesbericht bleibt unverändert. Die Löschung wird protokolliert.'):missingMessage)+'</p>'+
+      (!ready&&owner?'<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_shift_soft_delete_v1.sql">'+
+       tr('Apri migrazione SQL','SQL-Migration öffnen')+'</a></p>':'')+
       '<div class="eg-delete-report-summary"><strong>'+safeText(workerName(s.user_id))+'</strong>'+
       '<span>'+dateTime(s.started_at)+' – '+dateTime(s.ended_at)+'</span></div>'+
       '<div class="eg-delete-actions">'+
       '<button type="button" class="ghost" data-action="ops-shift-delete-cancel">'+tr('Annulla','Abbrechen')+'</button>'+
-      '<button type="button" class="eg-danger-solid" data-action="ops-shift-delete-confirm">'+tr('Elimina orario','Zeiteintrag löschen')+'</button>'+
+      (ready?'<button type="button" class="eg-danger-solid" data-action="ops-shift-delete-confirm">'+tr('Elimina orario','Zeiteintrag löschen')+'</button>':'')+
       '</div></div></div>';
   }
   async function confirmShiftDeletion(){
@@ -154,8 +159,8 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     const migrationInfo=live.some(s=>s.status==='closed'&&!Object.prototype.hasOwnProperty.call(s,'deleted_at'))?
       '<div class="alert warn" style="margin-bottom:15px">'+tr('La cancellazione delle timbrature richiede un aggiornamento del database.',
        'Zum Löschen der Zeiterfassung muss die Datenbank aktualisiert werden.')+
-      ' <a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_shift_soft_delete_v1.sql" target="_blank" rel="noopener noreferrer">'+
-      tr('Apri lo script','SQL-Skript öffnen')+'</a></div>':'';
+      (owner?' <a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_shift_soft_delete_v1.sql" target="_blank" rel="noopener noreferrer">'+
+      tr('Apri lo script','SQL-Skript öffnen')+'</a>': '')+'</div>':'';
     let controls='';
     if(!owner){
       const siteOptions=labelOption('',tr('Non specificato'))+c.sites.map(x=>labelOption(x.id,x.name)).join('');
@@ -179,7 +184,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
       '<span>'+t('Tempo lavorato')+': '+elapsed(shift)+'</span></div></div>'+
       '<div class="task-right"><span class="pill '+(shift.status==='break'?'amber':'')+'">'+
       (shift.deleted_at?tr('Annullato','Gelöscht'):t(shift.status==='closed'?'Concluso':shift.status==='break'?'In pausa':'In corso'))+'</span>'+
-      (canDeleteShift(shift)?'<button type="button" class="eg-shift-delete-button small" data-action="ops-shift-delete-open" data-shift-id="'+safeText(shift.id)+'">'+
+      (canRequestShiftDeletion(shift)?'<button type="button" class="eg-shift-delete-button small" data-action="ops-shift-delete-open" data-shift-id="'+safeText(shift.id)+'">'+
         tr('Elimina orario','Zeiteintrag löschen')+'</button>':'')+
       (shift.deleted_at?'<small class="muted">'+tr('Annullato il','Gelöscht am')+' '+dateTime(shift.deleted_at)+
         ' · '+tr('da','von')+' '+safeText(workerName(shift.deleted_by))+'</small>':'')+
