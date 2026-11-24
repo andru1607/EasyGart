@@ -30,7 +30,9 @@ window.createEasyGartSearch = function({getContext,esc}) {
       command('task-start','Inizia attività','Aufgabe starten','Apri un compito da iniziare','Eine Aufgabe zum Starten öffnen','tasks','avvia lavoro'),
       command('task-finish','Completa attività','Aufgabe abschließen','Apri un compito e segnalo come completato','Aufgabe öffnen und abschließen','tasks','finire lavoro fatto'),
       command('clock','Timbrature','Zeiterfassung','Entrata, uscita, pause e storico','Kommen, Gehen, Pausen und Verlauf','clock','orari turni timbrare'),
-      command('delete-shift','Elimina una timbratura passata','Vergangene Zeiterfassung löschen','Apri lo storico orari e scegli un turno concluso','Verlauf öffnen und abgeschlossene Schicht auswählen','clock','cancella ore eliminare orario'),
+      command('delete-shift','Elimina timbratura','Zeiterfassung löschen','Apri lo storico e scegli la timbratura errata','Verlauf öffnen und fehlerhafte Schicht auswählen','clock','cancella ore eliminare orario doppio triplo'),
+      command('clear-hours','Elimina solo orari','Nur Arbeitszeiten löschen','Apri il calendario e correggi le ore senza eliminare il rapporto','Kalender öffnen und Zeiten ohne Bericht löschen','calendar-hours','cancella ore doppie triple errore'),
+      command('personal-calendar','Le mie ore','Meine Arbeitszeiten','Apri il calendario personale','Persönlichen Kalender öffnen','calendar-hours','orari personali mie ore'),
       command('calendar-hours','Calendario orari','Stundenkalender','Consulta le ore e i giorni lavorati','Arbeitszeiten und Arbeitstage ansehen','calendar-hours','giorno presenze','view'),
       command('calendar','Calendario orari e rapporti','Arbeitszeit- und Berichtskalender','Consulta ore, attività e rapporti','Zeiten, Tätigkeiten und Berichte ansehen','calendar','giorno lavoro'),
       command('reports','Rapporti giornalieri','Tagesberichte','Consulta, modifica e correggi i rapporti','Berichte anzeigen, bearbeiten und korrigieren','reports','rapporti storico lavori'),
@@ -133,8 +135,8 @@ window.createEasyGartSearch = function({getContext,esc}) {
     const index=items();
     if(!q){
       const favorites=context().isOwner?
-        ['new-task','new-client','sites-history','reports','team','import-hours','import-clients','materials','monthly','new-report','admin-delegate','guide']:
-        ['clock','new-report','tasks','sites-history','reports','calendar-hours','monthly','delete-shift','guide'];
+        ['personal-calendar','new-report','new-client','new-task','clock','clear-hours','sites-history','monthly','team','import-hours','import-clients','guide']:
+        ['personal-calendar','clock','new-report','tasks','clear-hours','sites-history','reports','monthly','guide'];
       return favorites.map(key=>index.find(x=>x.id==='cmd:'+key)).filter(Boolean);
     }
     const words=q.split(/\s+/).filter(Boolean);

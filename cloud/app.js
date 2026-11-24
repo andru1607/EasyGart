@@ -58,6 +58,8 @@ let pendingReportDeletionId = null;
 let reportReturnView = 'reports';
 let editingFromMonthly=false;
 let editingFromCalendar=null;
+let newReportReturnView='reports',siteDetailReturnView='sites-history';
+const safeReturnView=view=>['home','reports','tasks','clock','calendar','calendar-hours','monthly','sites-history'].includes(view)||(memberIsOwner()&&['clients','team','materials','maintenance','invoices','archive'].includes(view))?view:'reports';
 const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /^sb_publishable_/.test(cfg.publishableKey || '');
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
@@ -561,6 +563,7 @@ function render() {
       endOfDay?.reset();currentView=view;menuOpen=false;editingTaskId=null;reportEditingId=null;
       if(view==='monthly')monthly?.refresh(selectedCompanyId).then(render).catch(fail);
       if(view==='calendar-hours')hoursCalendar?.refresh(selectedCompanyId).then(render).catch(fail);
+      if(view==='calendar')calendar?.refresh(selectedCompanyId).then(render).catch(fail);
       if(view==='sites-history')siteHistory?.refresh(selectedCompanyId).then(render).catch(fail);
       render();
     }
@@ -703,19 +706,25 @@ function homeMarkup(){
   const action=(id,it,de,detailIt,detailDe,view)=>({id,title:lang(it,de),detail:lang(detailIt,detailDe),view});
   const shortcuts=owner&&!worker?[
     action('home-new-task','Assegna attività','Aufgabe zuweisen','Crea un incarico','Neue Aufgabe anlegen'),
-    action('view','Rapporti','Berichte','Controlla i lavori','Arbeiten überprüfen','reports'),
+    action('eod-new','Nuovo rapporto','Neuer Bericht','Registra orari e lavori','Zeiten und Arbeiten erfassen'),
     action('view','Clienti e cantieri','Kunden und Einsatzorte','Rubrica e cantieri','Kundenverzeichnis','clients'),
-    action('view','Squadra','Team','Dipendenti e permessi','Personal und Rechte','team')
+    action('personal-calendar','Le mie ore','Meine Arbeitszeiten','Calendario personale','Persönlicher Kalender','calendar-hours'),
+    action('view','Timbrature','Zeiterfassung','Controlla entrate e uscite','Zeiten kontrollieren','clock'),
+    action('view','Resoconto mensile','Monatsübersicht','Ore e materiali del mese','Stunden und Material im Monat','monthly')
   ]:owner&&worker?[
     action('view','Timbrature','Zeiterfassung','Entrata, uscita e pause','Beginn, Ende und Pausen','clock'),
     action('eod-new','Nuovo rapporto','Neuer Bericht','Registra la giornata','Arbeitstag erfassen'),
     action('view','Squadra e permessi','Team und Rechte','Gestisci i dipendenti','Personal verwalten','team'),
-    action('site-history-view','Cantieri','Einsatzorte','Storico dei lavori','Arbeitsverlauf')
+    action('site-history-view','Cantieri','Einsatzorte','Storico dei lavori','Arbeitsverlauf'),
+    action('personal-calendar','Le mie ore','Meine Arbeitszeiten','Calendario personale','Persönlicher Kalender','calendar-hours'),
+    action('view','Clienti','Kunden','Rubrica aziendale','Kundenverzeichnis','clients')
   ]:[
     action('view','Timbrature','Zeiterfassung','Entrata, uscita e pause','Beginn, Ende und Pausen','clock'),
     action('eod-new','Fine giornata','Tagesbericht','Registra orari e lavori','Zeiten und Arbeiten erfassen'),
     action('view','Compiti','Aufgaben','Attività assegnate','Zugewiesene Tätigkeiten','tasks'),
-    action('site-history-view','Cantieri','Einsatzorte','Consulta i rapporti','Berichte einsehen')
+    action('site-history-view','Cantieri','Einsatzorte','Consulta i rapporti','Berichte einsehen'),
+    action('personal-calendar','Le mie ore','Meine Arbeitszeiten','Calendario personale','Persönlicher Kalender','calendar-hours'),
+    action('view','Resoconto mensile','Monatsübersicht','Ore e lavori del mese','Stunden und Arbeiten im Monat','monthly')
   ];
   return '<div class="eg-home-page"><div class="view-head"><div>'+
     '<div class="eyebrow">'+lang('Accesso rapido','Schnellzugriff')+'</div>'+
@@ -872,12 +881,10 @@ function reportDeletionDialogMarkup(){
 }
 function reportDetailMarkup(){
   const report=dailyReports.find(r=>r.id===selectedReportId);
-  if(!report)return '<div class="alert warn">'+t('Rapporto non trovato')+'</div>';
+  if(!report)return '<div class="alert warn">'+t('Rapporto non trovato')+' <button class="ghost" data-action="report-back">'+(locale==='de'?'Zurück':'Indietro')+'</button></div>';
   return '<div class="view-head"><div><h2>'+t('Dettaglio rapporto')+'</h2>'+
     '<p class="muted">'+esc(displayDate(report.work_date))+' · '+esc(formatReportMinutes(report.minutes_worked))+'</p></div>'+
-    '<button class="ghost" data-action="report-back">'+t(reportReturnView==='monthly'?'Resoconto mensile':
-      reportReturnView==='calendar'?'Calendario orari e rapporti':reportReturnView==='calendar-hours'?'Calendario orari':
-      reportReturnView==='sites-history'?'Cantieri svolti':'Torna ai rapporti')+'</button></div>'+
+    '<button class="ghost" data-action="report-back">'+(locale==='de'?'‹ Zurück':'‹ Indietro')+'</button></div>'+
     '<section class="card">'+reportCardMarkup(report,memberIsOwner())+'</section>';
 }
 function reportCardMarkup(report,owner){
@@ -1271,7 +1278,8 @@ async function boot(){
         onSaved:async send=>{
           const backToMonth=editingFromMonthly,backToSite=editingFromSite,backToCalendar=editingFromCalendar;
           editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;menuOpen=false;
-          currentView=backToCalendar|| (backToSite?'sites-history':backToMonth?'monthly':'reports');
+          currentView=backToCalendar|| (backToSite?'sites-history':backToMonth?'monthly':safeReturnView(newReportReturnView));
+          newReportReturnView='reports';
           await refresh();
           if(backToMonth)await monthly?.refresh(selectedCompanyId);
           if(backToSite)await siteHistory?.refresh(selectedCompanyId);
@@ -1387,6 +1395,7 @@ function renderPreservingForms(){
 }
 async function openSearchResult(item){
   if(!user||!selectedCompanyId||!item) return;
+  const sourceView=safeReturnView(currentView);
   menuOpen=false;
   editingTaskId=null;reportEditingId=null;pendingReportDeletionId=null;
   const getTarget = () => document.querySelector('[data-search-task="'+item.entityId+'"]');
@@ -1400,9 +1409,10 @@ async function openSearchResult(item){
       !(report.site_id&&['submitted','approved'].includes(report.status))))return;
     if(memberIsOwner()||report.created_by===user.id)await loadReportMaterialRows(report.id);
     else try{await loadReportMaterialRows(report.id)}catch{reportMaterialRows.set(report.id,[])}
-    selectedReportId=report.id;reportReturnView='reports';currentView='report-detail';
+    selectedReportId=report.id;reportReturnView=sourceView;currentView='report-detail';
   }else if(item.kind==='site'){
     if(!sites.some(site=>site.id===item.entityId))return;
+    siteDetailReturnView=sourceView;
     siteHistory?.choosePerson('all');
     await siteHistory?.refresh(selectedCompanyId);
     siteHistory?.open(item.entityId);currentView='sites-history';
@@ -1443,7 +1453,7 @@ async function openSearchResult(item){
       currentView='import';
     }else if(op==='new-report'){
       if(!reportsReady)return;
-      editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;
+      editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;newReportReturnView=sourceView;
       await endOfDay?.prepareOpen(null);currentView='eod';
     }else{
       if(!allowed.has(item.view)&&!(memberIsOwner()&&ownerOnly.has(item.view)))return;
@@ -1471,10 +1481,11 @@ async function openSearchResult(item){
       if(op==='new-invoice'&&memberIsOwner())focusSelector='form[data-form="biz-invoice"] select';
       if(item.id==='cmd:company-settings'&&memberIsOwner())focusSelector='form[data-form="company-settings"] input[name="name"]';
       if(item.id==='cmd:admin-delegate'&&memberIsPrimaryOwner())focusSelector='[data-action="member-admin"]';
+      if(item.id==='cmd:personal-calendar')hoursCalendar?.setSelection({...hoursCalendar?.getSelection(),worker:'self'});
       if(item.view==='calendar')await calendar?.refresh(selectedCompanyId);
       if(item.view==='calendar-hours')await hoursCalendar?.refresh(selectedCompanyId);
       if(item.view==='monthly')await monthly?.refresh(selectedCompanyId);
-      if(item.view==='sites-history'){siteHistory?.back();await siteHistory?.refresh(selectedCompanyId)}
+      if(item.view==='sites-history'){siteDetailReturnView='sites-history';siteHistory?.back();await siteHistory?.refresh(selectedCompanyId)}
     }
   }else return;
   render();
@@ -1659,17 +1670,25 @@ document.addEventListener('click',e=>{
     if(!user)return;
     authMode='reset';notice='';render();return;
   }
+  if(a==='personal-calendar'){
+    withBusy(async()=>{hoursCalendar?.setSelection({...hoursCalendar?.getSelection(),worker:'self'});currentView='calendar-hours';menuOpen=false;await hoursCalendar?.refresh(selectedCompanyId);render();window.scrollTo?.({top:0,behavior:'instant'});});return;
+  }
   if(a==='view'){
     const view=b.dataset.view;
     const ordinary=new Set(['home','tasks','clock','calendar','calendar-hours','reports','monthly','sites-history']);
     const ownerViews=new Set(['clients','team','materials','maintenance','invoices','archive']);
     if(!ordinary.has(view)&&!(memberIsOwner()&&ownerViews.has(view)))return;
+    if(['calendar','calendar-hours'].includes(view)&&['calendar','calendar-hours'].includes(currentView)){
+      const from=currentView==='calendar-hours'?hoursCalendar:calendar;
+      const to=view==='calendar-hours'?hoursCalendar:calendar;
+      to?.setSelection(from?.getSelection());
+    }
     if(view==='monthly'||view==='sites-history'||view==='calendar'){
       withBusy(async()=>{
         currentView=view;menuOpen=false;selectedReportId=null;pendingReportDeletionId=null;
         endOfDay?.reset();editingTaskId=null;reportEditingId=null;
         if(view==='monthly')await monthly?.refresh(selectedCompanyId);
-        if(view==='sites-history'){siteHistory?.back();await siteHistory?.refresh(selectedCompanyId)}
+        if(view==='sites-history'){siteDetailReturnView='sites-history';siteHistory?.back();await siteHistory?.refresh(selectedCompanyId)}
         if(view==='calendar')await calendar?.refresh(selectedCompanyId);
         render();window.scrollTo?.({top:0,behavior:'instant'});
       });return;
@@ -1692,12 +1711,14 @@ document.addEventListener('click',e=>{
   if(a==='claim'){withBusy(async()=>{const n=requireSuccess(await client.rpc('eg_claim_invitations'));await refresh();if(!n)success('Nessun invito valido per questa email verificata.');});return}
   if(a==='toggle-menu'){menuOpen=!menuOpen;renderPreservingForms();return}
   if(a==='site-history-view'){
+    siteDetailReturnView='sites-history';
     withBusy(async()=>{siteHistory?.choosePerson('all');siteHistory?.back();
       currentView='sites-history';menuOpen=false;
       await siteHistory?.refresh(selectedCompanyId);render();window.scrollTo?.({top:0,behavior:'instant'});
     });return;
   }
   if(a==='monthly-site'){
+    siteDetailReturnView='monthly';
     withBusy(async()=>{siteHistory?.choosePerson(monthly?.getPerson?.()||'all');
       await siteHistory?.refresh(selectedCompanyId);siteHistory?.open(b.dataset.id);
       currentView='sites-history';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
@@ -1737,6 +1758,7 @@ document.addEventListener('click',e=>{
   if(a==='cancel-site-edit'){editingSiteId=null;render();return}
   if(a==='open-site-reports'){
     if(!sites.some(site=>site.id===b.dataset.id))return;
+    siteDetailReturnView=safeReturnView(currentView);
     withBusy(async()=>{
       await siteHistory?.refresh(selectedCompanyId);
       siteHistory?.open(b.dataset.id);
@@ -1744,8 +1766,8 @@ document.addEventListener('click',e=>{
       window.scrollTo?.({top:0,behavior:'instant'});
     });return;
   }
-  if(a==='site-history-open'){siteHistory?.open(b.dataset.id);render();window.scrollTo?.({top:0,behavior:'instant'});return}
-  if(a==='site-history-back'){siteHistory?.back();render();return}
+  if(a==='site-history-open'){siteDetailReturnView='sites-history';siteHistory?.open(b.dataset.id);render();window.scrollTo?.({top:0,behavior:'instant'});return}
+  if(a==='site-history-back'){siteHistory?.back();currentView=safeReturnView(siteDetailReturnView);siteDetailReturnView='sites-history';render();return}
   if(a==='site-history-edit-report'){
     withBusy(async()=>{
       const id=b.dataset.id;
@@ -1810,6 +1832,7 @@ document.addEventListener('click',e=>{
     });return;
   }
   if(a==='eod-new'||a==='report-new'){
+    newReportReturnView=safeReturnView(currentView);
     editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;
     if(!reportsReady)return;
     withBusy(async()=>{
@@ -1822,11 +1845,11 @@ document.addEventListener('click',e=>{
     if(!report)return;
     withBusy(async()=>{
       await loadReportMaterialRows(report.id);
-      selectedReportId=report.id;reportReturnView='reports';
+      selectedReportId=report.id;reportReturnView=safeReturnView(currentView);
       currentView='report-detail';menuOpen=false;render();window.scrollTo?.({top:0,behavior:'instant'});
     });return;
   }
-  if(a==='report-back'){selectedReportId=null;pendingReportDeletionId=null;currentView=reportReturnView;render();return}
+  if(a==='report-back'){selectedReportId=null;pendingReportDeletionId=null;currentView=safeReturnView(reportReturnView);render();return}
   if(a==='report-delete-open'){
     const report=dailyReports.find(r=>r.id===b.dataset.id);
     if(!canDeleteReport(report))return;
@@ -1852,7 +1875,8 @@ document.addEventListener('click',e=>{
       if(returnTo==='monthly')await monthly?.refresh(selectedCompanyId);
       if(returnTo==='sites-history')await siteHistory?.refresh(selectedCompanyId);
       if(returnTo==='calendar-hours')await hoursCalendar?.refresh(selectedCompanyId);
-      currentView=['monthly','sites-history','calendar','calendar-hours'].includes(returnTo)?returnTo:'reports';
+      if(returnTo==='calendar')await calendar?.refresh(selectedCompanyId);
+      currentView=safeReturnView(returnTo);
       notice='Rapporto eliminato.';errorNotice=false;render();
       window.scrollTo?.({top:0,behavior:'instant'});
     });return;
@@ -1861,6 +1885,7 @@ document.addEventListener('click',e=>{
     if(!reportsReady||!endOfDay?.canEdit(dailyReports.find(r=>r.id===b.dataset.id)))return;
     withBusy(async()=>{
       await endOfDay?.prepareOpen(b.dataset.id);
+      newReportReturnView=safeReturnView(reportReturnView);
       editingFromMonthly=reportReturnView==='monthly';
     editingFromSite=reportReturnView==='sites-history';
     editingFromCalendar=['calendar','calendar-hours'].includes(reportReturnView)?reportReturnView:null;
@@ -1877,7 +1902,7 @@ document.addEventListener('click',e=>{
     const form=b.closest('form[data-form="eod-report"]');if(!form)return;
     withBusy(async()=>{await endOfDay?.createMaterial(form);renderPreservingForms()});return;
   }
-  if(a==='eod-back'){endOfDay?.reset();currentView=editingFromCalendar|| (editingFromSite?'sites-history':editingFromMonthly?'monthly':'reports');editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;render();return}
+  if(a==='eod-back'){endOfDay?.reset();currentView=editingFromCalendar|| (editingFromSite?'sites-history':editingFromMonthly?'monthly':safeReturnView(newReportReturnView));newReportReturnView='reports';editingFromMonthly=false;editingFromSite=false;editingFromCalendar=null;render();return}
   if(a==='report-cancel'){reportEditingId=null;render();return}
   if(a==='home-new-task'){
     if(!memberIsOwner())return;
@@ -1971,7 +1996,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='locale'){locale=e.target.value==='de'?'de':'it';try{localStorage.setItem(localeKey,locale)}catch{}renderPreservingForms();return}
   if(e.target.id==='company-select'){const print=$('eg-print-zone');if(print)print.textContent='';selectedCompanyId=e.target.value;globalSearch?.close();screenshotImport?.reset();
     adminDelegations=[];adminDelegationReady=false;editingClientId=null;editingSiteId=null;
-    currentView='home';pendingReportDeletionId=null;siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
+    currentView='home';newReportReturnView='reports';siteDetailReturnView='sites-history';reportReturnView='reports';calendar?.reset();hoursCalendar?.reset();pendingReportDeletionId=null;siteHistory?.reset();reportMaterialRows.clear();endOfDay?.reset();monthly?.reset();siteHistory?.reset();menuOpen=false;selectedWorkerId='all';reportEditingId=null;selectedReportWorkerId='all';reportStatusFilter='all';withBusy(refresh);return}
   if(e.target.id==='report-status-filter'){reportStatusFilter=e.target.value;renderPreservingForms();return}
   if(e.target.id==='report-worker-filter'){selectedReportWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
