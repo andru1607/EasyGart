@@ -56,3 +56,45 @@ for(const mode of ['hours','work']){
   assert.match(html,/data-action="cal-delete-report" data-id="r2"/);
  });
 }
+
+for(const mode of ['hours','work']){
+ test('calendario '+mode+': titolare distingue ore personali, dipendente e squadra',async()=>{
+  const calendar=fixture(mode,true);
+  calendar.setSelection({year:2026,month:9,chosen:'2026-10-05',worker:'self'});
+  await calendar.refresh('co1');
+  let html=calendar.markup();
+  assert.match(html,/value="self" selected/);
+  assert.match(html,/data-id="s1"/);
+  assert.doesNotMatch(html,/data-id="s2"/);
+  assert.match(html,/6 h 00 min/);
+  calendar.handleChange({id:'eg-calendar-worker',value:'u2'});
+  html=calendar.markup();
+  assert.match(html,/value="u2" selected/);
+  assert.match(html,/data-id="s2"/);
+  assert.doesNotMatch(html,/data-id="s1"/);
+  assert.match(html,/3 h 00 min/);
+  calendar.handleChange({id:'eg-calendar-worker',value:'all'});
+  html=calendar.markup();
+  assert.match(html,/value="all" selected/);
+  assert.match(html,/data-id="s1"/);
+  assert.match(html,/data-id="s2"/);
+  assert.match(html,/9 h 00 min/);
+  calendar.setSelection({...calendar.getSelection(),worker:'unknown'});
+  assert.equal(calendar.getSelection().worker,'self');
+ });
+ test('calendario '+mode+': dipendente non può cambiare persona',async()=>{
+  const calendar=fixture(mode);
+  calendar.setSelection({...calendar.getSelection(),worker:'u2'});
+  await calendar.refresh('co1');
+  assert.equal(calendar.getSelection().worker,'self');
+  assert.doesNotMatch(calendar.markup(),/data-id="s2"/);
+ });
+}
+test('la selezione personale si conserva passando tra calendari',()=>{
+ const hours=fixture('hours',true),work=fixture('work',true);
+ hours.handleChange({id:'eg-calendar-worker',value:'self'});
+ work.setSelection(hours.getSelection());
+ assert.equal(work.getSelection().worker,'self');
+ hours.reset();
+ assert.equal(hours.getSelection().worker,'self');
+});

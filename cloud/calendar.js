@@ -5,7 +5,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
  const ctx=()=>getContext(),p=n=>String(n).padStart(2,'0');
  const key=d=>d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
  const now=new Date();let year=now.getFullYear(),month=now.getMonth(),chosen=key(now);
- let worker='all',reports=[],shifts=[],ready=false,error='',overflow=false,loadingKey='';
+ let worker='self',reports=[],shifts=[],ready=false,error='',overflow=false,loadingKey='';
  const tr=(it,de)=>ctx().locale==='de'?de:it;
  const hm=n=>Math.floor(Math.max(0,n)/60)+' h '+p(Math.floor(Math.max(0,n)%60))+' min';
  const who=id=>ctx().members.find(m=>m.user_id===id)?.full_name||tr('Dipendente','Mitarbeiter');
@@ -40,18 +40,18 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
    reports=r;shifts=s.filter(item=>!item.deleted_at);ready=true;
   }catch(e){if(loadingKey===load){reports=[];shifts=[];error=String(e?.message||e)}}
  }
- function reset(){const d=new Date();year=d.getFullYear();month=d.getMonth();chosen=key(d);worker='all';reports=[];shifts=[];ready=false;error='';loadingKey=''}
+ function reset(){const d=new Date();year=d.getFullYear();month=d.getMonth();chosen=key(d);worker='self';reports=[];shifts=[];ready=false;error='';loadingKey=''}
  function aggregate(){
-  const c=ctx(),days=new Map(),get=d=>{
+  const c=ctx(),selectedWorker=!c.isOwner||worker==='self'?c.user?.id:worker,days=new Map(),get=d=>{
    if(!days.has(d))days.set(d,{reports:[],shifts:[],r:0,s:0});
    return days.get(d);
   };
   for(const r of reports){
-   if((!c.isOwner&&r.created_by!==c.user?.id)||(worker!=='all'&&r.created_by!==worker))continue;
+   if(selectedWorker!=='all'&&r.created_by!==selectedWorker)continue;
    const row=get(r.work_date);row.reports.push(r);row.r+=Math.max(0,Number(r.minutes_worked)||0);
   }
   for(const s of shifts){
-   if((!c.isOwner&&s.user_id!==c.user?.id)||(worker!=='all'&&s.user_id!==worker))continue;
+   if(selectedWorker!=='all'&&s.user_id!==selectedWorker)continue;
    const d=new Date(s.started_at);
    if(d.getFullYear()!==year||d.getMonth()!==month)continue;
    const row=get(key(d));row.shifts.push(s);row.s+=minutes(s);
@@ -151,10 +151,13 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
     (r.issues?'<p class="eg-calendar-note"><b>'+tr('Osservazioni','Bemerkungen')+':</b> '+esc(r.issues)+'</p>':'')+'</article>');
   }
   const selectedTitle=new Intl.DateTimeFormat(c.locale==='de'?'de-DE':'it-IT',{dateStyle:'full'}).format(new Date(chosen+'T12:00:00'));
-  const staffFilter=c.isOwner?'<label class="field">'+tr('Dipendente','Mitarbeiter')+'<select id="eg-calendar-worker">'+
-   '<option value="all">'+tr('Tutta la squadra','Gesamtes Team')+'</option>'+
-   c.members.map(m=>'<option value="'+esc(m.user_id)+'"'+(worker===m.user_id?' selected':'')+'>'+esc(m.full_name||'—')+'</option>').join('')+
-   '</select></label>':'';
+  const personalLabel=hoursOnly?tr('Le mie ore','Meine Arbeitszeiten'):tr('I miei orari e rapporti','Meine Zeiten und Berichte');
+  const staffFilter=c.isOwner?'<label class="field">'+tr('Calendario di','Kalender von')+'<select id="eg-calendar-worker">'+
+   '<option value="self"'+(worker==='self'?' selected':'')+'>'+personalLabel+'</option>'+
+   '<option value="all"'+(worker==='all'?' selected':'')+'>'+tr('Tutta la squadra','Gesamtes Team')+'</option>'+
+   '<optgroup label="'+tr('Dipendenti','Mitarbeitende')+'">'+
+   c.members.filter(m=>m.user_id!==c.user?.id).map(m=>'<option value="'+esc(m.user_id)+'"'+(worker===m.user_id?' selected':'')+'>'+esc(m.full_name||'—')+'</option>').join('')+
+   '</optgroup></select></label>':'<span class="muted">'+personalLabel+'</span>';
   return '<div class="eg-calendar-page '+(hoursOnly?'eg-cal-hours-page':'eg-cal-work-page')+'">'+
    '<div class="view-head eg-cal-head"><div><div class="eyebrow">'+tr('Organizzazione giornaliera','Tagesübersicht')+'</div>'+
    '<h2>'+tr(hoursOnly?'Calendario orari':'Calendario orari e rapporti',hoursOnly?'Stundenkalender':'Arbeitszeit- und Berichtskalender')+'</h2>'+
@@ -203,6 +206,10 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
    await refresh(ctx().companyId);rerender();
   }
  }
+ function normalizeWorker(value,c){
+  if(!c.isOwner||value==='self'||value===c.user?.id)return 'self';
+  return value==='all'||c.members.some(m=>m.user_id===value)?value:'self';
+ }
  function getSelection(){return {year,month,chosen,worker}}
  function setSelection(data){
   if(!data)return;
@@ -213,12 +220,12 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
     chosen=typeof data.chosen==='string'&&data.chosen.startsWith(m)?data.chosen:key(new Date(year,month,1));
   }
   const c=ctx();
-  worker=c.isOwner&&(data.worker==='all'||c.members.some(m=>m.user_id===data.worker))?data.worker:'all';
+  worker=normalizeWorker(data.worker,c);
  }
  function handleChange(select){
   if(select.id!=='eg-calendar-worker')return false;
   const c=ctx();
-  worker=c.isOwner&&(select.value==='all'||c.members.some(m=>m.user_id===select.value))?select.value:'all';
+  worker=normalizeWorker(select.value,c);
   rerender();return true;
  }
  return {refresh,markup,reset,handleAction,handleChange,getMonth:()=>({year,month}),getSelection,setSelection};
