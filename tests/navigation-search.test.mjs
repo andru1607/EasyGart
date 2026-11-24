@@ -36,12 +36,23 @@ test('persistent global search dock exists before primary navigation',()=>{
  assert.match(appScript,/data-action="search-open"/);
 });
 
-test('role-oriented tabs retain personal attendance for delegated worker admins',()=>{
- assert.match(appScript,/const delegatedWorker=memberships\.some/);
- assert.match(appScript,/const owner=memberIsPrimaryOwner\(\)/);
- assert.match(appScript,/const tabs=owner&&!delegatedWorker/);
- assert.match(appScript,/\['clock','clock','clock'\]/);
- assert.match(appScript,/\['team','team','team'\]/);
+test('classic daily-work toolbar is shared by all roles, with both calendars highlighted',()=>{
+ const source=appScript.slice(appScript.indexOf('function navLabels()'),appScript.indexOf('function moreMenuMarkup()'));
+ const render=(locale,currentView,menuOpen=false)=>runInNewContext(source+'\nprimaryNavigationMarkup()',{
+  locale,currentView,menuOpen,esc,egNavIcon:name=>'<svg data-icon="'+name+'"></svg>'
+ });
+ const it=render('it','calendar-hours');
+ assert.deepEqual([...it.matchAll(/<span>(.*?)<\/span>/g)].map(x=>x[1]),['Home','Fine giornata','Calendario','Rapporti','Menu']);
+ assert.match(it,/data-action="eod-new"/);
+ assert.match(it,/data-view="calendar-hours" aria-current="page"/);
+ assert.match(render('it','calendar'),/data-view="calendar-hours" aria-current="page"/);
+ assert.match(render('it','report-detail'),/data-view="reports" aria-current="page"/);
+ assert.match(render('it','eod'),/data-action="eod-new" aria-current="page"/);
+ assert.match(render('de','home'),/Feierabend/);
+ assert.match(render('de','calendar'),/Kalender/);
+ assert.match(render('it','home',true),/aria-expanded="true"/);
+ assert.match(appScript,/nav\('clock','Timbrature e pause'/);
+ assert.match(appScript,/nav\('team','Squadra e permessi'/);
 });
 
 test('worker search contains daily actions and consultations, not admin operations',()=>{

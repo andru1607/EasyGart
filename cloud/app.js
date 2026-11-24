@@ -434,37 +434,29 @@ function clearAccountDrafts(){
   }catch{}
 }
 
-// Four quick destinations plus a role-aware menu. Search is separate and always visible.
+// Restore the daily-work toolbar for all roles. Search and permission-aware management remain separate.
 function navLabels(){
   const de=locale==='de';
   return {
-    home:de?'Start':'Home',clock:de?'Zeiten':'Timbrature',eod:de?'Bericht':'Rapporto',
-    sites:de?'Einsatzorte':'Cantieri',team:de?'Team':'Squadra',reports:de?'Berichte':'Rapporti',
-    menu:de?'Mehr':'Altro'
+    home:de?'Startseite':'Home',eod:de?'Feierabend':'Fine giornata',
+    calendar:de?'Kalender':'Calendario',reports:de?'Berichte':'Rapporti',menu:de?'Menü':'Menu'
   };
 }
 function primaryNavigationMarkup(){
-  const delegatedWorker=memberships.some(m=>m.company_id===selectedCompanyId&&m.user_id===user?.id&&m.role==='worker'&&m.active);
-  const owner=memberIsPrimaryOwner();
-  // Delegated administrators remain workers and need instant access to their own punches.
-  const tabs=owner&&!delegatedWorker?[
-    ['home','home','home'],['team','team','team'],['reports','reports','reports'],
-    ['sites','sites-history','sites-history'],['menu','menu','menu']
-  ]:[
-    ['home','home','home'],['clock','clock','clock'],['eod','eod','eod'],
-    ['sites','sites-history','sites-history'],['menu','menu','menu']
+  const tabs=[
+    ['home','home','home'],['eod','eod','leaf'],['calendar','calendar-hours','calendar'],
+    ['reports','reports','reports'],['menu','menu','menu']
   ];
   const labels=navLabels();
   const active=view=>view==='menu'?menuOpen:
     view==='eod'?currentView==='eod':
     view==='reports'?['reports','report-detail'].includes(currentView):
-    view==='sites-history'?currentView==='sites-history':
+    view==='calendar-hours'?['calendar','calendar-hours'].includes(currentView):
     currentView===view;
   return '<nav class="eg-main-nav" aria-label="'+(locale==='de'?'Hauptnavigation':'Navigazione principale')+'">'+
     tabs.map(([id,view,icon])=>{
       const picked=active(view);
-      const action=id==='menu'?'toggle-menu':id==='eod'?'eod-new':
-        view==='sites-history'?'site-history-view':'view';
+      const action=id==='menu'?'toggle-menu':id==='eod'?'eod-new':'view';
       return '<button type="button" data-action="'+action+'"'+
         (action==='view'?' data-view="'+view+'"':'')+
         (id==='menu'?' aria-expanded="'+menuOpen+'" aria-controls="eg-more-menu"':'')+
