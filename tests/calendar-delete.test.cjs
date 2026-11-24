@@ -44,7 +44,9 @@ for(const mode of ['hours','work']){
   const html=calendar.markup();
   assert.match(html,/data-action="cal-delete-shift" data-id="s1"/);
   assert.match(html,/data-action="cal-edit-hours" data-id="r1"/);
-  assert.match(html,/data-action="cal-delete-report" data-id="r1"/);
+  assert.match(html,/data-action="cal-clear-hours" data-id="r1"/);
+  if(mode==="work")assert.match(html,/data-action="cal-delete-report" data-id="r1"/);
+  else assert.doesNotMatch(html,/data-action="cal-delete-report"/);
   assert.doesNotMatch(html,/data-action="cal-delete-shift" data-id="s2"/);
   assert.doesNotMatch(html,/data-action="cal-delete-report" data-id="r2"/);
  });
@@ -53,7 +55,7 @@ for(const mode of ['hours','work']){
   await calendar.refresh('co1');
   const html=calendar.markup();
   assert.match(html,/data-action="cal-delete-shift" data-id="s2"/);
-  assert.match(html,/data-action="cal-delete-report" data-id="r2"/);
+  assert.match(html,/data-action="cal-clear-hours" data-id="r2"/);
  });
 }
 

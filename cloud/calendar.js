@@ -37,7 +37,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
      .lt('started_at',new Date(year,month+1,2).toISOString()).order('started_at'))
    ]);
    if(loadingKey!==load)return;
-   reports=r;shifts=s.filter(item=>!item.deleted_at);ready=true;
+   reports=r.filter(item=>!item.deleted_at);shifts=s.filter(item=>!item.deleted_at);ready=true;
   }catch(e){if(loadingKey===load){reports=[];shifts=[];error=String(e?.message||e)}}
  }
  function reset(){const d=new Date();year=d.getFullYear();month=d.getMonth();chosen=key(d);worker='self';reports=[];shifts=[];ready=false;error='';loadingKey=''}
@@ -48,6 +48,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
   };
   for(const r of reports){
    if(selectedWorker!=='all'&&r.created_by!==selectedWorker)continue;
+   if(hoursOnly&&!r.work_start_time&&!r.work_end_time&&!(Number(r.minutes_worked)>0))continue;
    const row=get(r.work_date);row.reports.push(r);row.r+=Math.max(0,Number(r.minutes_worked)||0);
   }
   for(const s of shifts){
@@ -109,7 +110,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
   grid+='</div>';
   const selected=data.get(chosen),details=[];
   for(const s of selected?.shifts||[]){
-   const canDelete=s.status==='closed' && !!s.ended_at && !s.deleted_at &&
+   const canDelete=!s.deleted_at &&
     (c.isOwner||s.user_id===c.user?.id);
    details.push('<article class="eg-calendar-record"><strong>'+tr('Timbratura','Zeiterfassung')+' · '+esc(who(s.user_id))+'</strong><p class="muted">'+
     esc(clock(s.started_at))+' – '+esc(clock(s.ended_at))+' · '+hm(minutes(s))+' · '+esc(where(s.site_id))+
@@ -129,8 +130,10 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
       tr('Modifica orari','Arbeitszeiten bearbeiten')+'</button>':'';
    const deleteHoursAndReport=canManage?'<button type="button" class="eg-shift-delete-button small" data-action="cal-delete-report" data-id="'+esc(r.id)+'">'+
       tr('Elimina rapporto e orari','Bericht und Zeiten löschen')+'</button>':'';
-   const reportActions=(changeHours||deleteHoursAndReport)?
-     '<div class="eg-calendar-row-actions">'+changeHours+deleteHoursAndReport+'</div>':'';
+   const hasDeclaredHours=!!(r.work_start_time||r.work_end_time||Number(r.minutes_worked)>0);
+   const clearHours=canManage&&hasDeclaredHours?'<button type="button" class="eg-shift-delete-button small" data-action="cal-clear-hours" data-id="'+esc(r.id)+'">'+tr('Elimina solo orari','Nur Arbeitszeiten löschen')+'</button>':'';
+   const reportActions=(changeHours||clearHours||(!hoursOnly&&deleteHoursAndReport))?
+     '<div class="eg-calendar-row-actions">'+changeHours+clearHours+(!hoursOnly?deleteHoursAndReport:'')+'</div>':'';
    if(hoursOnly){
      details.push('<article class="eg-calendar-record eg-calendar-time-row">'+
        '<strong>'+tr('Orario dichiarato','Gemeldete Arbeitszeit')+' · '+esc(who(r.created_by))+'</strong>'+

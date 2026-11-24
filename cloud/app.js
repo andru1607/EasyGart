@@ -1552,6 +1552,20 @@ document.addEventListener('click',e=>{
       });return;
     }
     if(a==='cal-delete-shift'){withBusy(()=>operations?.openShiftDeletion(b.dataset.id));return}
+    if(a==='cal-clear-hours'){
+      const id=b.dataset.id,companyId=selectedCompanyId;
+      if(!id||!companyId||!user)return;
+      if(!confirm(locale==='de'?'Nur die Arbeitszeiten löschen? Der Bericht und die Materialien bleiben erhalten.':'Eliminare solo gli orari? Il rapporto e i materiali resteranno salvati.'))return;
+      withBusy(async()=>{
+        const result=await client.rpc('eg_clear_report_hours',{p_company_id:companyId,p_report_id:id});
+        if(result.error){
+          if(['PGRST202','42883'].includes(result.error.code))throw Error(locale==='de'?'Datenbank-Aktualisierung erforderlich.':'La cancellazione separata richiede l’aggiornamento del database.');
+          throw result.error;
+        }
+        if(result.data!==true)throw Error(locale==='de'?'Arbeitszeiten nicht gelöscht.':'Orari non eliminati.');
+        await refresh();success(locale==='de'?'Arbeitszeiten gelöscht. Bericht erhalten.':'Orari eliminati. Rapporto conservato.');
+      });return;
+    }
     if(a==='cal-delete-report'){
       withBusy(async()=>{
         const id=b.dataset.id;

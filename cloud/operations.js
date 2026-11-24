@@ -45,7 +45,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   function isOwner(){return !!context().isOwner}
   function currentWorker(){return context().user?.id}
   function canClock(){return !isOwner()&&!!currentWorker()}
-  function ownShift(){return shifts.find(s=>s.user_id===currentWorker()&&s.status!=='closed')}
+  function ownShift(){return shifts.find(s=>s.user_id===currentWorker()&&!s.deleted_at&&s.status!=='closed')}
   const workerName=(id)=>context().members.find(m=>m.user_id===id)?.full_name||tr('Dipendente');
   async function refresh(companyId){
     if(!companyId){shifts=[];media=[];shiftsReady=false;mediaReady=false;mediaUrls.clear();return}
@@ -81,7 +81,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
   }
   const canRequestShiftDeletion=s=>{
     const c=context();
-    return !!c.user && !!s && s.company_id===c.companyId && s.status==='closed' && !!s.ended_at && !s.deleted_at &&
+    return !!c.user && !!s && s.company_id===c.companyId && !s.deleted_at &&
       (c.isOwner||s.user_id===c.user.id);
   };
   const canDeleteShift=s=>canRequestShiftDeletion(s)&&Object.prototype.hasOwnProperty.call(s,'deleted_at');
@@ -91,8 +91,8 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     const {data,error}=await client.from('eg_shifts').select('*')
       .eq('company_id',c.companyId).eq('id',id).single();
     if(error)throw error;
-    if(!canRequestShiftDeletion(data))throw Error(tr('Puoi eliminare soltanto i tuoi turni conclusi, oppure quelli della squadra se sei titolare.',
-      'Du kannst nur eigene abgeschlossene Schichten löschen, als Inhaber auch die deines Teams.'));
+    if(!canRequestShiftDeletion(data))throw Error(tr('Puoi eliminare le tue timbrature, anche aperte, oppure quelle della squadra se sei titolare.',
+      'Du kannst eigene Zeiterfassungen auch im laufenden Zustand löschen, als Inhaber auch die deines Teams.'));
     shiftToDelete=data;
     rerender();
     document.querySelector?.('[data-action="ops-shift-delete-cancel"]')?.focus?.();
@@ -156,7 +156,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
       '<div class="actions" style="margin-bottom:15px"><button type="button" class="ghost small" data-action="ops-shift-deleted-toggle" aria-pressed="'+showDeleted+'">'+
       (showDeleted?tr('Mostra timbrature attive','Aktive Zeiterfassungen anzeigen'):tr('Mostra annullate','Gelöschte anzeigen'))+
       '</button></div>':'';
-    const migrationInfo=live.some(s=>s.status==='closed'&&!Object.prototype.hasOwnProperty.call(s,'deleted_at'))?
+    const migrationInfo=live.some(s=>!Object.prototype.hasOwnProperty.call(s,'deleted_at'))?
       '<div class="alert warn" style="margin-bottom:15px">'+tr('La cancellazione delle timbrature richiede un aggiornamento del database.',
        'Zum Löschen der Zeiterfassung muss die Datenbank aktualisiert werden.')+
       (owner?' <a href="https://github.com/andru1607/EasyGart/blob/main/supabase/easygart_shift_soft_delete_v1.sql" target="_blank" rel="noopener noreferrer">'+
@@ -173,7 +173,8 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
         '<div class="actions">'+(!open?'<button class="primary" data-action="ops-clock" data-ops-type="clock_in">'+t('Entra')+'</button>':
           (open.status==='working'?'<button class="secondary" data-action="ops-clock" data-ops-type="break_start">'+t('Inizia pausa')+'</button>':
           '<button class="secondary" data-action="ops-clock" data-ops-type="break_end">'+t('Termina pausa')+'</button>')+
-          '<button class="primary" data-action="ops-clock" data-ops-type="clock_out">'+t('Esci dal turno')+'</button>')+
+          '<button class="primary" data-action="ops-clock" data-ops-type="clock_out">'+t('Esci dal turno')+'</button>'+
+          '<button type="button" class="eg-shift-delete-button small" data-action="ops-shift-delete-open" data-shift-id="'+safeText(open.id)+'">'+tr('Elimina turno errato','Fehlerhafte Schicht löschen')+'</button>')+
         '</div></div>';
     }
     const row=shift=>'<div class="taskrow"><div><div class="task-title">'+safeText(workerName(shift.user_id))+'</div>'+
