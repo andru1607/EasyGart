@@ -932,14 +932,17 @@ function clientsMarkup(){
       (editingClient?tr2('Salva modifiche','Änderungen speichern'):t('Nuovo cliente'))+'</button>'+
       (editingClient?'<button type="button" class="ghost" data-action="cancel-client-edit">'+
         tr2('Annulla','Abbrechen')+'</button>':'')+'</div></form>'+
-    '<h3>'+t('Elenco clienti')+'</h3>'+
-    (clients.length?clients.map(c=>
+    '</div>';
+  const clientList='<div class="card stacked"><h2>'+tr2('Rubrica clienti','Kundenverzeichnis')+' · '+clients.length+'</h2><p class="muted">'+tr2('Tutti i clienti, anche senza cantieri.','Alle Kunden, auch ohne Einsatzorte.')+'</p>'+
+    (clients.length?[...clients].sort((a,b)=>a.name.localeCompare(b.name,locale)).map(c=>
       '<div class="eg-entity-item" tabindex="-1" data-search-client="'+esc(c.id)+'"><div><strong>'+esc(c.name)+'</strong>'+
       (clientContactsReady&&[c.phone,c.email,c.address].some(Boolean)?
         '<small class="muted" style="display:block">'+esc([c.phone,c.email,c.address].filter(Boolean).join(' · '))+'</small>':'')+
       (c.notes?'<small class="muted" style="display:block;white-space:pre-wrap">'+esc(c.notes)+'</small>':'')+
-      '</div><button type="button" class="secondary small" data-action="edit-client" data-id="'+esc(c.id)+'">'+
-      tr2('Modifica','Bearbeiten')+'</button></div>').join(''):'<p class="muted">'+t('Nessun cliente')+'</p>')+
+      '<small class="muted" style="display:block">'+(sites.some(s=>s.client_id===c.id)?tr2('Cantieri registrati','Registrierte Einsatzorte')+': '+sites.filter(s=>s.client_id===c.id).length:tr2('Nessun cantiere','Keine Einsatzorte'))+'</small>'+
+      '</div><div class="actions"><button type="button" class="secondary small" data-action="edit-client" data-id="'+esc(c.id)+'">'+
+      tr2('Modifica','Bearbeiten')+'</button>'+
+      '<button type="button" class="eg-danger-outline small" data-action="delete-client" data-id="'+esc(c.id)+'">'+tr2('Elimina','Löschen')+'</button></div></div>').join(''):'<p class="muted">'+t('Nessun cliente')+'</p>')+
     '</div>';
   const siteForm='<div class="card stacked"><h2>'+
     (editingSite?tr2('Modifica cantiere','Einsatzort bearbeiten'):t('Nuovo cantiere'))+'</h2>'+
@@ -961,7 +964,7 @@ function clientsMarkup(){
       '<button type="button" class="ghost small" data-action="edit-site" data-id="'+esc(site.id)+'">'+
       tr2('Modifica','Bearbeiten')+'</button></div></div>').join(''):'<p class="muted">'+t('Nessun cantiere')+'</p>')+'</div>';
   return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
-    clientForm+siteForm+'</div>';
+    '<div class="stacked">'+(editingClient?clientForm+clientList:clientList+clientForm)+'</div>'+siteForm+'</div>';
 }
 function teamMarkup(){
   const delegateIds=new Set(adminDelegations.map(x=>x.user_id));
@@ -1690,6 +1693,26 @@ document.addEventListener('click',e=>{
     if(!clients.some(c=>c.id===b.dataset.id))return;
     editingClientId=b.dataset.id;render();
     document.querySelector('form[data-form="client"]')?.scrollIntoView?.({behavior:'smooth',block:'start'});return;
+  }
+  if(a==='delete-client'&&memberIsOwner()){
+    const target=clients.find(c=>c.id===b.dataset.id);
+    if(!target)return;
+    const msg=(it,de)=>locale==='de'?de:it;
+    const linked=()=>sites.some(s=>s.client_id===target.id)||tasks.some(t=>t.client_id===target.id);
+    if(linked()){success(msg('Cliente collegato a cantieri o attività: modifica i dati senza eliminare lo storico.','Kunde ist mit Einsatzorten oder Aufträgen verknüpft. Daten bearbeiten, Verlauf behalten.'));return}
+    if(!confirm(msg('Eliminare definitivamente il cliente '+target.name+'?','Kunden '+target.name+' endgültig löschen?')))return;
+    const companyId=selectedCompanyId;
+    withBusy(async()=>{
+      const result=await client.rpc('eg_delete_unused_client',{p_company_id:companyId,p_client_id:target.id});
+      if(result.error){
+        if(result.error.code==='PGRST202'||result.error.code==='42883')throw Error(msg('Cancellazione non ancora attivata nel database.','Löschen ist in der Datenbank noch nicht aktiviert.'));
+        if(result.error.code==='23503')throw Error(msg('Cliente collegato a dati storici: non può essere eliminato.','Kunde ist mit historischen Daten verknüpft und kann nicht gelöscht werden.'));
+        throw result.error;
+      }
+      if(result.data!==true)throw Error(msg('Cliente non eliminato: verifica i permessi o i collegamenti.','Kunde nicht gelöscht: Berechtigungen oder Verknüpfungen prüfen.'));
+      if(editingClientId===target.id)editingClientId=null;
+      await refresh();success(msg('Cliente eliminato.','Kunde gelöscht.'));
+    });return;
   }
   if(a==='cancel-client-edit'){editingClientId=null;render();return}
   if(a==='edit-site'&&memberIsOwner()){

@@ -50,6 +50,7 @@ window.createEasyGartSearch = function({getContext,esc}) {
       command('clients','Clienti e cantieri','Kunden und Einsatzorte','Apri la rubrica aziendale','Firmenverzeichnis öffnen','clients','rubrica anagrafica'),
       command('new-client','Nuovo cliente','Neuer Kunde','Aggiungi un cliente alla rubrica','Kunden zum Verzeichnis hinzufügen','clients','crea cliente','new-client'),
       command('new-site','Nuovo cantiere','Neuer Einsatzort','Aggiungi un cantiere al cliente','Neuen Einsatzort beim Kunden anlegen','clients','crea cantiere','new-site'),
+      command('delete-client','Elimina cliente','Kunde löschen','Apri la rubrica per eliminare un cliente errato','Verzeichnis öffnen, um einen falschen Kunden zu löschen','clients','cancella rimuovi cliente doppione'),
       command('edit-client','Modifica cliente e recapiti','Kundendaten bearbeiten','Correggi nomi, indirizzi e note dei clienti','Namen, Adressen und Notizen korrigieren','clients','aggiorna anagrafica telefono email'),
       command('edit-site','Modifica cantiere','Einsatzort bearbeiten','Correggi nome o indirizzo del cantiere','Namen oder Adresse des Einsatzorts korrigieren','clients','aggiorna modifica indirizzo cantiere'),
       command('import-hours','Importa orari da screenshot','Arbeitszeiten aus Screenshot importieren','Leggi e verifica le ore dalle Note','Zeiten aus Notizen einlesen und prüfen','import','ocr screenshot fotografia orari','import-hours'),
