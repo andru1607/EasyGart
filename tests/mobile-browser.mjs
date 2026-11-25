@@ -102,31 +102,39 @@ async function smoke(engineName,browserType,device){
  },ownerData);
  const response=await page.goto(base+'/cloud/',{waitUntil:'domcontentloaded'});
  assert.match(response.headers()['content-security-policy'],/frame-ancestors 'none'/);
- await page.locator('button[data-view="materials"]').waitFor({timeout:15000});
+ await page.locator('.eg-main-nav button[data-action="toggle-menu"]').waitFor({timeout:15000});
  const guideDialog=page.locator('#eg-guide-root [role="dialog"]');
  await guideDialog.waitFor({timeout:10000});
  assert.equal(await guideDialog.locator('#eg-guide-description').textContent(),'Il pannello del titolare');
  await guideDialog.locator('[data-eg-guide="skip"]').click();
  assert.equal(await guideDialog.count(),0,'owner dismissed first-login guide');
+ const openView=async view=>{
+  const primary=page.locator('.eg-main-nav button[data-view="'+view+'"]');
+  if(await primary.count())return primary.click();
+  const menu=page.locator('#eg-more-menu');
+  if(!await menu.count())await page.locator('.eg-main-nav button[data-action="toggle-menu"]').click();
+  await menu.locator('button[data-view="'+view+'"]').click();
+ };
  const views=['materials','maintenance','invoices','archive','tasks','reports','clock','clients','team'];
  for(const view of views){
-  await page.locator('button[data-view="'+view+'"]').click();
+  await openView(view);
   await page.waitForTimeout(30);
   const size=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
   assert.ok(size.scroll<=size.width+2,
     engineName+' horizontal overflow on '+view+': '+JSON.stringify(size));
  }
- await page.locator('button[data-view="materials"]').click();
+ await openView('materials');
  assert.ok(await page.getByText('Terriccio').count()>0,'catalog visible');
  await page.locator('button[data-action="biz-new-material"]').click();
  assert.ok(await page.locator('form[data-form="biz-material"]').isVisible());
- await page.locator('button[data-view="invoices"]').click();
+ await openView('invoices');
  assert.ok(await page.getByText('Cliente prova').count()>0);
  await page.locator('button[data-action="biz-invoice-detail"]').click();
  assert.ok(await page.locator('#biz-invoice-detail').isVisible());
  await page.locator('#locale').selectOption('de');
- assert.ok(await page.locator('button[data-view="materials"]').textContent().then(x=>x.includes('Materialkatalog')));
- await page.locator('button[data-view="archive"]').click();
+ await page.locator('.eg-main-nav button[data-action="toggle-menu"]').click();
+ assert.match(await page.locator('#eg-more-menu button[data-view="materials"]').textContent(),/Materialkatalog/);
+ await openView('archive');
  assert.ok(await page.locator('button[data-action="biz-export-data"]').isVisible());
  // Real browser download, not just static code: WebKit and Chromium.
  await page.locator('button[data-action="biz-export-data"]').click();
@@ -221,9 +229,12 @@ async function workerSmoke(engineName,browserType,device){
  assert.equal(await guideDialog.count(),0,'worker dismissed first-login guide');
  assert.equal(await page.locator('button[data-view="materials"]').count(),0,'Worker has manager-only navigation');
  await page.locator('button[data-view="reports"]').click();
- await page.locator('[data-action="biz-open-usage"]').click();
- assert.ok(await page.locator('form[data-form="biz-usage"]').isVisible());
- assert.ok((await page.locator('form[data-form="biz-usage"] select[name="material_id"] option').allTextContents()).some(x=>x.includes('Terriccio')));
+ await page.locator('[data-action="report-open"]').click();
+ await page.locator('[data-action="report-edit"]').click();
+ assert.ok(await page.locator('form[data-form="eod-report"]').isVisible());
+ assert.ok((await page.locator('form[data-form="eod-report"] select[name="material_pick"] option').allTextContents()).some(x=>x.includes('Terriccio')));
+ await page.locator('[data-action="eod-back"]').click();
+ await page.locator('[data-action="report-open"]').click();
  const image=await readFile(resolve(root,'cloud/icon-192.png'));
  await page.locator('input[data-ops-input="before"]').setInputFiles({
   name:'photo.png',mimeType:'image/png',buffer:image

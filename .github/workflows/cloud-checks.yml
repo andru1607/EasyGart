@@ -5,12 +5,14 @@ on:
       - 'cloud/**'
       - 'supabase/**'
       - 'tests/*.test.mjs'
+      - 'tests/*.test.cjs'
       - '.github/workflows/cloud-checks.yml'
   pull_request:
     paths:
       - 'cloud/**'
       - 'supabase/**'
       - 'tests/*.test.mjs'
+      - 'tests/*.test.cjs'
 permissions:
   contents: read
 jobs:
@@ -21,4 +23,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Check Cloud JS and SQL/RLS invariants
-        run: node --test tests/cloud-*.test.mjs
+        run: node --test tests/*.test.mjs tests/*.test.cjs
