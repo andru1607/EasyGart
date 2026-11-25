@@ -48,6 +48,8 @@ let currentView = 'home';
 let selectedWorkerId = 'all';
 let editingTaskId = null;
 let user = null;
+let startupPending = true;
+let startupTimer = null;
 let memberships = [], companies = [], members = [], clients = [], sites = [], tasks = [], invites = [];
 let adminDelegations=[],adminDelegationReady=false;
 let editingClientId=null,editingSiteId=null;
@@ -520,7 +522,25 @@ function searchDockMarkup(){
       (de?'Daten aktualisieren':'Aggiorna dati')+'" aria-label="'+(de?'Daten aktualisieren':'Aggiorna dati')+'">'+
       '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/></svg></button></div>';
 }
+function showStartupRetry(failed=false){
+  const retry=$('eg-startup-retry'), message=$('eg-startup-message'), link=$('eg-startup-reload');
+  if(!retry||!message||!link)return;
+  message.textContent=locale==='de'?(failed?'Verbindung konnte nicht hergestellt werden. Deine Anmeldung wird nicht gelöscht.':'EasyGart benötigt etwas länger. Prüfe deine Verbindung.'):(failed?'Connessione non riuscita. La sessione non viene cancellata.':'EasyGart sta impiegando più tempo. Controlla la connessione.');
+  link.textContent=locale==='de'?'Erneut versuchen':'Riprova';
+  retry.hidden=false;
+}
+function finishStartup(){
+  startupPending=false;
+  clearTimeout(startupTimer);
+  // Paint the correct view behind the startup screen, then reveal it.
+  render();
+  app?.removeAttribute?.('aria-busy');
+  document.body?.classList?.remove('eg-starting');
+  const splash=$('eg-startup');
+  if(splash)splash.hidden=true;
+}
 function render() {
+  if(startupPending)return;
   // Aggiorna anche i testi fuori dal contenitore dell'app (intestazione, footer, lingua HTML).
   if (document.documentElement) document.documentElement.lang = locale;
   window.EASYGART_INSTALL?.updateNetworkText?.();
@@ -1263,7 +1283,8 @@ async function submitForm(form,formAction='draft'){
   }
 }
 async function boot(){
-  if(!ready){render();return}
+  if(!ready){finishStartup();return}
+  startupTimer=setTimeout(()=>showStartupRetry(false),12000);
   try{
     const mod=await import('https://esm.sh/@supabase/supabase-js@2.57.0');
     client=mod.createClient(cfg.url,cfg.publishableKey,{
@@ -1328,13 +1349,21 @@ async function boot(){
         user,isOwner:memberIsOwner(),members,clients,sites,tasks,reports:dailyReports,locale,reload:refresh}),
       t,tr,esc,onSuccess:success,rerender:render
     });
-    const r=await client.auth.getUser();
-    if(r.error&&r.error.status!==400)throw r.error;
-    user=r.data?.user||null;
+    // Wait for persisted credentials (and any automatic token refresh).
+    const restored=await client.auth.getSession();
+    const invalidSession=e=>e?.name==='AuthSessionMissingError'||['session_not_found','refresh_token_not_found','refresh_token_already_used','user_not_found','session_expired','bad_jwt'].includes(e?.code);
+    if(restored.error&&!invalidSession(restored.error))throw restored.error;
+    if(restored.data?.session&&!restored.error){
+      // Verify the account on the server; never trust the stored user object for authorization.
+      const r=await client.auth.getUser();
+      if(r.error&&!invalidSession(r.error))throw r.error;
+      user=r.error?null:r.data?.user||null;
+    }else user=null;
     if(user){
       if(recoveryLinkOpened){authMode='reset';recoveryLinkOpened=false;render()}
       else await refresh();
     }else{recoveryLinkOpened=false;render()}
+    finishStartup();
     client.auth.onAuthStateChange((ev,session)=>{
       if(ev==='PASSWORD_RECOVERY'){
         user=session?.user||user;
@@ -1354,7 +1383,11 @@ async function boot(){
          reportEditingId===null && editingTaskId===null && !operations?.isSigning?.() &&
          !business?.hasOpenForm?.() && currentView!=='eod')refresh().catch(fail);
     },30000);
-  }catch(e){fail(e)}
+  }catch(e){
+    clearTimeout(startupTimer);
+    if(startupPending){showStartupRetry(true)}
+    else fail(e);
+  }
 }
 // Conserva i campi già compilati durante il cambio lingua o dei filtri.
 function captureEditableForms(){
@@ -2031,5 +2064,4 @@ document.addEventListener('pointerdown',e=>operations?.pointerStart(e));
 document.addEventListener('pointermove',e=>operations?.pointerMove(e));
 document.addEventListener('pointerup',()=>operations?.pointerEnd());
 document.addEventListener('pointercancel',()=>operations?.pointerEnd());
-render();
 boot();
