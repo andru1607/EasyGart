@@ -24,7 +24,7 @@
   const times = value=>[...tidy(value).matchAll(timeRegex)].map(m=>String(+m[1]).padStart(2,'0')+':'+m[2]);
   const pause = value=>{
     const m=tidy(value).match(/\b(?:pausa|pause|break|pausen?)\s*[:=]?\s*(\d{1,3})\s*(?:min(?:uti|uten)?)?\b/i);
-    return m?Math.min(600,+m[1]):0;
+    return m?+m[1]:0;
   };
   const duration=(start,end,breakMinutes)=>{
     const toMinutes=v=>{if(!/^\d\d:\d\d$/.test(v))return NaN;const [h,m]=v.split(':').map(Number);return h*60+m;};
@@ -42,7 +42,9 @@
     for(const line of String(source||'').replace(/\r/g,'').split('\n').map(tidy).filter(Boolean)){
       // A dotted HH.MM is an hour, not a day/month date without a year.
       const dateToken=/\b(?:20\d{2}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{1,2}\.\d{1,2}\.(?:20\d{2}|\d{2})|\d{1,2}-\d{1,2}-\d{2,4})\b/;
-      const date=dateToken.test(line)?isoDate(line,year):null;
+      const hasDate=dateToken.test(line);
+      const date=hasDate?isoDate(line,year):null;
+      if(hasDate&&!date){headingDate=null;headingWorker='';headingSite='';continue;}
       if(date&&(!headingDate||date.date!==headingDate.date)){headingWorker='';headingSite=''}
       if(date)headingDate=date;
       const workerOnLine=matchName(line,members,'full_name');
@@ -69,6 +71,7 @@
       const elapsed=(toM(endTime)-toM(startTime)+1440)%1440;
       if(!elapsed||worked>elapsed)continue;
       const explicitPause=pause(line);
+      if(explicitPause>=elapsed)continue;
       const breakMinutes=found.length>2?elapsed-worked:explicitPause;
       const pause_warning=found.length>2&&explicitPause>0&&explicitPause!==breakMinutes;
       if(duration(startTime,endTime,breakMinutes)===null)continue;

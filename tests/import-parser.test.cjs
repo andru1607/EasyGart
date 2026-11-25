@@ -37,3 +37,9 @@ test('simple client name lists become multiple rows',()=>{
  const rows=p.clients('Mario Rossi\nLuigi Verdi\nSilvia Grandi');
  assert.deepEqual(Array.from(rows,x=>x.name),['Mario Rossi','Luigi Verdi','Silvia Grandi']);
 });
+
+test('invalid dated row does not inherit preceding day and impossible pauses are not clipped',()=>{
+ const rows=parse('15/11/2026 Marco Rossi 08:00 16:00 Giardino Rossi\n32/11/2026 Marco Rossi 08:00 16:00 Giardino Rossi\nMarco Rossi 08:00 16:00 Giardino Rossi');
+ assert.equal(rows.length,1);
+ assert.equal(parse('15/11/2026 Marco Rossi 08:00 19:00 pausa 900 Giardino Rossi').length,0);
+});
