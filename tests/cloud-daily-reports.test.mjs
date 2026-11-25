@@ -70,7 +70,11 @@ test('worker sees personal report and cannot approve colleagues reports',()=>{
   assert.match(html,/Lavorazione potatura/);
   assert.doesNotMatch(html,/Irrigazione completata/);
   assert.doesNotMatch(html,/data-form="daily-review"/);
-  assert.match(html,/report-edit/);
+  assert.match(html,/data-action="report-open" data-id="report-a"/);
+  assert.doesNotMatch(html,/data-action="report-open" data-id="report-b"/);
+  const detail=h.exec("endOfDay={canEdit:r=>r.created_by===user.id&&!r.invoice_locked};selectedReportId='report-a';reportDetailMarkup()");
+  assert.match(detail,/data-action="report-edit"/);
+  assert.doesNotMatch(detail,/data-form="daily-review"/);
   assert.match(h.exec("reportEditingId='new';reportFormMarkup()"),/data-form="daily-report"/);
 });
 test('manager sees incoming report and review actions',()=>{
@@ -78,9 +82,11 @@ test('manager sees incoming report and review actions',()=>{
   const html=h.exec("user={id:'owner',email:'boss@example.test'};memberships=[{company_id:'org-1',role:'owner',active:true}];reportsMarkup()");
   assert.match(html,/Irrigazione completata/);
   assert.match(html,/Lavorazione potatura/);
-  assert.match(html,/data-form="daily-review"/);
-  assert.match(html,/value="approved"/);
-  assert.match(html,/value="changes_requested"/);
+  assert.match(html,/data-action="report-open" data-id="report-b"/);
+  const detail=h.exec("selectedReportId='report-b';reportDetailMarkup()");
+  assert.match(detail,/data-form="daily-review"/);
+  assert.match(detail,/value="approved"/);
+  assert.match(detail,/value="changes_requested"/);
 });
 test('report form supports drafts and submitted reports cannot be edited',()=>{
   const h=browserHarness();

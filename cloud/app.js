@@ -64,6 +64,8 @@ const ready = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(cfg.url || '') && /
 const localeKey = 'easygarte_cloud_language';
 let locale = (() => {try{return localStorage.getItem(localeKey)==='de'?'de':'it'}catch{return 'it'}})();
 const german = {
+  'Nome o note non validi.':'Name oder Notizen ungültig.',
+  'Impossibile eliminare il rapporto':'Bericht konnte nicht gelöscht werden',
   'Home':'Startseite','Fine giornata':'Feierabend','Menu':'Menü','Altre sezioni':'Weitere Bereiche',
   'Cerca':'Suche','Cerca attività e azioni':'Aufgaben und Aktionen suchen',
   'Impostazioni e account':'Einstellungen und Konto','Seleziona una sezione':'Bereich auswählen',

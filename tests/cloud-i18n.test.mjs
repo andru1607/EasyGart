@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createContext,runInContext,Script} from 'node:vm';
 
 const app=readFileSync(new URL('../cloud/app.js',import.meta.url),'utf8');
+const eod=readFileSync(new URL('../cloud/eod.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('../cloud/index.html',import.meta.url),'utf8');
 const sourceWithoutBoot=app.replace(/\brender\(\);\s*boot\(\);\s*$/,'');
 assert.notEqual(sourceWithoutBoot,app,'Remove automatic boot for isolated translation tests');
@@ -97,12 +98,14 @@ test('specific formerly mixed-language copy is fully translated',()=>{
 
 test('editable placeholders and status labels are localized',()=>{
   const h=makeHarness();
-  h.exec("user={id:'worker'};memberships=[{company_id:'org-1',role:'worker',active:true}];currentView='reports';reportEditingId='new';render()");
-  const x=h.elements.app.innerHTML;
-  assert.match(x,/Beschreibe die durchgeführten Arbeiten/);
-  assert.match(x,/Art und Menge des verwendeten Materials/);
-  assert.match(x,/Besonderheiten, verschobene Arbeiten/);
-  assert.match(x,/An die Betriebsleitung senden/);
+  const sandbox=createContext({window:{},Date,Intl});
+  new Script(eod).runInContext(sandbox);
+  const model=sandbox.window.createEasyGartEndOfDay({client:{},esc:x=>String(x??''),getContext:()=>({locale:'de',user:{id:'worker'},isOwner:false,members:[],sites:[{id:'s',name:'Garten'}],clients:[],tasks:[],reports:[]})});
+  const x=model.markup();
+  assert.match(x,/Hecken geschnitten/);
+  assert.match(x,/Verwendete Materialien/);
+  assert.match(x,/name="issues"/);
+  assert.match(x,/Bericht senden/);
   assert.doesNotMatch(x,/placeholder="(?:Descrivi|Tipi e quantità|Anomalie)/);
 });
 

@@ -68,7 +68,7 @@ test('company creation triggers the owner tour even after generic onboarding was
   h.fire('skip');
   h.window.EASYGART_GUIDE.sync(info('user-2','owner','company-a'));
   assert.match(h.root.innerHTML,/Il pannello del titolare/);
-  assert.match(h.root.innerHTML,/1 \/ 16/);
+  assert.match(h.root.innerHTML,/1 \/ 20/);
   assert.match(h.root.innerHTML,/Clienti e cantieri/);
   assert.match(h.root.innerHTML,/Bozze proforma/);
   h.fire('finish');
@@ -80,7 +80,7 @@ test('company creation triggers the owner tour even after generic onboarding was
 test('worker tour is shorter and does not expose owner-only sections',()=>{
   const h=harness();
   h.window.EASYGART_GUIDE.sync(info('worker-1','worker','company-a'));
-  assert.match(h.root.innerHTML,/1 \/ 11/);
+  assert.match(h.root.innerHTML,/1 \/ 15/);
   assert.match(h.root.innerHTML,/Timbrature e pause/);
   assert.doesNotMatch(h.root.innerHTML,/Bozze proforma|Catalogo dei materiali|Squadra e inviti/);
   assert.match(h.root.innerHTML,/Registrare il materiale usato/);

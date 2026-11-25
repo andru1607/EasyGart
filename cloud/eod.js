@@ -95,7 +95,7 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
       '<h1>'+tr(r?'Modifica rapporto':'Fine giornata',r?'Bericht bearbeiten':'Feierabend')+'</h1>'+
       '<p class="muted">'+tr('Registra o correggi un rapporto, anche di una giornata passata. Indica gli orari manualmente.',
         'Einen Bericht erfassen oder nachträglich ändern. Beginn und Ende manuell eingeben.')+'</p></div>'+
-      '<button class="ghost small" data-action="eod-back">'+tr('Torna ai rapporti','Zurück zu Berichten')+'</button></div>'+
+      '<button class="ghost small" data-action="eod-back">'+tr('Indietro','Zurück')+'</button></div>'+
       (r?.manager_feedback?'<div class="alert warn">'+esc(r.manager_feedback)+'</div>':'')+
       (!hasSites?'<div class="alert warn">'+tr('Non ci sono cantieri: il titolare deve crearne uno nella sezione Clienti e cantieri.',
         'Keine Einsatzorte vorhanden: Die Betriebsleitung muss zuerst einen Einsatzort anlegen.')+'</div>':'')+
