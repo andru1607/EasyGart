@@ -153,12 +153,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .eg-calendar-note{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:7px}.eg-calendar-foot{font-size:12px;margin-top:12px}
 @media(max-width:760px){.eg-calendar-card{padding:10px}.eg-calendar-grid{gap:3px}.eg-calendar-day{min-height:73px;padding:4px 3px;border-radius:7px}.eg-calendar-day span{font-size:10px}.eg-calendar-day small{font-size:9px}.eg-calendar-toolbar label{width:100%}}
 /* Startup screen: present before any external script or authentication request. */
-body.eg-starting{overflow:hidden;background:#183d30}
+body.eg-starting{overflow:hidden;background:#f5f9f3}
 body.eg-starting>header,body.eg-starting>main,body.eg-starting>footer,body.eg-starting>#eg-guide-root,body.eg-starting>#eg-network-banner{display:none!important}
 #eg-startup{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#f5f9f3;color:#183d30;padding:0;text-align:center}
 #eg-startup[hidden],#eg-startup-retry[hidden]{display:none!important}
 .eg-startup-center{display:grid;justify-items:center;gap:16px;max-width:320px}
-.eg-startup-logo{width:128px;height:128px;object-fit:contain;border-radius:0;mix-blend-mode:multiply}
+.eg-startup-logo{display:block;width:128px;height:128px;object-fit:contain;background:transparent;border:0;box-shadow:none}
 .eg-startup-name{font-size:27px;font-weight:850;letter-spacing:-1px;line-height:1.2}
 .eg-startup-name span{color:#d8edb4}
 #eg-startup-retry{display:grid;gap:12px;font-size:14px;color:#183d30}
@@ -169,7 +169,7 @@ body.eg-starting>header,body.eg-starting>main,body.eg-starting>footer,body.eg-st
 <body class="eg-starting">
 <div id="eg-startup" role="status" aria-live="polite">
   <div class="eg-startup-center">
-    <img class="eg-startup-logo" src="./icon-512.png" alt="EasyGart" width="128" height="128" fetchpriority="high">
+    <img class="eg-startup-logo" src="./logo.png" alt="EasyGart" width="128" height="128" fetchpriority="high">
     <span id="eg-startup-status" class="eg-startup-sr">Avvio EasyGart… / EasyGart wird gestartet…</span>
     <div id="eg-startup-retry" hidden><p id="eg-startup-message"></p><a href="" id="eg-startup-reload">Riprova / Erneut versuchen</a></div>
     <noscript>Attiva JavaScript per aprire EasyGart. / Aktiviere JavaScript.</noscript>
