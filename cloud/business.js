@@ -145,8 +145,8 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
     monthly:'Ogni mese',quarterly:'Ogni trimestre'})[c]||'Ogni mese');
   const memberName=id=>ctx().members.find(x=>x.user_id===id)?.full_name||tr('Dipendente');
   const clientName=id=>ctx().clients.find(x=>x.id===id)?.name||'—';
-  const siteName=id=>ctx().sites.find(x=>x.id===id)?.name||'—';
-  const taskName=report=>ctx().tasks.find(x=>x.id===report?.task_id)?.title||ctx().sites.find(x=>x.id===report?.site_id)?.name||tr('Intervento');
+  const siteName=id=>{const s=ctx().sites.find(x=>x.id===id);return s?.display_name||s?.name||'—';};
+  const taskName=report=>ctx().tasks.find(x=>x.id===report?.task_id)?.title||(report?.site_id?siteName(report.site_id):tr('Intervento'));
   const reportUsages=id=>usage.filter(x=>x.report_id===id);
   const totalLine=l=>{
     const base=Math.round((num(l.quantity)*num(l.unit_price)+Number.EPSILON)*100)/100;
@@ -270,7 +270,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
       '<label class="field"><span>'+b('Cliente')+'</span><select name="client_id" data-biz-client="1" required>'+
         ctx().clients.map(x=>opt(x.id,x.name,x.id===client)).join('')+'</select></label>'+
       '<label class="field"><span>'+b('Cantiere (facoltativo)')+'</span><select name="site_id" data-biz-site="1">'+
-        opt('','—')+siteChoices.map(x=>opt(x.id,x.name,x.id===plan?.site_id)).join('')+'</select></label>'+
+        opt('','—')+siteChoices.map(x=>opt(x.id,x.display_name||x.name,x.id===plan?.site_id)).join('')+'</select></label>'+
       '<label class="field"><span>'+b('Dipendente')+'</span><select name="assignee_id" required>'+
         team.map(x=>opt(x.user_id,x.full_name,x.user_id===plan?.assignee_id)).join('')+'</select></label>'+
       '<label class="field"><span>'+b('Prossima scadenza')+'</span><input name="next_due_date" type="date" value="'+safe(plan?.next_due_date||'')+'" required></label>'+
@@ -283,7 +283,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
   function maintenanceMarkup(){
     if(!owner())return '';
     const rows=plans.map(plan=>'<div class="taskrow"><div><strong>'+safe(plan.title)+'</strong>'+
-      '<div class="task-meta"><span>'+safe(clientName(plan.client_id))+'</span>'+
+      '<div class="task-meta">'+(!plan.site_id?'<span>'+safe(clientName(plan.client_id))+'</span>':'')+
       '<span>'+safe(siteName(plan.site_id))+'</span>'+
       '<span>'+safe(memberName(plan.assignee_id))+'</span>'+
       '<span>'+safe(translateCadence(plan.cadence))+'</span>'+
@@ -592,7 +592,7 @@ window.createEasyGartBusiness=function createEasyGartBusiness({client,getContext
     if(element.dataset.bizClient){
       const form=element.closest('form');const site=form?.querySelector('select[data-biz-site]');
       if(site)site.innerHTML=opt('','—')+
-        ctx().sites.filter(x=>x.client_id===element.value).map(x=>opt(x.id,x.name)).join('');
+        ctx().sites.filter(x=>x.client_id===element.value).map(x=>opt(x.id,x.display_name||x.name)).join('');
       return true;
     }
     return false;

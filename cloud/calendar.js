@@ -9,7 +9,7 @@ window.createEasyGartCalendar=function({client,getContext,esc,rerender,mode='wor
  const tr=(it,de)=>ctx().locale==='de'?de:it;
  const hm=n=>Math.floor(Math.max(0,n)/60)+' h '+p(Math.floor(Math.max(0,n)%60))+' min';
  const who=id=>ctx().members.find(m=>m.user_id===id)?.full_name||tr('Dipendente','Mitarbeiter');
- const where=id=>ctx().sites.find(x=>x.id===id)?.name||tr('Non indicato','Nicht angegeben');
+ const where=id=>{const s=ctx().sites.find(x=>x.id===id);return s?.display_name||s?.name||tr('Non indicato','Nicht angegeben');};
  const minutes=s=>s.status==='closed'&&s.ended_at?Math.max(0,Math.round((new Date(s.ended_at)-new Date(s.started_at))/60000-(s.break_seconds||0)/60)):0;
  const clock=x=>x?new Intl.DateTimeFormat(ctx().locale==='de'?'de-DE':'it-IT',{hour:'2-digit',minute:'2-digit'}).format(new Date(x)):'—';
  async function pages(q){

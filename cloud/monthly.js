@@ -14,7 +14,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
   const ymd=d=>d.getFullYear()+'-'+two(d.getMonth()+1)+'-'+two(d.getDate());
   const duration=m=>Math.floor(Math.max(0,m)/60)+' h '+two(Math.round(Math.max(0,m)%60))+' min';
   const worker=id=>ctx().members.find(m=>m.user_id===id)?.full_name||tr('Operatore','Mitarbeiter');
-  const site=id=>ctx().sites.find(s=>s.id===id)?.name||tr('Cantiere non indicato','Einsatzort nicht angegeben');
+  const site=id=>{const s=ctx().sites.find(s=>s.id===id);return s?.display_name||s?.name||tr('Cantiere non indicato','Einsatzort nicht angegeben');};
   const shiftMinutes=s=>s.status==='closed'&&s.ended_at?
     Math.max(0,Math.round((new Date(s.ended_at)-new Date(s.started_at))/60000-(s.break_seconds||0)/60)):0;
   const isVisible=id=>ctx().isOwner||id===ctx().user?.id;
@@ -167,7 +167,7 @@ window.createEasyGartMonthly=function({client,getContext,esc,onOpenReport}){
         const location=ctx().sites.find(s=>s.id===id);
         const total=matched.reduce((sum,r)=>sum+Number(r.minutes_worked||0),0);
         return '<button class="eg-month-site-card" type="button" data-action="monthly-site" data-id="'+safe(id)+'">'+
-          '<strong>'+safe(location?.name||tr('Cantiere','Einsatzort'))+'</strong>'+
+          '<strong>'+safe(location?.display_name||location?.name||tr('Cantiere','Einsatzort'))+'</strong>'+
           '<span>'+matched.length+' '+tr('rapporti','Berichte')+' · '+duration(total)+'</span>'+
           '<small>'+materialAggregate(matched).length+' '+tr('tipi di materiale','Materialarten')+'</small>'+
           '<b aria-hidden="true">›</b></button>';

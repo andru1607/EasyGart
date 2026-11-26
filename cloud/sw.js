@@ -1,6 +1,6 @@
 /* EasyGart Cloud offline shell only. Authenticated data and API responses NEVER cached. */
 'use strict';
-const VERSION='easygart-shell-v39-20261126-transparent-startup';
+const VERSION='easygart-shell-v40-20261126-site-client';
 const SHELL=[
   '/cloud/','/cloud/index.html','/cloud/app.js','/cloud/config.js',
   '/cloud/operations.js','/cloud/archive.js','/cloud/business.js','/cloud/mobile.js',

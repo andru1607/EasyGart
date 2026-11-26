@@ -110,7 +110,7 @@ window.createEasyGartEndOfDay=function({client,getContext,esc}){
       '<label class="field"><span>'+tr('Data','Datum')+'</span><input type="date" name="work_date" required value="'+esc(r?.work_date||dateToday())+'"></label>'+
       '<label class="field"><span>'+tr('Cantiere','Einsatzort')+' *</span><select name="site_id" id="eod-site" required>'+
         opt('',tr('Seleziona il cantiere','Einsatzort auswählen'),!siteId)+
-        c.sites.map(s=>opt(s.id,s.name+' · '+(c.clients.find(x=>x.id===s.client_id)?.name||''),s.id===siteId)).join('')+
+        c.sites.map(s=>opt(s.id,s.display_name||[s.name,c.clients.find(x=>x.id===s.client_id)?.name].filter(Boolean).join(' · '),s.id===siteId)).join('')+
         '</select></label>'+
       '<label class="field"><span>'+tr('Compito collegato (facoltativo)','Zugewiesene Aufgabe (optional)')+'</span>'+
         '<select name="task_id" id="eod-task">'+opt('',tr('Nessun compito','Keine Aufgabe'),!r?.task_id)+

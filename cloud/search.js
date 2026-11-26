@@ -80,18 +80,18 @@ window.createEasyGartSearch = function({getContext,esc}) {
     const jobs=visibleTask.map(task=>{
       const site=(c.sites||[]).find(s=>s.id===task.site_id);
       const client=(c.clients||[]).find(v=>v.id===task.client_id);
-      const name=site?.name||'';
+      const name=site?.display_name||site?.name||'';
       const assigned=c.isOwner?(c.members||[]).find(x=>x.user_id===task.assignee_id)?.full_name||'':'';
       return {id:'task:'+task.id,kind:'task',title:task.title||lang('Attività','Aufgabe'),
         category:lang('Attività','Aufgabe'),detail:[name,fmtDate(task.due_date),assigned].filter(Boolean).join(' · '),
-        keywords:[task.title,task.instructions,site?.name,client?.name,assigned,task.status,task.due_date].join(' '),
+        keywords:[task.title,task.instructions,site?.name,site?.client_name,client?.name,assigned,task.status,task.due_date].join(' '),
         entityId:task.id};
     });
     const places=(c.sites||[]).map(site=>({
-      id:'site:'+site.id,kind:'site',entityId:site.id,title:site.name,
+      id:'site:'+site.id,kind:'site',entityId:site.id,title:site.display_name||site.name,
       category:lang('Cantiere','Einsatzort'),
-      detail:(c.clients||[]).find(x=>x.id===site.client_id)?.name||'',
-      keywords:[site.name,site.address,(c.clients||[]).find(x=>x.id===site.client_id)?.name].join(' ')
+      detail:site.address||(!site.display_name?(c.clients||[]).find(x=>x.id===site.client_id)?.name:'')||'',
+      keywords:[site.name,site.client_name,site.address,(c.clients||[]).find(x=>x.id===site.client_id)?.name].join(' ')
     }));
     const customers=c.isOwner?(c.clients||[]).flatMap(v=>[{
       id:'client:'+v.id,kind:'client',entityId:v.id,title:v.name,
@@ -105,9 +105,9 @@ window.createEasyGartSearch = function({getContext,esc}) {
     }]):[];
     const siteEdits=c.isOwner?(c.sites||[]).map(site=>({
       id:'site-edit:'+site.id,kind:'site-edit',entityId:site.id,
-      title:lang('Modifica cantiere: ','Einsatzort bearbeiten: ')+site.name,
+      title:lang('Modifica cantiere: ','Einsatzort bearbeiten: ')+(site.display_name||site.name),
       category:lang('Modifica','Bearbeiten'),detail:lang('Correggi il cantiere','Einsatzort bearbeiten'),
-      keywords:[site.name,site.address,'modifica indirizzo cantiere'].join(' ')
+      keywords:[site.name,site.client_name,site.address,'modifica indirizzo cantiere'].join(' ')
     })):[];
     const materials=c.isOwner?(c.materials||[]).map(m=>({
       id:'material:'+m.id,kind:'material',entityId:m.id,title:m.name,
@@ -118,14 +118,14 @@ window.createEasyGartSearch = function({getContext,esc}) {
     const reports=(c.reports||[]).filter(r=>!r.deleted_at&&
       (c.isOwner||r.created_by===c.user?.id||r.site_id&&['submitted','approved'].includes(r.status)))
       .map(report=>{
-        const site=(c.sites||[]).find(x=>x.id===report.site_id);
         const task=(c.tasks||[]).find(x=>x.id===report.task_id);
+        const site=(c.sites||[]).find(x=>x.id===(report.site_id||task?.site_id));
         const who=c.isOwner?(c.members||[]).find(x=>x.user_id===report.created_by)?.full_name||'':'';
         return {id:'report:'+report.id,kind:'report',entityId:report.id,
           category:lang('Rapporto','Bericht'),
-          title:[site?.name||task?.title||lang('Rapporto giornaliero','Tagesbericht'),fmtDate(report.work_date)].filter(Boolean).join(' · '),
+          title:[site?.display_name||site?.name||task?.title||lang('Rapporto giornaliero','Tagesbericht'),fmtDate(report.work_date)].filter(Boolean).join(' · '),
           detail:[who,report.work_summary].filter(Boolean).join(' · ').slice(0,175),
-          keywords:[site?.name,task?.title,report.work_summary,report.work_date,who].join(' ')
+          keywords:[site?.name,site?.client_name,task?.title,report.work_summary,report.work_date,who].join(' ')
         };
       });
     return [...commandsList,...jobs,...places,...customers,...siteEdits,...materials,...reports];

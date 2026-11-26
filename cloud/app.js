@@ -353,6 +353,7 @@ const memberIsAdmin=()=>memberships.some(m=>m.company_id===selectedCompanyId&&m.
 const memberIsOwner = () => memberIsPrimaryOwner()||memberIsAdmin();
 const company = () => companies.find(c => c.id === selectedCompanyId);
 const getName = (items,id) => items.find(x=>x.id===id)?.name || '—';
+const siteLabel = id => {const s=sites.find(x=>x.id===id);return s?.display_name||s?.name||'—';};
 const getWorkerName = id => members.find(x=>x.user_id===id)?.full_name || '—';
 const errorMessage = e => {
   const raw = e?.message || String(e || 'Errore sconosciuto');
@@ -684,8 +685,8 @@ function taskMarkup(task){
     '<button class="primary small" data-action="status" data-id="'+esc(task.id)+'" data-status="done">'+t('Completa')+'</button>';
   return '<article class="taskrow" tabindex="-1" data-search-task="'+esc(task.id)+'"><div style="flex:1"><div class="task-title">'+esc(task.title)+'</div>'+
     '<div class="task-meta"><span>'+esc(displayDate(task.due_date))+(task.start_time?' · '+esc(task.start_time.slice(0,5)):'')+'</span>'+
-      '<span>'+esc(getName(clients,task.client_id))+'</span>'+
-      '<span>'+esc(getName(sites,task.site_id))+'</span>'+
+      (!task.site_id?'<span>'+esc(getName(clients,task.client_id))+'</span>':'')+
+      '<span>'+esc(siteLabel(task.site_id))+'</span>'+
       (memberIsOwner()?'<span>'+esc(getWorkerName(task.assignee_id))+'</span>':'')+
       '<span>'+esc(tr({alta:'Alta',media:'Media',bassa:'Bassa'}[task.priority]||'Media'))+'</span></div>'+
       (task.instructions?'<p class="task-note">'+esc(task.instructions)+'</p>':'')+'</div>'+
@@ -702,7 +703,7 @@ function taskFormMarkup(){
     '<form data-form="task" class="formgrid">'+field('Titolo attività','title','text',task.title||'','required minlength="2" maxlength="200"')+
     select('Dipendente','assignee_id',workers.map(w=>option(w.user_id,w.full_name,task.assignee_id===w.user_id)).join(''),'required')+
     select('Cliente','client_id',clients.map(c=>option(c.id,c.name,task.client_id===c.id)).join(''),'id="task-client" required')+
-    select('Cantiere','site_id',option('','—')+filteredSites.map(s=>option(s.id,s.name,task.site_id===s.id)).join(''),'id="task-site"')+
+    select('Cantiere','site_id',option('','—')+filteredSites.map(s=>option(s.id,siteLabel(s.id),task.site_id===s.id)).join(''),'id="task-site"')+
     field('Data','due_date','date',task.due_date||dateToday(),'required')+
     field('Ora','start_time','time',task.start_time?.slice(0,5)||'')+
     field('Durata stimata (minuti)','estimated_minutes','number',task.estimated_minutes??'','min="0" max="1440" step="5"')+
@@ -769,7 +770,7 @@ function homeMarkup(){
     lang('Vedi tutti','Alle anzeigen')+'</button></div>'+
     (last.length?last.map(r=>{
       const task=tasks.find(x=>x.id===r.task_id);
-      return '<div class="taskrow"><div><strong>'+esc(getName(sites,r.site_id||task?.site_id))+'</strong>'+
+      return '<div class="taskrow"><div><strong>'+esc(siteLabel(r.site_id||task?.site_id))+'</strong>'+
         '<div class="task-meta">'+esc(displayDate(r.work_date))+' · '+esc(formatReportMinutes(r.minutes_worked))+
         (owner?' · '+esc(getWorkerName(r.created_by)):'')+'</div></div>'+
         '<button type="button" class="secondary small" data-action="report-open" data-id="'+esc(r.id)+'">'+
@@ -847,10 +848,11 @@ function reportFormMarkup(){
 }
 function reportSummaryMarkup(report,owner){
   const task=tasks.find(x=>x.id===report.task_id);
-  const place=getName(sites,report.site_id||task?.site_id);
+  const place=siteLabel(report.site_id||task?.site_id);
   const label=task?.title||place;
   return '<div class="eg-report-list-item"><div class="eg-report-list-content">'+
     '<strong>'+esc(label)+'</strong><div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+ (owner?'<span class="eg-author-tag">'+esc(getWorkerName(report.created_by))+'</span>':'')+
+    (task?.title&&place!=='—'?'<span>'+esc(place)+'</span>':'')+
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
     (report.work_start_time&&report.work_end_time?
       '<span>'+esc(String(report.work_start_time).slice(0,5))+' – '+esc(String(report.work_end_time).slice(0,5))+'</span>':'')+
@@ -881,7 +883,7 @@ function reportDeletionDialogMarkup(){
   const report=dailyReports.find(r=>r.id===pendingReportDeletionId);
   if(!canDeleteReport(report))return '';
   const task=tasks.find(t=>t.id===report.task_id);
-  const location=getName(sites,report.site_id||task?.site_id);
+  const location=siteLabel(report.site_id||task?.site_id);
   return '<div class="eg-delete-overlay">'+
     '<div class="eg-delete-dialog" role="alertdialog" aria-modal="true" '+
       'aria-labelledby="eg-delete-title" aria-describedby="eg-delete-description">'+
@@ -913,7 +915,7 @@ function reportCardMarkup(report,owner){
   const task=tasks.find(x=>x.id===report.task_id);
   const isPending=report.status==='submitted';
   const tone=isPending?'amber':report.status==='changes_requested'?'red':'';
-  const title=task?.title||getName(sites,report.site_id)||tr('Intervento');
+  const title=task?.title||siteLabel(report.site_id)||tr('Intervento');
   return '<article class="taskrow"><div style="flex:1;min-width:180px">'+
     '<div class="task-title">'+esc(title)+'</div>'+ '<div class="eg-report-author">'+t('Dipendente')+': <strong>'+esc(getWorkerName(report.created_by))+'</strong></div>'+
     '<div class="task-meta"><span>'+esc(displayDate(report.work_date))+'</span>'+
@@ -921,8 +923,8 @@ function reportCardMarkup(report,owner){
     '<span>'+esc(formatReportMinutes(report.minutes_worked))+'</span>'+
     (report.work_start_time&&report.work_end_time?
       '<span>'+esc(String(report.work_start_time).slice(0,5))+' – '+esc(String(report.work_end_time).slice(0,5))+'</span>':'')+
-    '<span>'+esc(getName(clients,task?.client_id))+'</span>'+
-    '<span>'+esc(getName(sites,report.site_id||task?.site_id))+'</span></div>'+
+    (!(report.site_id||task?.site_id)?'<span>'+esc(getName(clients,task?.client_id))+'</span>':'')+
+    '<span>'+esc(siteLabel(report.site_id||task?.site_id))+'</span></div>'+
     '<p class="task-note">'+esc(report.work_summary||tr('Descrizione non ancora compilata'))+'</p>'+
     (report.materials_used?'<p class="task-note"><strong>'+t('Materiali utilizzati')+': </strong>'+esc(report.materials_used)+'</p>':'')+
     (report.issues?'<p class="task-note"><strong>'+t('Problemi e imprevisti')+': </strong>'+esc(report.issues)+'</p>':'')+
@@ -985,9 +987,8 @@ function clientsMarkup(){
         tr2('Annulla','Abbrechen')+'</button>':'')+'</div></form>'+
     '<h3>'+t('Cantieri')+'</h3>'+
     (sites.length?sites.map(site=>
-      '<div class="eg-entity-item"><div><strong>'+esc(site.name)+'</strong>'+
-      '<small class="muted" style="display:block">'+esc(getName(clients,site.client_id))+
-      (site.address?' · '+esc(site.address):'')+'</small></div>'+
+      '<div class="eg-entity-item"><div><strong>'+esc(siteLabel(site.id))+'</strong>'+
+      '<small class="muted" style="display:block">'+esc(site.address||'')+'</small></div>'+
       '<div class="actions"><button type="button" class="secondary small" data-action="open-site-reports" data-id="'+esc(site.id)+'">'+
       tr2('Rapporti','Berichte')+'</button>'+
       '<button type="button" class="ghost small" data-action="edit-site" data-id="'+esc(site.id)+'">'+
@@ -1067,6 +1068,12 @@ async function refresh() {
   const results=await Promise.all(requests);
   for (const x of results)if(x.error)throw x.error;
   [tasks,clients,sites,members] = results.slice(0,4).map(x=>x.data||[]);
+  const siteCustomerResponse=await client.rpc('eg_site_customer_names',{p_company_id:org});
+  const siteCustomers=siteCustomerResponse.error?{}:(siteCustomerResponse.data||{});
+  sites=sites.map(s=>{
+    const customer=siteCustomers[s.id]||clients.find(c=>c.id===s.client_id)?.name||'';
+    return {...s,client_name:customer,display_name:customer?s.name+' · '+customer:s.name};
+  });
   const contactResponse=owner?await client.from('eg_clients')
     .select('id,company_id,name,phone,email,address,notes').eq('company_id',org):null;
   clientContactsReady=!!contactResponse&&!contactResponse.error;
@@ -1412,7 +1419,7 @@ function restoreEditableForms(drafts){
     if(draft.type==='task'&&previousClient){
       const site=form.querySelector('select[name="site_id"]');
       if(site)site.innerHTML=option('','—')+
-        sites.filter(x=>x.client_id===previousClient).map(x=>option(x.id,x.name)).join('');
+        sites.filter(x=>x.client_id===previousClient).map(x=>option(x.id,siteLabel(x.id))).join('');
     }
     for(const field of draft.fields){
       const element=[...form.querySelectorAll('[name]')].find(el=>el.name===field.name);
@@ -1793,7 +1800,7 @@ document.addEventListener('click',e=>{
     if(tasks.some(t=>t.site_id===target.id)){
       success(msg('Cantiere collegato ad attività: modifica i dati senza eliminare lo storico.','Einsatzort ist mit Aufträgen verknüpft. Daten bearbeiten, Verlauf behalten.'));return;
     }
-    if(!confirm(msg('Eliminare definitivamente il cantiere '+target.name+'? Il cliente resterà in rubrica.','Einsatzort '+target.name+' endgültig löschen? Der Kunde bleibt im Verzeichnis.')))return;
+    if(!confirm(msg('Eliminare definitivamente il cantiere '+siteLabel(target.id)+'? Il cliente resterà in rubrica.','Einsatzort '+siteLabel(target.id)+' endgültig löschen? Der Kunde bleibt im Verzeichnis.')))return;
     const companyId=selectedCompanyId;
     withBusy(async()=>{
       const result=await client.rpc('eg_delete_unused_site',{p_company_id:companyId,p_site_id:target.id});
@@ -2060,7 +2067,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='staff-filter'){selectedWorkerId=e.target.value;renderPreservingForms();return}
   if(e.target.id==='task-client'){
     const s=$('task-site');if(!s)return;
-    s.innerHTML=option('','—')+sites.filter(x=>x.client_id===e.target.value).map(x=>option(x.id,x.name)).join('');
+    s.innerHTML=option('','—')+sites.filter(x=>x.client_id===e.target.value).map(x=>option(x.id,siteLabel(x.id))).join('');
   }
 });
 document.addEventListener('keydown',e=>{

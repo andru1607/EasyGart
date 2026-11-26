@@ -6,7 +6,7 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
  const pad=n=>String(n).padStart(2,'0');
  const fmt=n=>Math.floor(Math.max(0,n)/60)+' h '+pad(Math.round(Math.max(0,n)%60))+' min';
  const day=x=>String(x||'').slice(0,10).split('-').reverse().join('/');
- const display=id=>c().sites.find(s=>s.id===id)?.name||tr('Cantiere non trovato','Einsatzort nicht gefunden');
+ const display=id=>{const s=c().sites.find(s=>s.id===id);return s?.display_name||s?.name||tr('Cantiere non trovato','Einsatzort nicht gefunden');};
  const worker=id=>c().members.find(x=>x.user_id===id)?.full_name||tr('Operatore','Mitarbeiter');
  const mFor=id=>materials.filter(m=>m.report_id===id);
  const sd=r=>r.site_id||c().tasks.find(t=>t.id===r.task_id)?.site_id||null;
@@ -86,7 +86,7 @@ window.createEasyGartSiteHistory=function({client,getContext,esc}){
     'Öffne einen Einsatzort, um Tage, Stunden, Arbeiten und Materialien zu sehen.')+'</p></div></div>'+
    '<label class="field" style="display:block;margin-bottom:14px"><span>'+
     tr('Cerca cantiere','Einsatzort suchen')+'</span>'+
-    '<input id="eg-site-history-search" type="search" placeholder="'+tr('Nome o indirizzo…','Name oder Adresse…')+
+    '<input id="eg-site-history-search" type="search" placeholder="'+tr('Nome, cliente o indirizzo…','Name, Kunde oder Adresse…')+
     '" value="'+safe(search)+'" autocomplete="off"></label>'+
    (c().isOwner?'<div class="card eg-site-filter"><label class="field"><span>'+tr('Dipendente','Mitarbeiter')+'</span>'+
      '<select id="eg-site-worker"><option value="all">'+tr('Tutta la squadra','Gesamtes Team')+'</option>'+

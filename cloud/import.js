@@ -12,7 +12,7 @@ window.createEasyGartImport=function({client,getContext,esc,onImported,rerender}
   let progress='',error='',message='',lastAdded=0,openCompany='';
   const canUse=()=>!!ctx().isOwner&&!!ctx().companyId&&!!ctx().user;
   const siteOpts=(value)=>'<option value="">'+tr('Scegli cantiere','Einsatzort wählen')+'</option>'+
-    (ctx().sites||[]).map(s=>'<option value="'+safe(s.id)+'"'+(s.id===value?' selected':'')+'>'+safe(s.name)+'</option>').join('');
+    (ctx().sites||[]).map(s=>'<option value="'+safe(s.id)+'"'+(s.id===value?' selected':'')+'>'+safe(s.display_name||s.name)+'</option>').join('');
   const workerOpts=value=>'<option value="">'+tr('Scegli dipendente','Mitarbeiter wählen')+'</option>'+
     (ctx().members||[]).filter(m=>m.active).map(m=>'<option value="'+safe(m.user_id)+'"'+(m.user_id===value?' selected':'')+'>'+
       safe(m.full_name||tr('Operatore','Mitarbeiter'))+'</option>').join('');

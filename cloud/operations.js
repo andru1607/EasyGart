@@ -163,7 +163,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
       tr('Apri lo script','SQL-Skript öffnen')+'</a>': '')+'</div>':'';
     let controls='';
     if(!owner||c.isWorker){
-      const siteOptions=labelOption('',tr('Non specificato'))+c.sites.map(x=>labelOption(x.id,x.name)).join('');
+      const siteOptions=labelOption('',tr('Non specificato'))+c.sites.map(x=>labelOption(x.id,x.display_name||x.name)).join('');
       controls='<div class="card stacked" style="margin-bottom:18px"><div class="cardhead"><div><h2>'+t('Turno attuale')+'</h2>'+
         '<p class="muted">'+(open?t(open.status==='break'?'Pausa in corso':'Turno in corso'):t('Non hai un turno aperto.'))+'</p></div>'+
         (open?'<span class="pill">'+t(open.status==='break'?'In pausa':'Al lavoro')+'</span>':'')+'</div>'+
@@ -180,7 +180,7 @@ window.createEasyGartOperations = function createEasyGartOperations({client,getC
     const row=shift=>'<div class="taskrow"><div><div class="task-title">'+safeText(workerName(shift.user_id))+'</div>'+
       '<div class="task-meta"><span>'+t('Entrata')+': '+dateTime(shift.started_at)+'</span>'+
       '<span>'+t('Uscita')+': '+(shift.ended_at?dateTime(shift.ended_at):'—')+'</span>'+
-      '<span>'+t('Cantiere')+': '+safeText(c.sites.find(x=>x.id===shift.site_id)?.name||tr('Non specificato'))+'</span></div>'+
+      '<span>'+t('Cantiere')+': '+safeText(c.sites.find(x=>x.id===shift.site_id)?.display_name||c.sites.find(x=>x.id===shift.site_id)?.name||tr('Non specificato'))+'</span></div>'+
       '<div class="task-meta"><span>'+t('Pause')+': '+duration(shift.break_seconds||0)+'</span>'+
       '<span>'+t('Tempo lavorato')+': '+elapsed(shift)+'</span></div></div>'+
       '<div class="task-right"><span class="pill '+(shift.status==='break'?'amber':'')+'">'+
