@@ -991,7 +991,8 @@ function clientsMarkup(){
       '<div class="actions"><button type="button" class="secondary small" data-action="open-site-reports" data-id="'+esc(site.id)+'">'+
       tr2('Rapporti','Berichte')+'</button>'+
       '<button type="button" class="ghost small" data-action="edit-site" data-id="'+esc(site.id)+'">'+
-      tr2('Modifica','Bearbeiten')+'</button></div></div>').join(''):'<p class="muted">'+t('Nessun cantiere')+'</p>')+'</div>';
+      tr2('Modifica','Bearbeiten')+'</button>'+
+      '<button type="button" class="eg-danger-outline small" data-action="delete-site" data-id="'+esc(site.id)+'">'+tr2('Elimina','Löschen')+'</button></div></div>').join(''):'<p class="muted">'+t('Nessun cantiere')+'</p>')+'</div>';
   return '<div class="view-head"><h2>'+t('Clienti e cantieri')+'</h2></div><div class="two">'+
     '<div class="stacked">'+(editingClient?clientForm+clientList:clientList+clientForm)+'</div>'+siteForm+'</div>';
 }
@@ -1785,6 +1786,28 @@ document.addEventListener('click',e=>{
     });return;
   }
   if(a==='cancel-client-edit'){editingClientId=null;render();return}
+  if(a==='delete-site'&&memberIsOwner()){
+    const target=sites.find(s=>s.id===b.dataset.id);
+    if(!target)return;
+    const msg=(it,de)=>locale==='de'?de:it;
+    if(tasks.some(t=>t.site_id===target.id)){
+      success(msg('Cantiere collegato ad attività: modifica i dati senza eliminare lo storico.','Einsatzort ist mit Aufträgen verknüpft. Daten bearbeiten, Verlauf behalten.'));return;
+    }
+    if(!confirm(msg('Eliminare definitivamente il cantiere '+target.name+'? Il cliente resterà in rubrica.','Einsatzort '+target.name+' endgültig löschen? Der Kunde bleibt im Verzeichnis.')))return;
+    const companyId=selectedCompanyId;
+    withBusy(async()=>{
+      const result=await client.rpc('eg_delete_unused_site',{p_company_id:companyId,p_site_id:target.id});
+      if(result.error){
+        if(result.error.code==='PGRST202'||result.error.code==='42883')throw Error(msg('Cancellazione cantieri non ancora attivata nel database.','Das Löschen von Einsatzorten ist in der Datenbank noch nicht aktiviert.'));
+        if(result.error.code==='23503')throw Error(msg('Cantiere collegato a rapporti, ore, attività o altri dati: non può essere eliminato.','Einsatzort ist mit Berichten, Zeiten, Aufträgen oder anderen Daten verknüpft und kann nicht gelöscht werden.'));
+        if(result.error.code==='42501')throw Error(msg('Non hai i permessi per eliminare il cantiere.','Du hast keine Berechtigung zum Löschen des Einsatzorts.'));
+        throw result.error;
+      }
+      if(result.data!==true)throw Error(msg('Cantiere non trovato o già eliminato.','Einsatzort nicht gefunden oder bereits gelöscht.'));
+      if(editingSiteId===target.id)editingSiteId=null;
+      await refresh();success(msg('Cantiere eliminato.','Einsatzort gelöscht.'));
+    });return;
+  }
   if(a==='edit-site'&&memberIsOwner()){
     if(!sites.some(c=>c.id===b.dataset.id))return;
     editingSiteId=b.dataset.id;render();
