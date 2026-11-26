@@ -47,7 +47,7 @@ function browserHarness(){
     location:{origin:'https://easygarte.vercel.app',pathname:'/cloud/',href:'https://easygarte.vercel.app/cloud/'},
     console,Date,Intl,Number,String,Object,Math,Array
   });
-  const withoutBoot=app.replace(/\brender\(\);\s*boot\(\);\s*$/,'');
+  const withoutBoot=app.replace(/(?:\brender\(\);\s*)?\bboot\(\);\s*$/,'');
   assert.ok(withoutBoot!==app,'test harness must suppress backend boot');
   runInContext(withoutBoot,context,{timeout:1000});
   runInContext([

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createContext,runInContext,Script} from 'node:vm';
 
 const source=readFileSync(new URL('../cloud/app.js',import.meta.url),'utf8');
-const noBoot=source.replace(/\brender\(\);\s*boot\(\);\s*$/,'');
+const noBoot=source.replace(/(?:\brender\(\);\s*)?\bboot\(\);\s*$/,'');
 assert.notEqual(noBoot,source,'Expected removable app boot footer');
 function harness(hash=''){
   const elements={app:{innerHTML:''},'top-right':{innerHTML:''}};

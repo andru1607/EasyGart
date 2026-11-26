@@ -6,7 +6,7 @@ import {createContext,runInContext,Script} from 'node:vm';
 const app=readFileSync(new URL('../cloud/app.js',import.meta.url),'utf8');
 const eod=readFileSync(new URL('../cloud/eod.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('../cloud/index.html',import.meta.url),'utf8');
-const sourceWithoutBoot=app.replace(/\brender\(\);\s*boot\(\);\s*$/,'');
+const sourceWithoutBoot=app.replace(/(?:\brender\(\);\s*)?\bboot\(\);\s*$/,'');
 assert.notEqual(sourceWithoutBoot,app,'Remove automatic boot for isolated translation tests');
 
 function makeHarness(){
